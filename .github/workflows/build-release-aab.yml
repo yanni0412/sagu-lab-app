@@ -1,0 +1,61 @@
+name: Build Signed Release AAB
+
+# Play Console에 올릴 서명된 .aab를 만듭니다.
+# 아래 4개의 GitHub Secrets를 먼저 등록해야 동작합니다. (README "출시 준비" 참고)
+#   ANDROID_KEYSTORE_BASE64   업로드 키스토어 파일을 base64로 인코딩한 값
+#   ANDROID_KEYSTORE_PASSWORD 키스토어 비밀번호
+#   ANDROID_KEY_ALIAS         키 별칭
+#   ANDROID_KEY_PASSWORD      키 비밀번호
+#
+# Actions 탭 → Build Signed Release AAB → Run workflow 로 수동 실행하세요.
+
+on:
+  workflow_dispatch: {}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 코드 체크아웃
+        uses: actions/checkout@v4
+
+      - name: JDK 17 설치
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Node.js 설치
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: npm 의존성 설치
+        run: npm ci
+
+      - name: 웹 자산을 android 프로젝트로 동기화
+        run: npx cap sync android
+
+      - name: 키스토어 복원
+        working-directory: android/app
+        run: echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > release.keystore
+
+      - name: 서명 정보로 keystore.properties 작성
+        working-directory: android
+        run: |
+          {
+            echo "RELEASE_STORE_FILE=release.keystore"
+            echo "RELEASE_STORE_PASSWORD=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}"
+            echo "RELEASE_KEY_ALIAS=${{ secrets.ANDROID_KEY_ALIAS }}"
+            echo "RELEASE_KEY_PASSWORD=${{ secrets.ANDROID_KEY_PASSWORD }}"
+          } > keystore.properties
+
+      - name: 서명된 릴리스 AAB 빌드
+        working-directory: android
+        run: chmod +x gradlew && ./gradlew bundleRelease --stacktrace
+
+      - name: AAB 업로드
+        uses: actions/upload-artifact@v4
+        with:
+          name: sagu-lab-release-aab
+          path: android/app/build/outputs/bundle/release/app-release.aab

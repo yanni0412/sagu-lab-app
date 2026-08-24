@@ -1,0 +1,2652 @@
+<meta charset="UTF-8">
+<title>사구 궤적 실험실</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Gothic+A1:wght@500;700;900&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+KR:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+:root{
+  --cloth:#0f5e4a; --cloth-2:#0c5140; --rail:#3a2a1e; --rail-2:#4b3626;
+  --brass:#c8a24a;
+  --bg:#e8ece9; --surface:#ffffff; --surface-2:#f2f5f3; --line:#ccd5d1;
+  --ink:#0f1e1a; --ink-2:#3d514b; --ink-3:#71857e;
+  --accent:#0b6b52; --accent-ink:#ffffff; --accent-soft:#d6ece4;
+  --good:#1f7a4d; --warn:#b07310; --bad:#bd3a2e;
+  --shadow:0 1px 2px rgba(15,30,26,.07),0 8px 24px rgba(15,30,26,.07);
+  --r:10px;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0b100e; --surface:#141b18; --surface-2:#1b2420; --line:#2a3833;
+    --ink:#e6ede9; --ink-2:#a9bdb5; --ink-3:#7a8f88;
+    --accent:#4bc79c; --accent-ink:#07231a; --accent-soft:#123329;
+    --good:#4bc79c; --warn:#e0a844; --bad:#ef7d6f;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px rgba(0,0,0,.35);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0b100e; --surface:#141b18; --surface-2:#1b2420; --line:#2a3833;
+  --ink:#e6ede9; --ink-2:#a9bdb5; --ink-3:#7a8f88;
+  --accent:#4bc79c; --accent-ink:#07231a; --accent-soft:#123329;
+  --good:#4bc79c; --warn:#e0a844; --bad:#ef7d6f;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px rgba(0,0,0,.35);
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--bg); color:var(--ink);
+  font-family:"IBM Plex Sans KR",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:14px; line-height:1.6; -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3{font-family:"Gothic A1",sans-serif; text-wrap:balance; margin:0}
+.mono{font-family:"IBM Plex Mono",ui-monospace,monospace; font-variant-numeric:tabular-nums}
+
+/* ---------- topbar ---------- */
+.topbar{
+  display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap;
+  padding:14px 20px; border-bottom:1px solid var(--line); background:var(--surface);
+  position:sticky; top:0; z-index:20;
+}
+.brand{display:flex; align-items:center; gap:12px}
+.mark{
+  width:38px;height:38px;border-radius:50%;flex:none;
+  background:radial-gradient(circle at 32% 30%, #fff 0%, #efe7d2 45%, #cbbf9f 100%);
+  box-shadow:inset 0 0 0 1px rgba(0,0,0,.12), 0 2px 6px rgba(0,0,0,.25);
+  position:relative;
+}
+.mark::after{content:"";position:absolute;inset:13px;border-radius:50%;background:var(--accent);opacity:.85}
+.brand h1{font-size:19px;font-weight:900;letter-spacing:-.01em}
+.brand p{margin:0;font-size:11.5px;color:var(--ink-3);letter-spacing:.02em}
+.tb-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+
+button,select,input[type=text]{font-family:inherit;font-size:13px;color:inherit}
+.btn{
+  border:1px solid var(--line); background:var(--surface-2); color:var(--ink);
+  padding:8px 14px;border-radius:var(--r);cursor:pointer;font-weight:600;
+  transition:background .15s,border-color .15s,transform .06s;
+}
+.btn:hover{background:var(--accent-soft);border-color:var(--accent)}
+.btn:active{transform:translateY(1px)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.primary:hover{filter:brightness(1.07)}
+.btn.sm{padding:5px 10px;font-size:12px;border-radius:8px}
+.btn[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* ---------- layout ---------- */
+.work{display:grid;grid-template-columns:minmax(0,1fr) 372px;gap:18px;padding:18px 20px 40px;align-items:start;max-width:1680px;margin:0 auto}
+@media (max-width:1080px){.work{grid-template-columns:minmax(0,1fr)}}
+
+.stage{display:flex;flex-direction:column;gap:12px;min-width:0}
+.tablewrap{
+  background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:10px;
+  box-shadow:var(--shadow);
+  display:flex;gap:10px;align-items:stretch;
+}
+.canvasbox{flex:1;min-width:0}
+canvas#cv{display:block;width:100%;height:auto;border-radius:8px;touch-action:none;cursor:crosshair}
+
+/* 세기 조절 큐대 위젯 */
+.cuepower{
+  flex:none;width:60px;display:flex;flex-direction:column;align-items:center;gap:6px;
+  padding:8px 5px;background:var(--surface-2);border:1px solid var(--line);border-radius:10px;
+  user-select:none;-webkit-user-select:none;
+}
+.cuepower .cp-lbl{font-size:9.5px;letter-spacing:.06em;color:var(--ink-3);font-weight:700;text-transform:uppercase}
+.cuepower-track{
+  position:relative;flex:1;width:32px;min-height:70px;
+  background:linear-gradient(to bottom, var(--accent-soft), var(--surface));
+  border:1px solid var(--line);border-radius:16px;touch-action:none;cursor:pointer;overflow:hidden;
+}
+.cuepower-fill{
+  position:absolute;left:0;right:0;bottom:0;background:var(--accent);opacity:.24;
+  border-radius:0 0 16px 16px;pointer-events:none;
+}
+.cuepower-ball{
+  position:absolute;left:50%;bottom:5px;width:13px;height:13px;border-radius:50%;
+  transform:translateX(-50%);
+  background:radial-gradient(circle at 32% 28%, #fff 0%, #efe7d2 45%, #cbbf9f 100%);
+  box-shadow:inset 0 0 0 1px rgba(0,0,0,.18), 0 1px 3px rgba(0,0,0,.3);
+  pointer-events:none;
+}
+.cuepower-stick{
+  position:absolute;left:50%;width:13px;height:46%;transform:translateX(-50%);
+  border-radius:6.5px;
+  background:linear-gradient(to bottom,#4b2e18 0%,#6b4a2c 18%,#a97f4e 45%,#e8d9b4 72%,#2a2a2a 84%,#f2f2f2 90%,#3f7fb0 96%,#2c5f85 100%);
+  box-shadow:0 1px 4px rgba(0,0,0,.35), inset 0 0 0 1px rgba(0,0,0,.15);
+  cursor:grab;touch-action:none;
+}
+.cuepower-stick:active{cursor:grabbing}
+.cuepower-val{font-family:"IBM Plex Mono",monospace;font-size:11.5px;font-weight:600;color:var(--ink);text-align:center;line-height:1.2}
+.cuepower-val .u{display:block;font-size:8.5px;font-weight:400;color:var(--ink-3)}
+
+.legend{display:flex;gap:14px;flex-wrap:wrap;padding:0 4px;font-size:11.5px;color:var(--ink-2)}
+.legend .lg{display:inline-flex;align-items:center;gap:6px}
+.legend .lg i{width:16px;height:0;border-top:2.5px dashed currentColor;display:inline-block;border-radius:2px}
+.legend .lg i{width:18px;height:3px;border:0;border-radius:2px}
+.hint{font-size:11.5px;color:var(--ink-3);display:flex;gap:14px;flex-wrap:wrap;padding:0 4px}
+.tabs{flex-wrap:wrap}
+.tabs button{flex:1 1 auto;min-width:52px;font-size:12px;padding:10px 2px}
+.btn:disabled{opacity:.4;cursor:default}
+.btn:disabled:hover{background:var(--surface-2);border-color:var(--line)}
+.drillbox{border:1px solid var(--line);border-radius:var(--r);padding:11px 12px;background:var(--surface-2);display:flex;flex-direction:column;gap:6px}
+.drillbox b{font-family:"Gothic A1",sans-serif}
+.big-num{font-family:"IBM Plex Mono",monospace;font-size:22px;font-weight:600;font-variant-numeric:tabular-nums}
+.res-ok{color:var(--good)} .res-bad{color:var(--bad)} .res-mid{color:var(--warn)}
+.hint b{color:var(--ink-2);font-weight:600}
+
+/* readout chips */
+.readout{display:grid;grid-template-columns:repeat(auto-fit,minmax(112px,1fr));gap:8px}
+.chip{
+  background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:8px 10px;
+  display:flex;flex-direction:column;gap:1px;min-width:0;
+}
+.chip .k{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);font-weight:600}
+.chip .v{font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums;font-size:16px;font-weight:600;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chip .u{font-size:10.5px;color:var(--ink-3);font-weight:400}
+.chip.verdict .v{font-size:14px}
+.v.good{color:var(--good)} .v.bad{color:var(--bad)} .v.warn{color:var(--warn)}
+
+/* replay bar */
+.replay{
+  display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--line);
+  border-radius:var(--r);padding:8px 12px;flex-wrap:wrap;
+}
+.replay input[type=range]{flex:1;min-width:140px;accent-color:var(--accent)}
+.replay .t{font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--ink-2);min-width:76px}
+select{background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:5px 8px}
+
+/* ---------- rack ---------- */
+.rack{background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);overflow:hidden;position:sticky;top:82px}
+@media (max-width:1080px){.rack{position:static}}
+.tabs{display:flex;border-bottom:1px solid var(--line);background:var(--surface-2)}
+.tabs button{
+  flex:1;border:0;background:transparent;padding:11px 4px;cursor:pointer;font-weight:700;font-size:12.5px;
+  color:var(--ink-3);border-bottom:2px solid transparent;font-family:"Gothic A1",sans-serif;
+}
+.tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent);background:var(--surface)}
+.panel{padding:16px;display:none;flex-direction:column;gap:16px;max-height:calc(100vh - 160px);overflow-y:auto}
+.panel[data-open="1"]{display:flex}
+
+.group{display:flex;flex-direction:column;gap:9px}
+.group>h3{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);font-weight:700}
+.row{display:flex;align-items:center;gap:10px}
+.row label{font-size:12.5px;color:var(--ink-2);flex:none;width:74px}
+.row input[type=range]{flex:1;accent-color:var(--accent);min-width:0}
+.row .val{font-family:"IBM Plex Mono",monospace;font-size:12.5px;font-variant-numeric:tabular-nums;width:66px;text-align:right;color:var(--ink)}
+
+.segmented{display:flex;gap:6px;flex-wrap:wrap}
+.segmented button{flex:1;min-width:64px}
+
+.toggles{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.tg{display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--ink-2);cursor:pointer;padding:5px 7px;border-radius:8px;border:1px solid transparent}
+.tg:hover{background:var(--surface-2)}
+.tg input{accent-color:var(--accent);margin:0}
+
+/* spin widget */
+.spinwrap{display:flex;gap:14px;align-items:center}
+#spin{border-radius:50%;cursor:pointer;touch-action:none;flex:none;box-shadow:0 3px 10px rgba(0,0,0,.22)}
+.spininfo{display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--ink-2);min-width:0}
+.spininfo .big{font-family:"IBM Plex Mono",monospace;font-size:13px;color:var(--ink);font-weight:600}
+.tipgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin-top:2px}
+.tipgrid button{padding:4px 0;font-size:11px;border-radius:6px;border:1px solid var(--line);background:var(--surface-2);cursor:pointer}
+.tipgrid button:hover{background:var(--accent-soft)}
+
+/* presets */
+.presets{display:flex;flex-direction:column;gap:6px}
+.preset{
+  text-align:left;border:1px solid var(--line);background:var(--surface-2);border-radius:var(--r);
+  padding:9px 11px;cursor:pointer;display:flex;flex-direction:column;gap:2px;
+}
+.preset:hover{border-color:var(--accent);background:var(--accent-soft)}
+.preset b{font-size:13px;font-family:"Gothic A1",sans-serif;font-weight:700}
+.preset span{font-size:11.5px;color:var(--ink-3);line-height:1.45}
+
+/* 미션: 칩 · 스테이지 맵 · 상점 */
+.chipbar{display:flex;align-items:center;gap:6px;font-size:16px;font-weight:700;color:var(--ink)}
+.chipbar .chip-ico{font-size:17px}
+.stage-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.stage-node{
+  position:relative;aspect-ratio:1;border-radius:10px;border:1px solid var(--line);
+  background:var(--surface-2);display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:2px;cursor:pointer;padding:2px;
+}
+.stage-node .sn-num{font-family:"IBM Plex Mono",monospace;font-weight:700;font-size:13px}
+.stage-node .sn-stars{font-size:9px;letter-spacing:1px;color:var(--brass)}
+.stage-node[data-state="locked"]{opacity:.42;cursor:not-allowed}
+.stage-node[data-state="locked"] .sn-num::after{content:"🔒";font-size:10px;display:block}
+.stage-node[data-state="current"]{border-color:var(--accent);background:var(--accent-soft)}
+.stage-node[data-state="cleared"]{border-color:var(--brass)}
+.shop-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.shop-item{
+  border:1px solid var(--line);border-radius:10px;background:var(--surface-2);
+  padding:8px 6px;display:flex;flex-direction:column;align-items:center;gap:5px;cursor:pointer;
+  text-align:center;
+}
+.shop-item .si-swatch{width:100%;height:34px;border-radius:6px;box-shadow:inset 0 0 0 1px rgba(0,0,0,.15)}
+.shop-item .si-name{font-size:11px;font-weight:700}
+.shop-item .si-cost{font-size:10.5px;color:var(--ink-3);font-family:"IBM Plex Mono",monospace}
+.shop-item[data-state="selected"]{border-color:var(--accent);background:var(--accent-soft)}
+.shop-item[data-state="selected"] .si-cost{color:var(--accent)}
+.shop-item[data-state="locked"] .si-cost{color:var(--ink-3)}
+
+/* log / table */
+table.data{width:100%;border-collapse:collapse;font-size:12px}
+table.data th,table.data td{text-align:left;padding:5px 6px;border-bottom:1px solid var(--line)}
+table.data th{font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);font-weight:700}
+table.data td.n{font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
+.logwrap{max-height:280px;overflow-y:auto;border:1px solid var(--line);border-radius:var(--r)}
+.tag{display:inline-block;padding:1px 6px;border-radius:5px;font-size:10.5px;font-weight:600;border:1px solid var(--line);background:var(--surface-2);color:var(--ink-2)}
+.tag.cu{border-color:#b9843c;color:#a9762f} .tag.bb{border-color:var(--accent);color:var(--accent)}
+
+/* theory */
+.theory{display:flex;flex-direction:column;gap:14px}
+.card{border:1px solid var(--line);border-radius:var(--r);padding:12px 13px;background:var(--surface-2);display:flex;flex-direction:column;gap:6px}
+.card h4{margin:0;font-family:"Gothic A1",sans-serif;font-size:13.5px;font-weight:700}
+.card p{margin:0;font-size:12.5px;color:var(--ink-2);line-height:1.62}
+.card .fm{font-family:"IBM Plex Mono",monospace;font-size:11.5px;background:var(--surface);border:1px solid var(--line);border-radius:7px;padding:6px 8px;color:var(--ink);overflow-x:auto;white-space:nowrap}
+.note{font-size:11.5px;color:var(--ink-3);line-height:1.55}
+.warnbox{border-left:3px solid var(--warn);padding-left:10px;font-size:12px;color:var(--ink-2)}
+
+@media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
+
+/* ---------- phone landscape ---------- */
+@media (orientation:landscape) and (max-height:540px){
+  body{font-size:12.5px}
+  .topbar{padding:6px 12px;gap:8px}
+  .mark{width:26px;height:26px}
+  .mark::after{inset:9px}
+  .brand{gap:8px}
+  .brand h1{font-size:14px}
+  .brand p{font-size:9px}
+  .tb-actions{gap:6px}
+  .tb-actions .btn{padding:5px 9px;font-size:11.5px}
+
+  .work{
+    grid-template-columns:minmax(0,1fr) 240px !important;
+    gap:10px;padding:10px 10px 12px;
+    align-items:start;
+  }
+  .stage{gap:6px}
+  .tablewrap{padding:6px;gap:6px}
+  .cuepower{width:46px;padding:6px 4px;gap:4px}
+  .cuepower-track{width:24px;min-height:50px}
+  .cuepower-ball{width:11px;height:11px}
+  .cuepower-stick{width:11px}
+  .cuepower-val{font-size:10px}
+  .cuepower-val .u{font-size:7.5px}
+  .cuepower .cp-lbl{font-size:8px}
+  .legend{font-size:10px;gap:8px;padding:0 2px}
+  .hint{display:none}
+  .readout{grid-template-columns:repeat(auto-fit,minmax(78px,1fr));gap:6px}
+  .chip{padding:5px 7px}
+  .chip .k{font-size:8.5px}
+  .chip .v{font-size:12.5px}
+  .chip .u{font-size:9px}
+  .replay{padding:5px 8px;gap:6px}
+  .replay .t{font-size:10.5px;min-width:64px}
+
+  .rack{position:sticky;top:6px;max-height:calc(100vh - 12px);overflow-y:auto}
+  .tabs button{padding:7px 2px;font-size:10.5px}
+  .panel{padding:10px;gap:10px;max-height:none}
+  .group{gap:6px}
+  .row{gap:8px}
+  .row label{font-size:11px;width:62px}
+  .row .val{font-size:11px;width:56px}
+  .presets{gap:5px}
+  .preset{padding:7px 9px}
+  .preset b{font-size:12px}
+  .preset span{font-size:10.5px}
+}
+</style>
+
+<header class="topbar">
+  <div class="brand">
+    <div class="mark"></div>
+    <div>
+      <h1>사구 궤적 실험실</h1>
+      <p id="specline" class="mono">중대 2540 × 1270 mm · 65.5 mm 카롬볼 · 210 g</p>
+    </div>
+  </div>
+  <div class="tb-actions">
+    <button class="btn" id="btnSound" title="소리 켜기/끄기" aria-pressed="true">🔊 소리</button>
+    <button class="btn" id="btnTheme" title="테마 전환">◐ 테마</button>
+    <button class="btn" id="btnRestore">원위치</button>
+    <button class="btn primary" id="btnShoot">샷 &nbsp;<span class="mono" style="opacity:.75">Space</span></button>
+  </div>
+</header>
+
+<main class="work">
+  <section class="stage">
+    <div class="tablewrap">
+      <div class="cuepower" id="cuepower" title="드래그해서 세기 조절">
+        <span class="cp-lbl">강</span>
+        <div class="cuepower-track" id="cuepowerTrack">
+          <div class="cuepower-fill" id="cuepowerFill"></div>
+          <div class="cuepower-ball"></div>
+          <div class="cuepower-stick" id="cuepowerStick"></div>
+        </div>
+        <span class="cp-lbl">약</span>
+        <div class="cuepower-val mono" id="cuepowerVal">2.40<span class="u">m/s</span></div>
+      </div>
+      <div class="canvasbox"><canvas id="cv"></canvas></div>
+    </div>
+    <div class="legend" id="legend"></div>
+    <div class="hint">
+      <span><b>공 위에서 드래그</b> 공 옮기기</span>
+      <span><b>천 위에서 드래그</b> 조준(방향+세기)</span>
+      <span><b>← →</b> 각도 0.1°</span>
+      <span><b>↑ ↓</b> 세기</span>
+      <span><b>Space</b> 샷</span>
+    </div>
+    <div class="readout" id="readout"></div>
+    <div class="replay">
+      <button class="btn sm" id="btnPlay">▶</button>
+      <input type="range" id="scrub" min="0" max="100" value="0" step="1" aria-label="리플레이 위치">
+      <span class="t mono" id="tlabel">0.00 / 0.00 s</span>
+      <select id="speed" aria-label="재생 속도">
+        <option value="0.15">0.15×</option>
+        <option value="0.35">0.35×</option>
+        <option value="1" selected>1×</option>
+        <option value="2">2×</option>
+      </select>
+      <button class="btn sm" id="btnKeep" title="샷이 끝난 자리에서 이어서 치기">이어치기</button>
+    </div>
+  </section>
+
+  <aside class="rack">
+    <nav class="tabs" role="tablist">
+      <button role="tab" aria-selected="true" data-tab="aim">조준</button>
+      <button role="tab" aria-selected="false" data-tab="setup">배치</button>
+      <button role="tab" aria-selected="false" data-tab="sys">시스템</button>
+      <button role="tab" aria-selected="false" data-tab="drill">훈련</button>
+      <button role="tab" aria-selected="false" data-tab="mission">미션</button>
+      <button role="tab" aria-selected="false" data-tab="meter">계기</button>
+      <button role="tab" aria-selected="false" data-tab="phys">물리</button>
+      <button role="tab" aria-selected="false" data-tab="theory">이론</button>
+    </nav>
+
+    <!-- 조준 -->
+    <div class="panel" data-panel="aim" data-open="1">
+      <div class="group">
+        <h3>당점 (팁 위치)</h3>
+        <div class="spinwrap">
+          <canvas id="spin" width="150" height="150"></canvas>
+          <div class="spininfo">
+            <div>좌우 <span class="big" id="tipXv">0.00 R</span></div>
+            <div>상하 <span class="big" id="tipYv">0.00 R</span></div>
+            <div class="note" id="tipName">중심 · 무회전</div>
+            <div class="tipgrid">
+              <button data-tip="-0.4,0.4">↖</button><button data-tip="0,0.4">밀어</button><button data-tip="0.4,0.4">↗</button>
+              <button data-tip="-0.4,0">좌</button><button data-tip="0,0">중심</button><button data-tip="0.4,0">우</button>
+              <button data-tip="-0.4,-0.4">↙</button><button data-tip="0,-0.4">끌어</button><button data-tip="0.4,-0.4">↘</button>
+            </div>
+          </div>
+        </div>
+        <div class="note">원 안을 드래그하세요. 중심에서 0.5 R 밖은 미스큐 영역이라 제한됩니다. 0.4 R 위 = 자연 구름(밀어치기).</div>
+      </div>
+
+      <div class="group">
+        <h3>샷</h3>
+        <div class="row"><label>방향</label><input type="range" id="angle" min="0" max="360" step="0.1" value="0"><span class="val mono" id="anglev">0.0°</span></div>
+        <div class="row"><label>세기</label><input type="range" id="power" min="0.4" max="6.5" step="0.05" value="2.4"><span class="val mono" id="powerv">2.40</span></div>
+        <div class="note" id="powerNote"></div>
+      </div>
+
+      <div class="group">
+        <h3>내 수구</h3>
+        <div class="segmented">
+          <button class="btn sm" id="cueW" aria-pressed="true">흰 공</button>
+          <button class="btn sm" id="cueY" aria-pressed="false">노란 공</button>
+        </div>
+      </div>
+
+      <div class="group">
+        <h3>화면 표시 <span class="note">G 가늠선 · L 이동선</span></h3>
+        <div class="toggles">
+          <label class="tg"><input type="checkbox" id="tgAim" checked>가늠선 · 큐</label>
+          <label class="tg"><input type="checkbox" id="tgPath" checked>이동선(궤적)</label>
+          <label class="tg"><input type="checkbox" id="tgGhost" checked>고스트볼·분리각</label>
+          <label class="tg"><input type="checkbox" id="tgLabel" checked>적구 번호</label>
+          <label class="tg"><input type="checkbox" id="tgPts" checked>포인트 좌표</label>
+          <label class="tg"><input type="checkbox" id="tgSys">시스템 눈금</label>
+          <label class="tg"><input type="checkbox" id="tgSpin" checked>회전 표시</label>
+          <label class="tg"><input type="checkbox" id="tgHit">충돌 지점</label>
+        </div>
+        <div class="segmented">
+          <button class="btn sm" id="btnShowAll">모두 켜기</button>
+          <button class="btn sm" id="btnShowNone">모두 끄기 (실전 보기)</button>
+        </div>
+      </div>
+
+      <div class="group">
+        <h3>샷 이후</h3>
+        <label class="tg"><input type="checkbox" id="tgAuto" checked>공이 멈춘 자리에서 바로 이어치기</label>
+        <div class="note">끄면 샷이 끝나도 원래 배치로 되돌아옵니다. 켜 두면 실제 게임처럼 계속 이어서 칠 수 있고, <b>되돌리기</b>로 한 샷씩 취소됩니다.</div>
+      </div>
+    </div>
+
+    <!-- 배치 -->
+    <div class="panel" data-panel="setup">
+      <div class="group">
+        <h3>연습 배치</h3>
+        <div class="presets" id="presets"></div>
+      </div>
+      <div class="group">
+        <h3>도구</h3>
+        <div class="segmented">
+          <button class="btn sm" id="btnRandom">무작위 배치</button>
+          <button class="btn sm" id="btnMirror">좌우 반전</button>
+        </div>
+      </div>
+      <div class="group">
+        <h3>현재 좌표 <span class="note">(장쿠션 0–8 / 단쿠션 0–4 포인트)</span></h3>
+        <table class="data"><thead><tr><th>공</th><th style="text-align:right">장(P)</th><th style="text-align:right">단(P)</th><th style="text-align:right">mm</th></tr></thead><tbody id="coords"></tbody></table>
+      </div>
+    </div>
+
+    <!-- 시스템 -->
+    <div class="panel" data-panel="sys">
+      <div class="group">
+        <h3>파이브 앤 하프 <span class="note">3쿠션수 = 수구수 − 1쿠션수</span></h3>
+        <div class="note">장쿠션(1쿠션) → 단쿠션(2쿠션) → 반대편 장쿠션(3쿠션)으로 도는 코스용 시스템입니다. 아래 방향을 고르면 당구대에 번호가 깔립니다.</div>
+      </div>
+      <div class="group">
+        <h3>진행 방향</h3>
+        <div class="segmented" id="sysDir">
+          <button class="btn sm" data-dir="0" aria-pressed="true">↖ 우하 → 좌상</button>
+          <button class="btn sm" data-dir="1" aria-pressed="false">↗ 좌하 → 우상</button>
+        </div>
+        <div class="segmented" id="sysDir2">
+          <button class="btn sm" data-dir="2" aria-pressed="false">↙ 우상 → 좌하</button>
+          <button class="btn sm" data-dir="3" aria-pressed="false">↘ 좌상 → 우하</button>
+        </div>
+      </div>
+      <div class="group">
+        <h3>계산</h3>
+        <table class="data"><tbody>
+          <tr><th style="text-transform:none;font-size:12px;color:var(--ink-2)">수구수 (자동)</th><td class="n" id="sysD">—</td></tr>
+          <tr><th style="text-transform:none;font-size:12px;color:var(--ink-2)">1쿠션수 (계산)</th><td class="n" id="sysF">—</td></tr>
+          <tr><th style="text-transform:none;font-size:12px;color:var(--ink-2)">3쿠션 목표수</th><td class="n" id="sysTv">30</td></tr>
+        </tbody></table>
+        <div class="row"><label>3쿠션 목표</label><input type="range" id="sysT" min="0" max="80" step="1" value="30"><span class="val mono" id="sysTlabel">30</span></div>
+        <div class="segmented">
+          <button class="btn sm primary" id="sysApply">이 각도로 조준</button>
+          <button class="btn sm" id="sysCheck">실측 대조</button>
+        </div>
+        <div class="note" id="sysNote">수구를 3쿠션 쪽 장쿠션 근처에 두고 방향을 맞추면 수구수가 자동으로 잡힙니다.</div>
+      </div>
+      <div class="group">
+        <h3>실측 결과</h3>
+        <table class="data"><tbody id="sysResult"><tr><td colspan="2" class="note">「실측 대조」를 누르면 시스템이 시킨 각도로 실제로 쳐 보고, 이 당구대에서 3쿠션이 어디로 떨어지는지 비교합니다.</td></tr></tbody></table>
+      </div>
+      <div class="card">
+        <h4>이 시뮬레이터로 검증한 것</h4>
+        <p>수구수를 <b>1포인트당 5</b>씩 매기는(=“5와 1/2”) 눈금이 물리적으로 맞는지 먼저 확인했습니다. 출발점과 각도를 바꿔 가며 자동으로 쳐 본 결과, <b>(3쿠션 포인트 + 1쿠션 포인트)</b>가 <b>수구 포인트</b>에 대해 기울기 <b>0.45</b>의 직선으로 나왔습니다. 이론값 0.50, 잔차 0.16포인트 — 절반 눈금이라는 전제 자체는 물리적으로 맞습니다.</p>
+        <p>이어서 4개 방향 × 수구 위치 × 목표수 <b>56개 코스</b>를 계산대로 쳐 봤습니다. 평균 오차 <b>+0.09포인트</b>(거의 편향 없음), 산포 <b>RMS 0.65포인트</b>. 즉 시스템은 <b>평균적으로는 맞지만 한 판 한 판은 반 포인트쯤 흔들립니다</b>. 이게 “시스템은 기준일 뿐 보정이 필요하다”는 말의 실체입니다.</p>
+        <p class="note">코너 근처(목표수 40 이상)에서는 오차가 눈에 띄게 커집니다. 물리 탭에서 쿠션 반발·마찰을 내 당구장 값으로 맞추면 이 숫자들도 함께 움직입니다.</p>
+      </div>
+    </div>
+
+    <!-- 훈련 -->
+    <div class="panel" data-panel="drill">
+      <div class="group">
+        <h3>훈련 종목</h3>
+        <div class="presets" id="drillTypes"></div>
+      </div>
+      <div class="group">
+        <h3>난이도</h3>
+        <div class="segmented" id="drillLevel">
+          <button class="btn sm" data-lv="0" aria-pressed="true">쉬움</button>
+          <button class="btn sm" data-lv="1" aria-pressed="false">보통</button>
+          <button class="btn sm" data-lv="2" aria-pressed="false">어려움</button>
+        </div>
+      </div>
+      <div class="group">
+        <h3>현재 문제</h3>
+        <div class="card" id="drillQ"><p>훈련 종목을 고르면 무작위 배치가 나옵니다.</p></div>
+        <div class="segmented">
+          <button class="btn sm primary" id="drillNext">새 문제</button>
+          <button class="btn sm" id="drillRetry">다시 시도</button>
+          <button class="btn sm" id="drillGiveUp">정답 보기</button>
+        </div>
+      </div>
+      <div class="group">
+        <h3>기록</h3>
+        <table class="data"><tbody id="drillStats"></tbody></table>
+        <div class="segmented"><button class="btn sm" id="drillReset">기록 초기화</button></div>
+        <div class="note">기록은 이 브라우저에만 저장됩니다.</div>
+      </div>
+    </div>
+
+    <!-- 미션 -->
+    <div class="panel" data-panel="mission">
+      <div class="group">
+        <h3>보유 칩</h3>
+        <div class="chipbar"><span class="chip-ico">💠</span><span class="mono" id="chipCount">0</span></div>
+        <div class="note">스테이지를 클리어하면 별을 얻고, 별 1개당 칩 10개를 받습니다. 칩으로 큐·테이블 테마를 살 수 있어요.</div>
+      </div>
+      <div class="group">
+        <h3>스테이지</h3>
+        <div class="stage-grid" id="stageGrid"></div>
+      </div>
+      <div class="group">
+        <h3>현재 미션</h3>
+        <div class="card" id="missionQ"><p>스테이지를 선택하세요.</p></div>
+        <div class="segmented">
+          <button class="btn sm" id="missionRetry">다시 시도</button>
+          <button class="btn sm" id="missionExit">목록으로</button>
+        </div>
+      </div>
+      <div class="group">
+        <h3>꾸미기 — 큐</h3>
+        <div class="shop-grid" id="cueShop"></div>
+      </div>
+      <div class="group">
+        <h3>꾸미기 — 테이블 천</h3>
+        <div class="shop-grid" id="clothShop"></div>
+      </div>
+      <div class="group">
+        <h3>초기화</h3>
+        <div class="segmented"><button class="btn sm" id="missionReset">미션 진행·칩·꾸미기 초기화</button></div>
+        <div class="note">기록은 이 기기(브라우저)에만 저장됩니다.</div>
+      </div>
+    </div>
+    <div class="panel" data-panel="meter">
+      <div class="group">
+        <h3>샷 요약</h3>
+        <table class="data"><tbody id="summary"></tbody></table>
+      </div>
+      <div class="group">
+        <h3>충돌 순서</h3>
+        <div class="logwrap"><table class="data"><thead><tr><th>t</th><th>사건</th><th style="text-align:right">상세</th></tr></thead><tbody id="log"></tbody></table></div>
+        <div class="note">쿠션 사건의 각도는 쿠션 면 법선 기준 입사각 / 반사각입니다. 회전이 없으면 두 값이 거의 같고, 회전이 실리면 어긋납니다.</div>
+      </div>
+    </div>
+
+    <!-- 물리 -->
+    <div class="panel" data-panel="phys">
+      <div class="group">
+        <h3>당구대 규격</h3>
+        <select id="specSel" style="width:100%">
+          <option value="jd" selected>중대 2540 × 1270 · 볼 65.5 mm</option>
+          <option value="dd">대대 2844 × 1422 · 볼 61.5 mm</option>
+          <option value="sd">소대 2286 × 1143 · 볼 65.5 mm</option>
+        </select>
+      </div>
+      <div class="group">
+        <h3>천 · 마찰</h3>
+        <div class="row"><label>미끄럼 μs</label><input type="range" id="p_mus" min="0.08" max="0.35" step="0.005" value="0.2"><span class="val mono" id="p_musv"></span></div>
+        <div class="row"><label>구름 μr</label><input type="range" id="p_mur" min="0.004" max="0.025" step="0.0005" value="0.010"><span class="val mono" id="p_murv"></span></div>
+        <div class="row"><label>회전 μsp</label><input type="range" id="p_musp" min="0.01" max="0.09" step="0.002" value="0.044"><span class="val mono" id="p_muspv"></span></div>
+      </div>
+      <div class="group">
+        <h3>공 – 공</h3>
+        <div class="row"><label>반발 e</label><input type="range" id="p_ebb" min="0.80" max="0.99" step="0.005" value="0.94"><span class="val mono" id="p_ebbv"></span></div>
+        <div class="row"><label>마찰 μ</label><input type="range" id="p_mubb" min="0" max="0.16" step="0.005" value="0.06"><span class="val mono" id="p_mubbv"></span></div>
+      </div>
+      <div class="group">
+        <h3>공 – 쿠션</h3>
+        <div class="row"><label>반발 e</label><input type="range" id="p_ecu" min="0.55" max="0.98" step="0.005" value="0.88"><span class="val mono" id="p_ecuv"></span></div>
+        <div class="row"><label>마찰 μ</label><input type="range" id="p_mucu" min="0" max="0.30" step="0.005" value="0.14"><span class="val mono" id="p_mucuv"></span></div>
+        <div class="row"><label>접점높이</label><input type="range" id="p_hcu" min="0.55" max="0.75" step="0.005" value="0.635"><span class="val mono" id="p_hcuv"></span></div>
+      </div>
+      <div class="group">
+        <h3>큐</h3>
+        <div class="row"><label>스쿼트</label><input type="range" id="p_sq" min="0" max="6" step="0.1" value="0"><span class="val mono" id="p_sqv"></span></div>
+        <div class="note">팁 편향(스쿼트): 풀 팁 회전에서 수구가 겨냥선 반대쪽으로 벗어나는 각도. 0으로 두면 겨냥선과 실제 진행선이 일치해 이론 학습이 깔끔합니다. 실제 큐는 2~4° 정도.</div>
+      </div>
+      <div class="segmented"><button class="btn sm" id="btnPhysReset">기본값 복원</button></div>
+      <div class="note">기본값은 카롬 라사지·카롬볼의 통상 실측 범위입니다. 값을 흔들어 보면 “왜 그렇게 굴러가는지”가 훨씬 빨리 잡힙니다.</div>
+    </div>
+
+    <!-- 이론 -->
+    <div class="panel" data-panel="theory"><div class="theory" id="theory"></div></div>
+  </aside>
+</main>
+
+<script>
+(function(){
+"use strict";
+
+/* ══════════════════════════════════════════════════════════
+   1. 규격 · 상수
+   ══════════════════════════════════════════════════════════ */
+const SPECS = {
+  jd:{n:"중대", L:2.540, W:1.270, D:0.0655, m:0.210},
+  dd:{n:"대대", L:2.844, W:1.422, D:0.0615, m:0.210},
+  sd:{n:"소대", L:2.286, W:1.143, D:0.0655, m:0.210}
+};
+let SP = SPECS.jd, L = SP.L, W = SP.W, R = SP.D/2, M = SP.m;
+const G = 9.81;
+
+const P0 = {mus:0.20, mur:0.010, musp:0.044, ebb:0.94, mubb:0.06, ecu:0.88, mucu:0.14, hcu:0.635, sq:0};
+let P = Object.assign({}, P0);
+
+const DT = 1/1000;        // 물리 적분 스텝
+const REC = 8;            // 프레임 기록 간격 (125 Hz)
+const MAXT = 14;          // 최대 시뮬레이션 시간
+
+/* 공: 0=흰공, 1=노란공, 2=적구A, 3=적구B */
+const NAMES = ["흰 공","노란 공","적구 A","적구 B"];
+const COLORS = ["#f4efe1","#f0c02e","#cf3b2c","#cf3b2c"];
+const DASH = [[1,0],[1,0],[5,6],[2,5]];
+
+/* ══════════════════════════════════════════════════════════
+   2. 상태
+   ══════════════════════════════════════════════════════════ */
+const S = {
+  balls:[], preShot:null, cue:0,
+  shot:{angle:0, power:2.4, tipX:0, tipY:0},
+  res:null, mode:"setup", frameT:0, playing:false, speed:1,
+  show:{aim:true, path:true, ghost:true, pts:true, spin:true, label:true, hit:false, sys:false},
+  drag:null, autoKeep:true, history:[], sound:true, mission:null,
+  sys:{dir:0, T:30, last:null},
+  drill:null
+};
+
+function pt(px,py){ return {x:-L/2 + px*L/8, y:-W/2 + py*W/4}; }
+function setBalls(list){
+  S.balls = list.map((b,i)=>({id:i, x:b.x, y:b.y}));
+}
+
+/* ══════════════════════════════════════════════════════════
+   3. 물리 엔진
+   ══════════════════════════════════════════════════════════ */
+function stepBall(b){
+  // 접지점 상대속도 u = (vx - R·ωy, vy + R·ωx)
+  const ux = b.vx - R*b.wy, uy = b.vy + R*b.wx;
+  const us = Math.sqrt(ux*ux + uy*uy);
+  const dUdt = 3.5*P.mus*G;                    // |u| 감소율
+  if(us > dUdt*DT){
+    // 미끄럼 구간
+    const ax = -P.mus*G*ux/us, ay = -P.mus*G*uy/us;
+    b.vx += ax*DT; b.vy += ay*DT;
+    b.wx += (2.5/R)*ay*DT;
+    b.wy -= (2.5/R)*ax*DT;
+  }else{
+    // 구름 구간
+    const sp = Math.sqrt(b.vx*b.vx + b.vy*b.vy);
+    if(sp > 1e-9){
+      const dv = P.mur*G*DT;
+      if(dv >= sp){ b.vx=0; b.vy=0; }
+      else { b.vx -= dv*b.vx/sp; b.vy -= dv*b.vy/sp; }
+    }
+    b.wy = b.vx/R; b.wx = -b.vy/R;
+  }
+  // 수직축 회전 감쇠
+  const aSp = 2.5*P.musp*G/R;
+  if(Math.abs(b.wz) <= aSp*DT) b.wz = 0;
+  else b.wz -= Math.sign(b.wz)*aSp*DT;
+
+  b.rot += b.wz*DT;
+  b.x += b.vx*DT; b.y += b.vy*DT;
+}
+
+function ballBall(bi,bj){
+  const dx = bj.x-bi.x, dy = bj.y-bi.y;
+  const d = Math.hypot(dx,dy) || 1e-9;
+  const nx = dx/d, ny = dy/d, tx = -ny, ty = nx;
+  const rvx = bi.vx-bj.vx, rvy = bi.vy-bj.vy;
+  const vn = rvx*nx + rvy*ny;
+  if(vn <= 0) return null;
+
+  const cutIn = {vx:bi.vx, vy:bi.vy, sp:Math.hypot(bi.vx,bi.vy)};
+  // 절단각: 진행 방향과 중심선 사이 각
+  const cut = Math.acos(Math.max(-1,Math.min(1,(bi.vx*nx+bi.vy*ny)/(cutIn.sp||1e-9))));
+
+  const Jn = M*(1+P.ebb)*vn/2;
+  bi.vx -= (Jn/M)*nx; bi.vy -= (Jn/M)*ny;
+  bj.vx += (Jn/M)*nx; bj.vy += (Jn/M)*ny;
+
+  // 접선 임펄스 → 스로우 + 회전 전이
+  const ut = (rvx*tx + rvy*ty) + R*(bi.wz + bj.wz);
+  let Jt = 0;
+  if(Math.abs(ut) > 1e-9)
+    Jt = -Math.sign(ut)*Math.min(P.mubb*Jn, M*Math.abs(ut)/7);
+  bi.vx += (Jt/M)*tx; bi.vy += (Jt/M)*ty;
+  bj.vx -= (Jt/M)*tx; bj.vy -= (Jt/M)*ty;
+  const dwz = 2.5*Jt/(M*R);
+  bi.wz += dwz; bj.wz += dwz;
+
+  // 스로우 각 = 목적구가 중심선에서 벗어난 각
+  const objSp = Math.hypot(bj.vx,bj.vy) || 1e-9;
+  let throwA = Math.asin(Math.max(-1,Math.min(1,(bj.vx*tx+bj.vy*ty)/objSp)));
+
+  return {cut:cut*180/Math.PI, throwA:throwA*180/Math.PI, vIn:cutIn.sp,
+          objOut:objSp, nx:nx, ny:ny, preVx:cutIn.vx, preVy:cutIn.vy};
+}
+
+function cushion(b, nx, ny){
+  const vn = b.vx*nx + b.vy*ny;
+  if(vn >= 0) return null;
+  const tx = -ny, ty = nx;
+  const spIn = Math.hypot(b.vx,b.vy);
+  const angIn = Math.atan2(Math.abs(b.vx*tx+b.vy*ty), Math.abs(vn))*180/Math.PI;
+
+  // 속도 의존 반발계수
+  const e = Math.max(0.45, P.ecu/(1 + 0.06*Math.abs(vn)));
+  const Jn = -M*(1+e)*vn;                       // > 0
+
+  // 쿠션 접점 (노즈 높이 = hcu × 지름)
+  const zc = (2*P.hcu - 1)*R;                   // 중심 위 높이
+  const hr = Math.sqrt(Math.max(0, R*R - zc*zc));
+  const rx = -hr*nx, ry = -hr*ny, rz = zc;
+
+  // 접점 속도의 접선 성분
+  const cx = b.wy*rz - b.wz*ry;
+  const cy = b.wz*rx - b.wx*rz;
+  const ut = (b.vx+cx)*tx + (b.vy+cy)*ty;
+
+  const k = 1/M + (rx*rx+ry*ry+rz*rz)/(0.4*M*R*R) * 1;  // ≈ 3.5/M
+  let Jt = 0;
+  if(Math.abs(ut) > 1e-9) Jt = -Math.sign(ut)*Math.min(P.mucu*Jn, Math.abs(ut)/k);
+
+  // 속도 갱신
+  b.vx += (-(1+e)*vn)*nx + (Jt/M)*tx;
+  b.vy += (-(1+e)*vn)*ny + (Jt/M)*ty;
+
+  // 각속도 갱신 (법선 + 접선 임펄스 토크)
+  const I = 0.4*M*R*R;
+  const Fx = Jn*nx + Jt*tx, Fy = Jn*ny + Jt*ty;
+  b.wx += (ry*0 - rz*Fy)/I;
+  b.wy += (rz*Fx - rx*0)/I;
+  b.wz += (rx*Fy - ry*Fx)/I;
+
+  const vnO = b.vx*nx + b.vy*ny;
+  const angOut = Math.atan2(Math.abs(b.vx*tx+b.vy*ty), Math.abs(vnO))*180/Math.PI;
+  return {angIn, angOut, spIn, spOut:Math.hypot(b.vx,b.vy), e};
+}
+
+function moving(b){
+  if(b.vx*b.vx + b.vy*b.vy > 1e-8) return true;
+  const ux = b.vx - R*b.wy, uy = b.vy + R*b.wx;
+  return ux*ux + uy*uy > 4e-6;
+}
+
+/* ── 시뮬레이션 ───────────────────────────────────────── */
+function simulate(setup, shot, cueIdx){
+  const bs = setup.map(b=>({id:b.id, x:b.x, y:b.y, vx:0, vy:0, wx:0, wy:0, wz:0, rot:0}));
+
+  // 큐 임팩트
+  let a = shot.tipX, bt = shot.tipY;
+  const rr = Math.hypot(a,bt);
+  if(rr > 0.5){ a *= 0.5/rr; bt *= 0.5/rr; }
+  const th = shot.angle + (P.sq*Math.PI/180)*(a/0.5);
+  const V = shot.power;
+  const c = bs[cueIdx];
+  c.vx = V*Math.cos(th); c.vy = V*Math.sin(th);
+  const wRoll = 2.5*V*bt/R;
+  c.wx = -wRoll*Math.sin(th); c.wy = wRoll*Math.cos(th);
+  c.wz = 2.5*V*a/R;
+
+  const paths = bs.map(b=>[{x:b.x, y:b.y, s:0}]);
+  const seg = bs.map(()=>0);
+  const events = [];
+  const frames = [];
+  const snap = ()=> frames.push(bs.map(b=>({x:b.x,y:b.y,rot:b.rot,vx:b.vx,vy:b.vy,wz:b.wz})));
+  const mark = i => paths[i].push({x:bs[i].x, y:bs[i].y, s:seg[i]});
+  snap();
+
+  let t = 0, n = 0;
+  const NB = bs.length, D2 = 4*R*R;
+  const XH = L/2-R, YH = W/2-R;
+  const live = new Array(NB).fill(true);
+
+  while(t < MAXT){
+    let any = false;
+    for(let i=0;i<NB;i++){
+      live[i] = moving(bs[i]);
+      if(live[i]){ stepBall(bs[i]); any = true; }
+    }
+    if(!any) break;
+
+    // 공–공
+    for(let i=0;i<NB;i++) for(let j=i+1;j<NB;j++){
+      if(!live[i] && !live[j]) continue;
+      const bi=bs[i], bj=bs[j];
+      const dx=bj.x-bi.x, dy=bj.y-bi.y;
+      const d2=dx*dx+dy*dy;
+      if(d2 >= D2) continue;
+      // 정확한 접촉 시점으로 되감기
+      const rvx=bj.vx-bi.vx, rvy=bj.vy-bi.vy;
+      const A=rvx*rvx+rvy*rvy, pv=dx*rvx+dy*rvy;
+      let tau=0;
+      if(A>1e-12){
+        const disc = pv*pv - A*(d2-4*R*R);
+        if(disc>0) tau = Math.min(DT, Math.max(0,(pv + Math.sqrt(disc))/A));
+      }
+      bi.x-=bi.vx*tau; bi.y-=bi.vy*tau; bj.x-=bj.vx*tau; bj.y-=bj.vy*tau;
+      const info = ballBall(bi,bj);
+      bi.x+=bi.vx*tau; bi.y+=bi.vy*tau; bj.x+=bj.vx*tau; bj.y+=bj.vy*tau;
+      if(info){
+        seg[i]++; seg[j]++; mark(i); mark(j);
+        events.push({t, kind:"ball", a:i, b:j, x:(bi.x+bj.x)/2, y:(bi.y+bj.y)/2, info, fi:frames.length});
+      }
+    }
+
+    // 공–쿠션
+    for(let i=0;i<NB;i++){
+      if(!live[i]) continue;
+      const b=bs[i];
+      let info=null, rail="";
+      if(b.x > XH){ b.x = XH; info = cushion(b,-1,0); rail="우"; }
+      else if(b.x < -XH){ b.x = -XH; info = cushion(b,1,0); rail="좌"; }
+      if(info){ seg[i]++; mark(i); events.push({t, kind:"cushion", a:i, x:b.x, y:b.y, info, rail, fi:frames.length}); info=null; }
+      if(b.y > YH){ b.y = YH; info = cushion(b,0,-1); rail="상"; }
+      else if(b.y < -YH){ b.y = -YH; info = cushion(b,0,1); rail="하"; }
+      if(info){ seg[i]++; mark(i); events.push({t, kind:"cushion", a:i, x:b.x, y:b.y, info, rail, fi:frames.length}); }
+    }
+
+    t += DT; n++;
+    for(let i=0;i<NB;i++){
+      if(!live[i]) continue;
+      const p = paths[i], last = p[p.length-1];
+      const ddx = bs[i].x-last.x, ddy = bs[i].y-last.y;
+      if(ddx*ddx + ddy*ddy > 2.5e-5) mark(i);
+    }
+    if(n % REC === 0) snap();
+  }
+  snap();
+  for(let i=0;i<bs.length;i++) mark(i);
+
+  return {paths, events, frames, dur:t, final:bs.map(b=>({id:b.id,x:b.x,y:b.y})), cue:cueIdx, shot:Object.assign({},shot)};
+}
+
+/* ══════════════════════════════════════════════════════════
+   4. 조준 기하 (고스트볼 · 두께 · 분리각)
+   ══════════════════════════════════════════════════════════ */
+function aimGeom(){
+  const c = S.balls[S.cue];
+  const th = S.shot.angle + (P.sq*Math.PI/180)*(Math.max(-0.5,Math.min(0.5,S.shot.tipX))/0.5);
+  const dx = Math.cos(th), dy = Math.sin(th);
+  let best = null;
+  for(const b of S.balls){
+    if(b.id === S.cue) continue;
+    const wx = b.x-c.x, wy = b.y-c.y;
+    const proj = wx*dx + wy*dy;
+    if(proj <= 0) continue;
+    const perp = Math.abs(wx*dy - wy*dx);
+    if(perp >= 2*R) continue;
+    const dist = proj - Math.sqrt(4*R*R - perp*perp);
+    if(dist < 0) continue;
+    if(!best || dist < best.dist)
+      best = {ball:b, dist, perp, gx:c.x+dx*dist, gy:c.y+dy*dist};
+  }
+  if(!best) return {dir:{dx,dy}, hit:null};
+  const nx = (best.ball.x-best.gx)/(2*R), ny = (best.ball.y-best.gy)/(2*R);
+  const cut = Math.acos(Math.max(-1,Math.min(1, dx*nx+dy*ny)));
+  const thick = 1 - best.perp/(2*R);
+  const side = Math.sign(dx*ny - dy*nx) || 1;   // 목적구가 있는 쪽
+  return {dir:{dx,dy}, hit:{...best, nx, ny, cutDeg:cut*180/Math.PI, thick, side}};
+}
+
+const FRACS = [[1,"1 (풀)"],[7/8,"7/8"],[3/4,"3/4"],[5/8,"5/8"],[1/2,"1/2"],[3/8,"3/8"],[1/4,"1/4"],[1/8,"1/8"],[0,"0 (헛)"]];
+function fracLabel(f){
+  let best = FRACS[0];
+  for(const fr of FRACS) if(Math.abs(fr[0]-f) < Math.abs(best[0]-f)) best = fr;
+  return best[1];
+}
+
+/* ══════════════════════════════════════════════════════════
+   5. 렌더링
+   ══════════════════════════════════════════════════════════ */
+const cv = document.getElementById("cv"), ctx = cv.getContext("2d");
+let SC = 300, OX = 0, OY = 0;
+const RAIL = 0.105;
+const X = x => OX + x*SC, Y = y => OY - y*SC;
+
+function fit(){
+  const w = cv.parentElement.clientWidth - 20;
+  const aspect = (L+2*RAIL)/(W+2*RAIL);
+  const h = w/aspect;
+  const dpr = Math.min(window.devicePixelRatio||1, 2);
+  cv.width = Math.round(w*dpr); cv.height = Math.round(h*dpr);
+  cv.style.height = h+"px";
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  SC = w/(L+2*RAIL); OX = w/2; OY = h/2;
+}
+
+function roundRect(x,y,w,h,r){ ctx.beginPath(); ctx.roundRect(x,y,w,h,r); }
+
+function drawTable(){
+  const w = cv.width/(Math.min(window.devicePixelRatio||1,2)), h = cv.height/(Math.min(window.devicePixelRatio||1,2));
+  const sk = curClothSkin();
+  ctx.clearRect(0,0,w,h);
+  // 레일
+  const g = ctx.createLinearGradient(0,0,0,h);
+  g.addColorStop(0,sk.rail[0]); g.addColorStop(.5,sk.rail[1]); g.addColorStop(1,sk.rail[2]);
+  ctx.fillStyle = g;
+  roundRect(X(-L/2)-RAIL*SC, Y(W/2)-RAIL*SC, (L+2*RAIL)*SC, (W+2*RAIL)*SC, 10); ctx.fill();
+
+  // 쿠션 경사면
+  ctx.fillStyle = sk.cushion;
+  ctx.fillRect(X(-L/2)-0.022*SC, Y(W/2)-0.022*SC, (L+0.044)*SC, (W+0.044)*SC);
+
+  // 천
+  const cg = ctx.createRadialGradient(X(0),Y(0),SC*0.1, X(0),Y(0),SC*L*0.62);
+  cg.addColorStop(0,sk.clothA); cg.addColorStop(1,sk.clothB);
+  ctx.fillStyle = cg;
+  ctx.fillRect(X(-L/2), Y(W/2), L*SC, W*SC);
+
+  // 천 결
+  ctx.save(); ctx.globalAlpha=.05; ctx.strokeStyle="#ffffff"; ctx.lineWidth=1;
+  for(let i=0;i<40;i++){ const yy=Y(W/2)+i*(W*SC/40); ctx.beginPath(); ctx.moveTo(X(-L/2),yy); ctx.lineTo(X(L/2),yy); ctx.stroke(); }
+  ctx.restore();
+
+  // 다이아몬드
+  const dm = (cx,cy)=>{ ctx.beginPath(); ctx.moveTo(cx,cy-4); ctx.lineTo(cx+4,cy); ctx.lineTo(cx,cy+4); ctx.lineTo(cx-4,cy); ctx.closePath(); ctx.fill(); };
+  ctx.fillStyle = sk.dia;
+  const off = 0.052*SC;
+  for(let i=1;i<8;i++){ const px=-L/2+i*L/8; dm(X(px), Y(W/2)-off); dm(X(px), Y(-W/2)+off); }
+  for(let j=1;j<4;j++){ const py=-W/2+j*W/4; dm(X(-L/2)-off, Y(py)); dm(X(L/2)+off, Y(py)); }
+
+  // 포인트 좌표 번호
+  if(S.show.pts && !S.show.sys){
+    ctx.fillStyle="rgba(255,255,255,.34)";
+    ctx.font="600 9px 'IBM Plex Mono', monospace"; ctx.textAlign="center"; ctx.textBaseline="middle";
+    for(let i=0;i<=8;i++){ const px=-L/2+i*L/8; ctx.fillText(i, X(px), Y(W/2)+11); ctx.fillText(i, X(px), Y(-W/2)-11); }
+    ctx.textAlign="left";
+    for(let j=0;j<=4;j++){ const py=-W/2+j*W/4; ctx.fillText(j, X(-L/2)+9, Y(py)); ctx.fillText(j, X(L/2)-9, Y(py)); }
+  }
+
+  // 스팟(4구 시작점 계열) — 장쿠션 1/4·1/2·3/4 지점 세로선 힌트
+  ctx.save(); ctx.globalAlpha=.10; ctx.strokeStyle="#fff"; ctx.setLineDash([2,6]); ctx.lineWidth=1;
+  [2,4,6].forEach(i=>{ const px=-L/2+i*L/8; ctx.beginPath(); ctx.moveTo(X(px),Y(W/2)); ctx.lineTo(X(px),Y(-W/2)); ctx.stroke(); });
+  ctx.restore();
+}
+
+function ballScreenR(){ return R*SC; }
+
+function drawBall(b, alpha){
+  const r = ballScreenR(), cx = X(b.x), cy = Y(b.y);
+  const pulse = ballPulse(b.id);
+  const rr = r * (1 + 0.10*pulse);
+  ctx.save(); ctx.globalAlpha = alpha===undefined?1:alpha;
+  // 그림자
+  ctx.beginPath(); ctx.ellipse(cx+r*0.18, cy+r*0.24, r*1.0, r*0.86, 0, 0, 7);
+  ctx.fillStyle="rgba(0,0,0,.28)"; ctx.fill();
+
+  const col = COLORS[b.id];
+  const gg = ctx.createRadialGradient(cx-rr*0.35, cy-rr*0.4, rr*0.1, cx, cy, rr*1.05);
+  gg.addColorStop(0,"#ffffff"); gg.addColorStop(0.25, col); gg.addColorStop(1, shade(col,-0.42));
+  ctx.beginPath(); ctx.arc(cx,cy,rr,0,7); ctx.fillStyle=gg; ctx.fill();
+  ctx.lineWidth=1; ctx.strokeStyle="rgba(0,0,0,.35)"; ctx.stroke();
+
+  // 충돌 임팩트 링 (사운드와 같은 타이밍)
+  if(pulse > 0.02){
+    ctx.beginPath(); ctx.arc(cx, cy, r + (1-pulse)*r*0.6, 0, 7);
+    ctx.strokeStyle = `rgba(255,255,255,${(pulse*0.42).toFixed(3)})`;
+    ctx.lineWidth = 1.6; ctx.stroke();
+  }
+
+  // 회전 마커
+  if(S.show.spin && b.rot !== undefined){
+    ctx.save(); ctx.beginPath(); ctx.arc(cx,cy,r,0,7); ctx.clip();
+    ctx.globalAlpha = 0.55;
+    for(let k=0;k<2;k++){
+      const a = b.rot + k*Math.PI;
+      ctx.beginPath();
+      ctx.arc(cx + Math.cos(a)*r*0.55, cy - Math.sin(a)*r*0.55, r*0.17, 0, 7);
+      ctx.fillStyle = b.id===1 ? "rgba(60,40,0,.75)" : "rgba(0,0,0,.5)";
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+  // 하이라이트
+  ctx.beginPath(); ctx.arc(cx-r*0.33, cy-r*0.36, r*0.2, 0, 7);
+  ctx.fillStyle="rgba(255,255,255,.55)"; ctx.fill();
+
+  if(b.id===S.cue){
+    ctx.beginPath(); ctx.arc(cx,cy,r+3.5,0,7);
+    ctx.strokeStyle="rgba(255,255,255,.85)"; ctx.lineWidth=1.4; ctx.setLineDash([3,3]); ctx.stroke(); ctx.setLineDash([]);
+  }
+  ctx.restore();
+}
+
+function shade(hex,amt){
+  const n=parseInt(hex.slice(1),16);
+  let r=(n>>16)&255, g=(n>>8)&255, b=n&255;
+  r=Math.round(Math.max(0,Math.min(255,r+255*amt)));
+  g=Math.round(Math.max(0,Math.min(255,g+255*amt)));
+  b=Math.round(Math.max(0,Math.min(255,b+255*amt)));
+  return "#"+((1<<24)+(r<<16)+(g<<8)+b).toString(16).slice(1);
+}
+
+function clipCloth(){ ctx.beginPath(); ctx.rect(X(-L/2), Y(W/2), L*SC, W*SC); ctx.clip(); }
+function clipRail(){ roundRect(X(-L/2)-RAIL*SC, Y(W/2)-RAIL*SC, (L+2*RAIL)*SC, (W+2*RAIL)*SC, 10); ctx.clip(); }
+
+/* 이동선 색은 공 번호가 아니라 "역할"로 정합니다.
+   수구 = 흰색 / 제1적구 = 주황 / 제2적구 = 하늘 / 상대 수구 = 회색 */
+const ROLECOL = {cue:"#ffffff", first:"#ffa73d", second:"#4fc3ff", opp:"#9fb0aa", idle:"#8fa39c"};
+const ROLENAME = {cue:"수구", first:"제1적구", second:"제2적구", opp:"상대 수구", idle:"미접촉"};
+
+function roleMap(res){
+  const m = {};
+  for(let i=0;i<4;i++) m[i] = "idle";
+  if(!res) return m;
+  m[res.cue] = "cue";
+  m[res.cue===0?1:0] = "opp";
+  const order = contactOrder(res);
+  if(order[0]!==undefined) m[order[0]] = "first";
+  if(order[1]!==undefined) m[order[1]] = "second";
+  return m;
+}
+
+function drawPaths(res){
+  if(!res) return;
+  const role = roleMap(res);
+  ctx.save(); clipCloth(); ctx.lineCap="round"; ctx.lineJoin="round";
+  for(let i=0;i<res.paths.length;i++){
+    const p = res.paths[i];
+    if(p.length<2) continue;
+    let len=0;
+    for(let k=1;k<p.length;k++) len += Math.abs(p[k].x-p[k-1].x)+Math.abs(p[k].y-p[k-1].y);
+    if(len < 0.012) continue;               // 움직이지 않은 공은 생략
+    let s = p[0].s, run = [p[0]];
+    const flush = (seg)=>{
+      if(run.length<2) return;
+      ctx.beginPath(); ctx.moveTo(X(run[0].x), Y(run[0].y));
+      for(let k=1;k<run.length;k++) ctx.lineTo(X(run[k].x), Y(run[k].y));
+      const rl = role[i];
+      ctx.globalAlpha = Math.max(0.22, 0.92 - seg*0.16);
+      ctx.strokeStyle = ROLECOL[rl];
+      ctx.lineWidth = rl==="cue" ? 2.2 : (rl==="opp"||rl==="idle" ? 1.3 : 1.9);
+      ctx.setLineDash(rl==="second" ? [3,4] : (rl==="opp"||rl==="idle" ? [2,6] : [7,6]));
+      ctx.lineDashOffset = 0;
+      ctx.stroke();
+    };
+    for(let k=1;k<p.length;k++){
+      run.push(p[k]);
+      if(p[k].s !== s){ flush(s); s = p[k].s; run = [p[k]]; }
+    }
+    flush(s);
+  }
+  ctx.setLineDash([]); ctx.globalAlpha=1;
+
+  if(S.show.hit){
+    for(const e of res.events){
+      ctx.beginPath(); ctx.arc(X(e.x), Y(e.y), 3.4, 0, 7);
+      ctx.fillStyle = e.kind==="ball" ? "rgba(255,255,255,.95)" : "rgba(255,215,94,.95)";
+      ctx.fill();
+      ctx.lineWidth=1; ctx.strokeStyle="rgba(0,0,0,.5)"; ctx.stroke();
+    }
+  }
+  ctx.restore();
+}
+
+function drawAim(){
+  const g = aimGeom();
+  const c = S.balls[S.cue];
+  const r = ballScreenR();
+  if(!S.show.aim && !S.show.ghost) return;
+
+  if(S.show.aim){
+  // 겨냥선 (천 안쪽으로 클리핑)
+  ctx.save(); clipCloth();
+  const far = 3.2;
+  ctx.beginPath(); ctx.moveTo(X(c.x),Y(c.y));
+  ctx.lineTo(X(c.x+g.dir.dx*far), Y(c.y+g.dir.dy*far));
+  ctx.setLineDash([2,7]); ctx.lineWidth=1; ctx.strokeStyle="rgba(255,255,255,.32)"; ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.restore();
+
+  // 큐대 (레일 안쪽으로 클리핑)
+  ctx.save(); clipRail();
+  const bx = X(c.x - g.dir.dx*(R*1.25)), by = Y(c.y - g.dir.dy*(R*1.25));
+  const ex = X(c.x - g.dir.dx*(R*1.25+0.62)), ey = Y(c.y - g.dir.dy*(R*1.25+0.62));
+  const lg = ctx.createLinearGradient(bx,by,ex,ey);
+  const cueSk = curCueSkin();
+  cueSk.stops.forEach(([off,col])=>lg.addColorStop(off,col));
+  ctx.beginPath(); ctx.moveTo(bx,by); ctx.lineTo(ex,ey);
+  ctx.strokeStyle=lg; ctx.lineWidth=Math.max(3, r*0.28); ctx.lineCap="round"; ctx.stroke();
+  ctx.restore();
+  }
+
+  ctx.save(); clipCloth();
+  if(g.hit && S.show.ghost){
+    const h = g.hit;
+    // 고스트볼
+    ctx.beginPath(); ctx.arc(X(h.gx), Y(h.gy), r, 0, 7);
+    ctx.setLineDash([4,4]); ctx.lineWidth=1.4; ctx.strokeStyle="rgba(255,255,255,.75)"; ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle="rgba(255,255,255,.09)"; ctx.fill();
+
+    // 중심선(목적구 진행 방향)
+    ctx.beginPath(); ctx.moveTo(X(h.gx),Y(h.gy));
+    ctx.lineTo(X(h.gx+h.nx*0.5), Y(h.gy+h.ny*0.5));
+    ctx.strokeStyle="rgba(255,138,118,.85)"; ctx.lineWidth=1.6; ctx.stroke();
+
+    // 접선 (스턴 시 수구 방향)
+    const tx=-h.ny, ty=h.nx;
+    ctx.beginPath();
+    ctx.moveTo(X(h.ball.x - tx*0.34), Y(h.ball.y - ty*0.34));
+    ctx.lineTo(X(h.ball.x + tx*0.34), Y(h.ball.y + ty*0.34));
+    ctx.setLineDash([6,5]); ctx.strokeStyle="rgba(120,220,255,.6)"; ctx.lineWidth=1.3; ctx.stroke();
+    ctx.setLineDash([]);
+
+    // 30° 룰 표시
+    const rollAng = Math.atan2(h.ny,h.nx) - h.side*(Math.PI/2 - 30*Math.PI/180);
+    ctx.beginPath(); ctx.moveTo(X(h.ball.x),Y(h.ball.y));
+    ctx.lineTo(X(h.ball.x+Math.cos(rollAng)*0.42), Y(h.ball.y+Math.sin(rollAng)*0.42));
+    ctx.setLineDash([2,4]); ctx.strokeStyle="rgba(120,220,255,.9)"; ctx.lineWidth=1.5; ctx.stroke();
+    ctx.setLineDash([]);
+  }
+  ctx.restore();
+}
+
+function drawLabels(res){
+  if(!S.show.label || !res) return;
+  const order = contactOrder(res);
+  const bs = curBalls();
+  ctx.save();
+  ctx.font="800 11px 'Gothic A1', sans-serif"; ctx.textAlign="center"; ctx.textBaseline="middle";
+  order.slice(0,2).forEach((bid,k)=>{
+    const b = bs.find(x=>x.id===bid); if(!b) return;
+    const r = ballScreenR(), col = k===0 ? ROLECOL.first : ROLECOL.second;
+    ctx.beginPath(); ctx.arc(X(b.x), Y(b.y)-r-11, 9.5, 0, 7);
+    ctx.fillStyle = col; ctx.fill();
+    ctx.strokeStyle="rgba(0,0,0,.45)"; ctx.lineWidth=1; ctx.stroke();
+    ctx.fillStyle="#10201c"; ctx.fillText(String(k+1), X(b.x), Y(b.y)-r-10.5);
+  });
+  ctx.restore();
+}
+
+/* 파이브 앤 하프 눈금 --------------------------------------------------- */
+/* dir 0: 수구가 오른쪽 아래 → 왼쪽 위로 진행 (기준 방향)
+   dir 1: 좌우 반전 · dir 2: 상하 반전 · dir 3: 좌우+상하 반전            */
+function sysAxes(dir){
+  const flipX = (dir===1 || dir===3);      // 수구가 왼쪽에서 출발
+  const flipY = (dir===2 || dir===3);      // 수구가 위쪽 장쿠션에서 출발
+  return {
+    flipX, flipY,
+    nearY: flipY ?  W/2 : -W/2,            // 수구수·3쿠션수가 놓인 장쿠션
+    farY:  flipY ? -W/2 :  W/2,            // 1쿠션 장쿠션
+    // 장쿠션 포인트 u(0~8)는 "먼 쪽 단쿠션"에서 0
+    ux: u => (flipX ? -1 : 1) * (-L/2 + u*L/8),
+    xu: x => ((flipX ? -x : x) + L/2)/(L/8),
+    nearSX: flipX ? -L/2 : L/2,            // 수구 쪽 단쿠션
+    vy: v => (flipY ? -1 : 1) * (-W/2 + v*W/4),
+    yv: y => ((flipY ? -y : y) + W/2)/(W/4)
+  };
+}
+const sysD_long  = u => 10 + 5*u;          // 장쿠션 수구수 (코너 50)
+const sysD_short = v => 50 + 10*v;         // 단쿠션 수구수 (코너 50 → 90)
+const sysNum     = u => 10*u;              // 1쿠션수 · 3쿠션수
+
+function drawSystem(){
+  if(!S.show.sys) return;
+  const A = sysAxes(S.sys.dir);
+  ctx.save(); clipCloth();
+  ctx.font="700 10px 'IBM Plex Mono', monospace"; ctx.textAlign="center"; ctx.textBaseline="middle";
+  const inset = 12;
+  const cl = X(-L/2), cr = X(L/2), ct = Y(W/2), cb = Y(-W/2);
+  const chip=(t,x,y,col)=>{
+    const w = ctx.measureText(t).width + 7;
+    x = Math.max(cl+w/2+2, Math.min(cr-w/2-2, x));
+    y = Math.max(ct+9, Math.min(cb-9, y));
+    ctx.fillStyle="rgba(6,32,25,.66)";
+    ctx.beginPath(); ctx.roundRect(x-w/2, y-7.5, w, 15, 4); ctx.fill();
+    ctx.fillStyle=col; ctx.fillText(t, x, y+0.5);
+  };
+  // 1쿠션수 (먼 쪽 장쿠션)
+  for(let u=0;u<=8;u++)
+    chip(String(sysNum(u)), X(A.ux(u)), Y(A.farY) + (A.flipY ? -inset : inset), "#7fdcff");
+  // 3쿠션수 + 수구수 (가까운 장쿠션)
+  for(let u=0;u<=8;u++){
+    chip(String(sysNum(u)),    X(A.ux(u)), Y(A.nearY) + (A.flipY ?  inset    : -inset),    "#ffb457");
+    chip(String(sysD_long(u)), X(A.ux(u)), Y(A.nearY) + (A.flipY ?  inset+17 : -inset-17), "#e8f0ec");
+  }
+  // 수구수 (가까운 단쿠션)
+  for(let v=1;v<=4;v++)
+    chip(String(sysD_short(v)), X(A.nearSX) + (A.flipX ? inset+8 : -inset-8), Y(A.vy(v)), "#e8f0ec");
+  // 범례
+  ctx.textAlign = "center";
+  ctx.font="700 9.5px 'IBM Plex Sans KR', sans-serif";
+  const lx = X(A.ux(4));
+  ctx.fillStyle="#7fdcff";
+  ctx.fillText("↑ 1쿠션수", lx, Y(A.farY) + (A.flipY ? -inset-15 : inset+15));
+  ctx.fillStyle="#e8f0ec";
+  ctx.fillText("수구수", lx - 42, Y(A.nearY) + (A.flipY ? inset+34 : -inset-34));
+  ctx.fillStyle="#ffb457";
+  ctx.fillText("3쿠션수", lx + 30, Y(A.nearY) + (A.flipY ? inset+34 : -inset-34));
+  ctx.restore();
+}
+
+/* 계산된 코스 그리기 */
+function drawSysCourse(){
+  const s = S.sys.last;
+  if(!s || !S.show.sys) return;
+  ctx.save(); clipCloth();
+  ctx.setLineDash([9,6]); ctx.lineWidth=1.6; ctx.strokeStyle="rgba(120,220,255,.75)";
+  ctx.beginPath(); ctx.moveTo(X(s.cx), Y(s.cy)); ctx.lineTo(X(s.fx), Y(s.fy)); ctx.stroke();
+  ctx.setLineDash([3,5]); ctx.strokeStyle="rgba(255,255,255,.4)";
+  ctx.beginPath(); ctx.moveTo(X(s.cx), Y(s.cy)); ctx.lineTo(X(s.dx), Y(s.dy)); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.beginPath(); ctx.arc(X(s.fx), Y(s.fy), 5, 0, 7);
+  ctx.fillStyle="rgba(120,220,255,.95)"; ctx.fill();
+  if(s.tx!==undefined){
+    ctx.beginPath(); ctx.arc(X(s.tx), Y(s.ty), 5.5, 0, 7);
+    ctx.fillStyle="rgba(255,167,61,.95)"; ctx.fill();
+  }
+  if(s.ax!==undefined){
+    ctx.beginPath(); ctx.arc(X(s.ax), Y(s.ay), 5.5, 0, 7);
+    ctx.strokeStyle="#ff5f4d"; ctx.lineWidth=2.2; ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function contactOrder(res){
+  const out=[];
+  for(const e of res.events){
+    if(e.kind!=="ball") continue;
+    let other=null;
+    if(e.a===res.cue) other=e.b; else if(e.b===res.cue) other=e.a; else continue;
+    if(!out.includes(other)) out.push(other);
+  }
+  return out;
+}
+
+/* 기록된 프레임(125Hz) 사이를 선형 보간해 재생 시각의 부드러운 위치를 계산 */
+function interpFrame(t){
+  const frames = S.res.frames;
+  const pos = Math.max(0, t)*(1000/REC);
+  const i0 = Math.max(0, Math.min(frames.length-1, Math.floor(pos)));
+  const i1 = Math.max(0, Math.min(frames.length-1, i0+1));
+  const f = pos - i0;
+  const f0 = frames[i0], f1 = frames[i1];
+  return f0.map((a,i)=>{
+    const b = f1[i];
+    return {
+      id:i,
+      x:a.x+(b.x-a.x)*f, y:a.y+(b.y-a.y)*f,
+      rot:a.rot+(b.rot-a.rot)*f,
+      vx:a.vx+(b.vx-a.vx)*f, vy:a.vy+(b.vy-a.vy)*f,
+      wz:a.wz+(b.wz-a.wz)*f
+    };
+  });
+}
+function curBalls(){
+  if(S.mode==="replay" && S.res) return interpFrame(S.frameT);
+  return S.balls.map(b=>({...b, rot:0}));
+}
+/* 충돌 직후 짧게 튀는 느낌을 주는 펄스 (0~1). 사운드와 같은 이벤트 목록을 사용 */
+function ballPulse(id){
+  if(S.mode!=="replay" || !S.res || !S.res.events.length) return 0;
+  let m = 0;
+  for(const ev of S.res.events){
+    const hit = (ev.kind==="ball" && (ev.a===id||ev.b===id)) || (ev.kind==="cushion" && ev.a===id);
+    if(!hit) continue;
+    const dt = S.frameT - ev.t;
+    if(dt < 0 || dt > 0.09) continue;
+    const local = 1 - dt/0.09;
+    const eased = local*local;
+    if(eased > m) m = eased;
+  }
+  return m;
+}
+
+function render(){
+  drawTable();
+  drawSystem();
+  if(S.show.path && S.res) drawPaths(S.res);
+  drawSysCourse();
+  if(S.mode==="setup") drawAim();
+  const bs = curBalls();
+  if(S.mode==="replay" && S.res){
+    ctx.save(); clipCloth();
+    for(const b of bs){
+      const speed = Math.hypot(b.vx, b.vy);
+      if(speed > 0.35) drawTrail(b, speed);
+    }
+    ctx.restore();
+  }
+  for(const b of bs) drawBall(b);
+  drawLabels(S.res);
+  drawDrillTarget();
+  updateLegend();
+}
+/* 빠르게 움직이는 공 뒤로 남는 짧은 잔상(구름 애니메이션 보강) */
+function drawTrail(b, speed){
+  const r = ballScreenR();
+  const steps = 4;
+  for(let k=1; k<=steps; k++){
+    const tPast = S.frameT - k*0.016;
+    if(tPast < 0) break;
+    const p = interpFrame(tPast)[b.id];
+    if(!p) continue;
+    const a = Math.min(0.16, speed*0.035) * (1 - k/(steps+1));
+    if(a <= 0.004) continue;
+    ctx.beginPath(); ctx.arc(X(p.x), Y(p.y), r*(1 - k*0.045), 0, 7);
+    ctx.fillStyle = `rgba(255,255,255,${a.toFixed(3)})`;
+    ctx.fill();
+  }
+}
+
+/* 훈련 목표 지점 표시 */
+function drawDrillTarget(){
+  const d = S.drill;
+  if(!d) return;
+  ctx.save(); clipCloth();
+  if(d.type==="arrive" && d.target.pt){
+    const p = d.target.pt, t = performance.now()/600;
+    ctx.beginPath(); ctx.arc(X(p.x), Y(p.y), 10 + Math.sin(t)*2, 0, 7);
+    ctx.strokeStyle="#ffd166"; ctx.lineWidth=2.4; ctx.stroke();
+    ctx.beginPath(); ctx.arc(X(p.x), Y(p.y), 3.2, 0, 7);
+    ctx.fillStyle="#ffd166"; ctx.fill();
+    ctx.font="700 10px 'IBM Plex Sans KR', sans-serif"; ctx.textAlign="center";
+    ctx.fillText(`${d.target.cush}쿠션`, X(p.x), Y(p.y) + (p.y>0 ? 24 : -20));
+  }
+  if(d.type==="system"){
+    const A = sysAxes(S.sys.dir);
+    const x = A.ux(d.target.T/10), y = nearContactY(A);
+    ctx.beginPath(); ctx.arc(X(x), Y(y), 9, 0, 7);
+    ctx.strokeStyle="#ffd166"; ctx.lineWidth=2.4; ctx.stroke();
+    ctx.font="700 10px 'IBM Plex Mono', monospace"; ctx.textAlign="center";
+    ctx.fillStyle="#ffd166"; ctx.fillText(String(d.target.T), X(x), Y(y) + (A.flipY ? 22 : -20));
+  }
+  ctx.restore();
+}
+
+let legendKey = "";
+function updateLegend(){
+  const el = document.getElementById("legend");
+  if(!el) return;
+  const role = roleMap(S.res);
+  const items = [];
+  for(let i=0;i<4;i++){
+    const rl = role[i];
+    if(rl==="idle" && !(S.res && S.res.paths[i] && S.res.paths[i].length>3)) continue;
+    items.push({c:ROLECOL[rl], t:`${ROLENAME[rl]} · ${NAMES[i]}`});
+  }
+  const key = items.map(i=>i.c+i.t).join("|");
+  if(key===legendKey) return;
+  legendKey = key;
+  el.innerHTML = items.map(i=>
+    `<span class="lg"><i style="background:${i.c}"></i>${i.t}</span>`).join("");
+}
+
+/* ══════════════════════════════════════════════════════════
+   6. 계기 · 판정
+   ══════════════════════════════════════════════════════════ */
+function analyze(res){
+  const order = contactOrder(res);
+  const reds = order.filter(i=>i>=2);
+  const opp = order.includes(res.cue===0?1:0);
+  let verdict, cls;
+  if(opp && reds.length>=2){ verdict="실점 (상대구 접촉)"; cls="bad"; }
+  else if(opp){ verdict="파울 · 상대구"; cls="bad"; }
+  else if(reds.length>=2){ verdict="득점 1점"; cls="good"; }
+  else if(reds.length===1){ verdict="1적구만 접촉"; cls="warn"; }
+  else { verdict="공타 (헛침)"; cls="bad"; }
+
+  const first = res.events.find(e=>e.kind==="ball" && (e.a===res.cue||e.b===res.cue));
+  let cut=null, thr=null, sepa=null, thick=null;
+  if(first){
+    cut = first.info.cut;
+    thr = first.info.throwA;
+    thick = 1 - Math.sin(cut*Math.PI/180);
+    // 분리각: 충돌 직전 수구 방향 vs 0.25 s 뒤 방향
+    const i0 = first.fi, i1 = Math.min(res.frames.length-1, i0 + Math.round(0.25*1000/REC));
+    const f1 = res.frames[i1][res.cue];
+    const sp1 = Math.hypot(f1.vx,f1.vy);
+    if(sp1>0.02){
+      const a0 = Math.atan2(first.info.preVy, first.info.preVx);
+      const a1 = Math.atan2(f1.vy, f1.vx);
+      let d = (a1-a0)*180/Math.PI;
+      while(d>180) d-=360; while(d<-180) d+=360;
+      sepa = Math.abs(d);
+    }
+  }
+  const cuCount = res.events.filter(e=>e.kind==="cushion" && e.a===res.cue).length;
+  return {order, verdict, cls, cut, thr, sepa, thick, cuCount, first};
+}
+
+function fmt(v,d,unit){ return v===null||v===undefined||!isFinite(v) ? "—" : v.toFixed(d)+(unit||""); }
+
+function updateReadout(){
+  const g = aimGeom();
+  const an = S.res ? analyze(S.res) : null;
+  const V = S.shot.power;
+  const rpmZ = Math.abs(2.5*V*S.shot.tipX/R)*60/(2*Math.PI);
+  const rpmR = Math.abs(2.5*V*S.shot.tipY/R)*60/(2*Math.PI);
+  const cells = [
+    ["세기", V.toFixed(2), "m/s", ""],
+    ["횡회전", Math.round(rpmZ), "rpm "+(S.shot.tipX>0.02?"우":S.shot.tipX<-0.02?"좌":"–"), ""],
+    ["종회전", Math.round(rpmR), "rpm "+(S.shot.tipY>0.02?"밀":S.shot.tipY<-0.02?"끌":"–"), ""],
+    ["두께", g.hit? fracLabel(g.hit.thick) : "—", g.hit? (g.hit.thick*100).toFixed(0)+"%" : "", ""],
+    ["절단각", g.hit? fmt(g.hit.cutDeg,1,"°") : "—", "", ""],
+    ["분리각", an? fmt(an.sepa,1,"°") : "—", "실측", ""],
+    ["스로우", an? fmt(an.thr,2,"°") : "—", "", ""],
+    ["쿠션", an? an.cuCount : "—", "회", ""],
+    ["판정", an? an.verdict : "샷 대기", "", an?an.cls:""]
+  ];
+  document.getElementById("readout").innerHTML = cells.map(c=>
+    `<div class="chip${c[0]==="판정"?" verdict":""}"><span class="k">${c[0]}</span><span class="v ${c[3]}">${c[1]}</span><span class="u">${c[2]}</span></div>`
+  ).join("");
+
+  // 요약표
+  const sum = document.getElementById("summary");
+  if(!S.res){ sum.innerHTML = `<tr><td colspan="2" class="note">샷을 실행하면 결과가 여기에 표시됩니다.</td></tr>`; }
+  else{
+    const o = an.order.map(i=>NAMES[i]);
+    const rows = [
+      ["제1적구", o[0]||"—"], ["제2적구", o[1]||"—"],
+      ["절단각", fmt(an.cut,2,"°")],
+      ["두께", an.thick!=null?fracLabel(an.thick)+" ("+(an.thick*100).toFixed(1)+"%)":"—"],
+      ["분리각(실측)", fmt(an.sepa,2,"°")],
+      ["스로우각", fmt(an.thr,2,"°")],
+      ["수구 쿠션", an.cuCount+" 회"],
+      ["총 사건", S.res.events.length+" 건"],
+      ["정지까지", fmt(S.res.dur,2," s")],
+      ["판정", an.verdict]
+    ];
+    sum.innerHTML = rows.map(r=>`<tr><th style="text-transform:none;font-size:11.5px;color:var(--ink-2)">${r[0]}</th><td class="n">${r[1]}</td></tr>`).join("");
+  }
+
+  // 로그
+  const log = document.getElementById("log");
+  if(!S.res || !S.res.events.length){ log.innerHTML = `<tr><td colspan="3" class="note" style="padding:10px">기록 없음</td></tr>`; }
+  else{
+    log.innerHTML = S.res.events.slice(0,80).map(e=>{
+      if(e.kind==="ball"){
+        return `<tr><td class="n">${e.t.toFixed(3)}</td><td><span class="tag bb">충돌</span> ${NAMES[e.a]}→${NAMES[e.b]}</td>
+        <td class="n">절단 ${e.info.cut.toFixed(1)}° · 스로우 ${e.info.throwA.toFixed(2)}°</td></tr>`;
+      }
+      return `<tr><td class="n">${e.t.toFixed(3)}</td><td><span class="tag cu">${e.rail}쿠션</span> ${NAMES[e.a]}</td>
+      <td class="n">${e.info.angIn.toFixed(1)}° → ${e.info.angOut.toFixed(1)}° · e ${e.info.e.toFixed(2)}</td></tr>`;
+    }).join("");
+  }
+
+  // 좌표
+  document.getElementById("coords").innerHTML = S.balls.map(b=>{
+    const px = (b.x + L/2)/(L/8), py = (b.y + W/2)/(W/4);
+    return `<tr><th style="text-transform:none;font-size:11.5px;color:var(--ink-2)">${NAMES[b.id]}${b.id===S.cue?" ●":""}</th>
+    <td class="n">${px.toFixed(2)}</td><td class="n">${py.toFixed(2)}</td>
+    <td class="n">${Math.round(b.x*1000)}, ${Math.round(b.y*1000)}</td></tr>`;
+  }).join("");
+}
+
+/* ══════════════════════════════════════════════════════════
+   7. 재계산 파이프라인
+   ══════════════════════════════════════════════════════════ */
+let pending = false;
+function recompute(){
+  if(pending) return;
+  pending = true;
+  requestAnimationFrame(()=>{
+    pending = false;
+    S.res = simulate(S.balls, S.shot, S.cue);
+    const scrub = document.getElementById("scrub");
+    scrub.max = Math.max(1, Math.round(S.res.dur*100));
+    updateReadout(); render();
+  });
+}
+
+/* ══════════════════════════════════════════════════════════
+   8. 입력
+   ══════════════════════════════════════════════════════════ */
+function toWorld(ev){
+  const r = cv.getBoundingClientRect();
+  const px = (ev.clientX - r.left), py = (ev.clientY - r.top);
+  return {x:(px - OX)/SC, y:(OY - py)/SC};
+}
+function clampBall(b){
+  b.x = Math.max(-L/2+R, Math.min(L/2-R, b.x));
+  b.y = Math.max(-W/2+R, Math.min(W/2-R, b.y));
+}
+function overlaps(b, ignoreId){
+  return S.balls.some(o => o.id!==b.id && o.id!==ignoreId && Math.hypot(o.x-b.x,o.y-b.y) < 2*R-1e-4);
+}
+
+cv.addEventListener("pointerdown", e=>{
+  if(S.mode==="replay"){ S.autoKeep ? keepAndContinue() : backToSetup(false); }
+  const p = toWorld(e);
+  cv.setPointerCapture(e.pointerId);
+  const hit = S.balls.find(b=>Math.hypot(b.x-p.x,b.y-p.y) < R*1.35);
+  if(hit){ S.drag = {type:"ball", id:hit.id}; }
+  else { S.drag = {type:"aim"}; applyAim(p); }
+});
+cv.addEventListener("pointermove", e=>{
+  if(!S.drag) return;
+  const p = toWorld(e);
+  if(S.drag.type==="ball"){
+    const b = S.balls[S.drag.id];
+    const old = {x:b.x,y:b.y};
+    b.x = p.x; b.y = p.y; clampBall(b);
+    if(overlaps(b)){ b.x=old.x; b.y=old.y; }
+    recompute();
+  } else applyAim(p);
+});
+["pointerup","pointercancel"].forEach(t=>cv.addEventListener(t, ()=>{ S.drag=null; }));
+
+function applyAim(p){
+  const c = S.balls[S.cue];
+  const dx = p.x-c.x, dy = p.y-c.y;
+  const d = Math.hypot(dx,dy);
+  if(d < R*0.6) return;
+  S.shot.angle = Math.atan2(dy,dx);
+  if(S.drag && S.drag.type==="aim"){
+    const pw = Math.max(0.4, Math.min(6.5, 0.4 + (d-R)/ (L*0.5) * 5.2));
+    S.shot.power = Math.round(pw*20)/20;
+    syncShotUI();
+  }
+  syncAngleUI(); recompute();
+}
+
+document.addEventListener("keydown", e=>{
+  if(["INPUT","SELECT","TEXTAREA"].includes(document.activeElement.tagName) && e.key!==" ") return;
+  let used = true;
+  if(e.key==="ArrowLeft") S.shot.angle += 0.1*Math.PI/180;
+  else if(e.key==="ArrowRight") S.shot.angle -= 0.1*Math.PI/180;
+  else if(e.key==="ArrowUp") S.shot.power = Math.min(6.5, S.shot.power+0.1);
+  else if(e.key==="ArrowDown") S.shot.power = Math.max(0.4, S.shot.power-0.1);
+  else if(e.key===" ") shoot();
+  else if(e.key.toLowerCase()==="r") restore();
+  else if(e.key.toLowerCase()==="g"){ S.show.aim=!S.show.aim; syncToggles(); }
+  else if(e.key.toLowerCase()==="l"){ S.show.path=!S.show.path; syncToggles(); }
+  else if(e.key.toLowerCase()==="n"){ if(S.drill) newDrill(); }
+  else used = false;
+  if(used){ e.preventDefault(); syncAngleUI(); syncShotUI(); recompute(); }
+});
+
+/* ── 당점 위젯 ─────────────────────────────────────────── */
+const sc = document.getElementById("spin"), sctx = sc.getContext("2d");
+function drawSpin(){
+  const w=150, cx=75, cy=75, r=62;
+  sctx.clearRect(0,0,w,w);
+  const g = sctx.createRadialGradient(cx-20,cy-24,6,cx,cy,r*1.08);
+  g.addColorStop(0,"#ffffff"); g.addColorStop(.3,"#f4efe1"); g.addColorStop(1,"#b8ad93");
+  sctx.beginPath(); sctx.arc(cx,cy,r,0,7); sctx.fillStyle=g; sctx.fill();
+  sctx.strokeStyle="rgba(0,0,0,.28)"; sctx.lineWidth=1; sctx.stroke();
+  // 미스큐 한계 (0.5R)
+  sctx.beginPath(); sctx.arc(cx,cy,r*0.5,0,7);
+  sctx.setLineDash([3,4]); sctx.strokeStyle="rgba(190,60,40,.55)"; sctx.lineWidth=1.2; sctx.stroke();
+  sctx.setLineDash([]);
+  // 십자
+  sctx.strokeStyle="rgba(0,0,0,.16)";
+  sctx.beginPath(); sctx.moveTo(cx-r,cy); sctx.lineTo(cx+r,cy); sctx.moveTo(cx,cy-r); sctx.lineTo(cx,cy+r); sctx.stroke();
+  // 0.4R 자연구름 링
+  sctx.beginPath(); sctx.arc(cx,cy,r*0.4,0,7); sctx.strokeStyle="rgba(11,107,82,.35)"; sctx.setLineDash([2,3]); sctx.stroke(); sctx.setLineDash([]);
+  // 팁
+  const tx = cx + S.shot.tipX*r, ty = cy - S.shot.tipY*r;
+  sctx.beginPath(); sctx.arc(tx,ty,8.5,0,7);
+  sctx.fillStyle="rgba(45,105,190,.92)"; sctx.fill();
+  sctx.strokeStyle="rgba(255,255,255,.9)"; sctx.lineWidth=1.6; sctx.stroke();
+}
+function tipName(){
+  const a=S.shot.tipX, b=S.shot.tipY, e=0.06;
+  const h = a>e?"우":a<-e?"좌":"";
+  const v = b>e?"밀어":b<-e?"끌어":"";
+  if(!h&&!v) return "중심 · 무회전";
+  if(h&&v) return h+"회전 + "+v+"치기";
+  return h? h+"회전(횡회전)" : v+"치기(종회전)";
+}
+function setTip(x,y){
+  const r = Math.hypot(x,y);
+  if(r>0.5){ x*=0.5/r; y*=0.5/r; }
+  S.shot.tipX=x; S.shot.tipY=y;
+  document.getElementById("tipXv").textContent = x.toFixed(2)+" R";
+  document.getElementById("tipYv").textContent = y.toFixed(2)+" R";
+  document.getElementById("tipName").textContent = tipName();
+  drawSpin(); recompute();
+}
+function spinPtr(e){
+  const r = sc.getBoundingClientRect();
+  setTip(((e.clientX-r.left)-75)/62, -(((e.clientY-r.top)-75)/62));
+}
+let spinDrag=false;
+sc.addEventListener("pointerdown", e=>{spinDrag=true; sc.setPointerCapture(e.pointerId); spinPtr(e);});
+sc.addEventListener("pointermove", e=>{ if(spinDrag) spinPtr(e); });
+["pointerup","pointercancel"].forEach(t=>sc.addEventListener(t,()=>spinDrag=false));
+document.querySelectorAll("[data-tip]").forEach(btn=>btn.addEventListener("click",()=>{
+  const [a,b]=btn.dataset.tip.split(",").map(Number); setTip(a,b);
+}));
+
+/* ── 슬라이더 ──────────────────────────────────────────── */
+const $ = id=>document.getElementById(id);
+function syncAngleUI(){
+  let d = S.shot.angle*180/Math.PI; d = ((d%360)+360)%360;
+  $("angle").value = d.toFixed(1); $("anglev").textContent = d.toFixed(1)+"°";
+}
+function syncShotUI(){
+  $("power").value = S.shot.power;
+  $("powerv").textContent = S.shot.power.toFixed(2);
+  const roll = S.shot.power/6.867;
+  $("powerNote").textContent =
+    `자연 구름까지 ≈ ${(S.shot.power*S.shot.power*(1 - (5/7)*(5/7))/(2*P.mus*G)*1.0).toFixed(2)} m 활주 · 총 굴러가는 거리 ≈ ${(Math.pow((5/7)*S.shot.power,2)/(2*P.mur*G)).toFixed(2)} m`;
+  updateCuePowerUI();
+}
+$("angle").addEventListener("input", e=>{ S.shot.angle = (+e.target.value)*Math.PI/180; syncAngleUI(); recompute(); });
+$("power").addEventListener("input", e=>{ S.shot.power = +e.target.value; syncShotUI(); recompute(); });
+
+/* ── 세기 조절 큐대 위젯 ───────────────────────────────── */
+const cpTrack = document.getElementById("cuepowerTrack");
+const cpStick = document.getElementById("cuepowerStick");
+const cpFill  = document.getElementById("cuepowerFill");
+const cpVal   = document.getElementById("cuepowerVal");
+const POWER_MIN = 0.4, POWER_MAX = 6.5;
+
+function updateCuePowerUI(){
+  if(!cpTrack) return;
+  const f = Math.max(0, Math.min(1, (S.shot.power-POWER_MIN)/(POWER_MAX-POWER_MIN)));
+  const trackH = cpTrack.clientHeight;
+  const stickH = cpStick.offsetHeight || trackH*0.46;
+  const top = (1-f) * Math.max(0, trackH - stickH);
+  cpStick.style.top = top+"px";
+  cpFill.style.height = (f*100)+"%";
+  cpVal.firstChild.textContent = S.shot.power.toFixed(2);
+}
+function setPowerFromClientY(clientY){
+  const r = cpTrack.getBoundingClientRect();
+  let f = 1 - (clientY - r.top)/r.height;
+  f = Math.max(0, Math.min(1, f));
+  let p = POWER_MIN + f*(POWER_MAX-POWER_MIN);
+  p = Math.round(p*20)/20;
+  if(p !== S.shot.power){ S.shot.power = p; syncShotUI(); recompute(); }
+  else updateCuePowerUI();
+}
+let cpDrag = false;
+function cpStart(e){
+  cpDrag = true;
+  setPowerFromClientY(e.clientY);
+  e.preventDefault();
+}
+cpTrack.addEventListener("pointerdown", e=>{ cpTrack.setPointerCapture(e.pointerId); cpStart(e); });
+window.addEventListener("pointermove", e=>{ if(cpDrag) setPowerFromClientY(e.clientY); });
+["pointerup","pointercancel"].forEach(t=>window.addEventListener(t, ()=>{ cpDrag=false; }));
+new ResizeObserver(()=>updateCuePowerUI()).observe(cpTrack);
+
+/* 수구 선택 */
+function setCue(i, quiet){
+  S.cue=i;
+  $("cueW").setAttribute("aria-pressed", i===0);
+  $("cueY").setAttribute("aria-pressed", i===1);
+  if(!quiet) recompute();
+}
+$("cueW").addEventListener("click",()=>setCue(0));
+$("cueY").addEventListener("click",()=>setCue(1));
+
+/* 토글 */
+const TG = {tgAim:"aim", tgPath:"path", tgGhost:"ghost", tgPts:"pts",
+            tgSys:"sys", tgSpin:"spin", tgLabel:"label", tgHit:"hit"};
+Object.entries(TG).forEach(([id,key])=>{
+  $(id).addEventListener("change", e=>{ S.show[key]=e.target.checked; render(); });
+});
+function syncToggles(){
+  Object.entries(TG).forEach(([id,key])=>{ $(id).checked = S.show[key]; });
+  render();
+}
+$("btnShowAll").addEventListener("click", ()=>{
+  Object.values(TG).forEach(k=>S.show[k]=true); S.show.hit=false; syncToggles();
+});
+$("btnShowNone").addEventListener("click", ()=>{
+  Object.values(TG).forEach(k=>S.show[k]=false); syncToggles();
+});
+$("tgAuto").addEventListener("change", e=>{ S.autoKeep = e.target.checked; });
+
+/* 물리 슬라이더 */
+const PH = [["p_mus","mus",3],["p_mur","mur",4],["p_musp","musp",3],["p_ebb","ebb",3],["p_mubb","mubb",3],
+            ["p_ecu","ecu",3],["p_mucu","mucu",3],["p_hcu","hcu",3],["p_sq","sq",1]];
+function syncPhys(){
+  PH.forEach(([id,key,d])=>{ $(id).value=P[key]; $(id+"v").textContent = P[key].toFixed(d)+(key==="sq"?"°":""); });
+  syncShotUI();
+}
+PH.forEach(([id,key,d])=>$(id).addEventListener("input", e=>{
+  P[key] = +e.target.value; $(id+"v").textContent = P[key].toFixed(d)+(key==="sq"?"°":"");
+  syncShotUI(); recompute();
+}));
+$("btnPhysReset").addEventListener("click",()=>{ P=Object.assign({},P0); syncPhys(); recompute(); });
+
+$("specSel").addEventListener("change", e=>{
+  const old={L,W};
+  SP = SPECS[e.target.value]; L=SP.L; W=SP.W; R=SP.D/2; M=SP.m;
+  $("specline").textContent = `${SP.n} ${Math.round(L*1000)} × ${Math.round(W*1000)} mm · ${(SP.D*1000).toFixed(1)} mm 카롬볼 · ${Math.round(M*1000)} g`;
+  S.balls.forEach(b=>{ b.x*=L/old.L; b.y*=W/old.W; clampBall(b); });
+  fit(); recompute();
+});
+
+/* ══════════════════════════════════════════════════════════
+   8b. 충돌음 (Web Audio 합성 — 별도 음원 파일 없음)
+   ══════════════════════════════════════════════════════════ */
+let actx = null;
+function getAudioCtx(){
+  if(!S.sound) return null;
+  if(!actx){
+    try{ actx = new (window.AudioContext||window.webkitAudioContext)(); }
+    catch(e){ actx = null; }
+  }
+  if(actx && actx.state==="suspended") actx.resume();
+  return actx;
+}
+function noiseBuffer(ctx0, dur, power){
+  const buf = ctx0.createBuffer(1, Math.max(1,Math.floor(ctx0.sampleRate*dur)), ctx0.sampleRate);
+  const d = buf.getChannelData(0);
+  for(let i=0;i<d.length;i++) d[i] = (Math.random()*2-1) * Math.pow(1 - i/d.length, power);
+  return buf;
+}
+/* kind: "ball" | "cushion", strength: 0~1 (충돌 속도 기반) */
+function playImpact(kind, strength){
+  const ctx0 = getAudioCtx(); if(!ctx0) return;
+  const t0 = ctx0.currentTime;
+  const s = Math.max(0, Math.min(1, strength));
+  const g = ctx0.createGain(); g.gain.value = 0; g.connect(ctx0.destination);
+
+  if(kind==="ball"){
+    const dur = 0.08;
+    const noise = ctx0.createBufferSource(); noise.buffer = noiseBuffer(ctx0, dur, 3);
+    const bp = ctx0.createBiquadFilter(); bp.type="bandpass";
+    bp.frequency.value = 1700 + s*2200; bp.Q.value = 1.15;
+    noise.connect(bp); bp.connect(g);
+
+    const osc = ctx0.createOscillator(); osc.type="triangle";
+    osc.frequency.setValueAtTime(1000 + s*900, t0);
+    osc.frequency.exponentialRampToValueAtTime(600 + s*500, t0+0.04);
+    osc.connect(g);
+
+    const peak = 0.12 + s*0.68;
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(peak, t0+0.004);
+    g.gain.exponentialRampToValueAtTime(0.0008, t0+dur);
+
+    noise.start(t0); noise.stop(t0+dur);
+    osc.start(t0); osc.stop(t0+0.05);
+  } else {
+    const dur = 0.16;
+    const noise = ctx0.createBufferSource(); noise.buffer = noiseBuffer(ctx0, dur, 2);
+    const lp = ctx0.createBiquadFilter(); lp.type="lowpass";
+    lp.frequency.value = 420 + s*650;
+    noise.connect(lp); lp.connect(g);
+
+    const peak = 0.08 + s*0.46;
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(peak, t0+0.008);
+    g.gain.exponentialRampToValueAtTime(0.0007, t0+dur);
+
+    noise.start(t0); noise.stop(t0+dur);
+  }
+}
+/* 리플레이 재생 중 frameT가 이벤트 시각을 지나갈 때 소리 재생 */
+function playEventsThrough(prevT, curT){
+  const res = S.res; if(!res || !res.events.length) return;
+  let idx = res.soundIdx||0;
+  while(idx < res.events.length && res.events[idx].t <= curT){
+    const ev = res.events[idx];
+    if(ev.t > prevT){
+      if(ev.kind==="ball") playImpact("ball", (ev.info.vIn||0)/4.2);
+      else if(ev.kind==="cushion") playImpact("cushion", (ev.info.spIn||0)/4.2);
+    }
+    idx++;
+  }
+  res.soundIdx = idx;
+}
+$("btnSound").addEventListener("click", ()=>{
+  S.sound = !S.sound;
+  $("btnSound").textContent = S.sound ? "🔊 소리" : "🔈 소리 끔";
+  $("btnSound").setAttribute("aria-pressed", S.sound);
+  if(S.sound) getAudioCtx();
+});
+
+/* ══════════════════════════════════════════════════════════
+   9. 샷 · 리플레이
+   ══════════════════════════════════════════════════════════ */
+function pushHistory(){
+  S.history.push({balls:S.balls.map(b=>({...b})), cue:S.cue,
+                  angle:S.shot.angle, power:S.shot.power, tipX:S.shot.tipX, tipY:S.shot.tipY});
+  if(S.history.length > 30) S.history.shift();
+  $("btnRestore").disabled = false;
+}
+function shoot(){
+  if(S.mode==="replay") return;
+  pushHistory();
+  S.preShot = S.balls.map(b=>({...b}));
+  S.res = simulate(S.balls, S.shot, S.cue);
+  S.res.soundIdx = 0;
+  getAudioCtx();
+  S.mode="replay"; S.frameT=0; S.playing=true;
+  $("scrub").max = Math.max(1, Math.round(S.res.dur*100));
+  $("btnPlay").textContent="⏸";
+  updateReadout();
+  if(S.drill) judgeDrill(S.res);
+}
+/* 샷이 끝나면 공이 멈춘 자리 그대로 다음 샷으로 이어간다 */
+function keepAndContinue(){
+  if(S.res) S.balls = S.res.final.map(b=>({id:b.id,x:b.x,y:b.y}));
+  S.mode="setup"; S.playing=false; S.frameT=0; $("btnPlay").textContent="▶";
+  recompute();
+}
+function backToSetup(keepFinal){
+  if(S.mode!=="replay") return;
+  if(keepFinal && S.res) S.balls = S.res.final.map(b=>({id:b.id,x:b.x,y:b.y}));
+  else if(S.preShot) S.balls = S.preShot.map(b=>({...b}));
+  S.mode="setup"; S.playing=false; $("btnPlay").textContent="▶";
+  recompute();
+}
+/* 되돌리기 = 한 샷씩 취소 */
+function restore(){
+  const h = S.history.pop();
+  if(h){
+    S.balls = h.balls.map(b=>({...b}));
+    setCue(h.cue, true);
+    S.shot.angle=h.angle; S.shot.power=h.power;
+    setTip(h.tipX, h.tipY);
+    syncAngleUI(); syncShotUI();
+  } else if(S.preShot){
+    S.balls = S.preShot.map(b=>({...b}));
+  }
+  $("btnRestore").disabled = S.history.length===0;
+  S.mode="setup"; S.playing=false; $("btnPlay").textContent="▶"; S.frameT=0;
+  recompute();
+}
+$("btnShoot").addEventListener("click", shoot);
+$("btnRestore").addEventListener("click", restore);
+$("btnPlay").addEventListener("click", ()=>{
+  if(S.mode!=="replay"){ shoot(); return; }
+  S.playing = !S.playing;
+  if(S.playing && S.res && S.frameT >= S.res.dur-0.01){ S.frameT=0; S.res.soundIdx=0; }
+  $("btnPlay").textContent = S.playing ? "⏸" : "▶";
+});
+$("scrub").addEventListener("input", e=>{
+  if(!S.res) return;
+  if(S.mode!=="replay"){ S.mode="replay"; S.preShot = S.balls.map(b=>({...b})); }
+  S.playing=false; $("btnPlay").textContent="▶";
+  S.frameT = (+e.target.value)/100;
+  S.res.soundIdx = S.res.events.filter(ev=>ev.t <= S.frameT).length;
+  render(); updateTime();
+});
+$("speed").addEventListener("change", e=>S.speed=+e.target.value);
+$("btnKeep").addEventListener("click", keepAndContinue);
+function updateTime(){
+  const d = S.res? S.res.dur : 0;
+  $("tlabel").textContent = `${S.frameT.toFixed(2)} / ${d.toFixed(2)} s`;
+  $("scrub").value = Math.round(S.frameT*100);
+}
+
+let last = performance.now();
+function loop(now){
+  const dt = Math.min(0.05, (now-last)/1000); last = now;
+  if(S.playing && S.res){
+    const prevT = S.frameT;
+    S.frameT += dt*S.speed;
+    if(S.frameT >= S.res.dur){
+      playEventsThrough(prevT, S.res.dur);
+      S.frameT = S.res.dur; S.playing=false; $("btnPlay").textContent="▶";
+      render(); updateTime();
+      if(S.autoKeep && S.mode==="replay" && !S.drill) keepAndContinue();
+    } else {
+      playEventsThrough(prevT, S.frameT);
+      render(); updateTime();
+    }
+  }
+  requestAnimationFrame(loop);
+}
+
+/* ══════════════════════════════════════════════════════════
+   10. 배치 프리셋
+   ══════════════════════════════════════════════════════════ */
+/* 각도·세기·당점은 시뮬레이터로 해를 탐색해 확정한 값입니다.
+   득점 배치는 ±0.25~0.5° 흔들어도 성립하는 쪽을 골랐습니다. */
+const PRESETS = [
+  {n:"기본 · 세워치기", d:"제1적구를 얇게 스쳐 제2적구까지 이어지는 가장 기본 배치. 두께 감각 잡기용. → 득점",
+   b:[[2,1],[1.2,3.4],[4,2],[6.2,2.9]], cue:0, a:12.9, p:2.2, t:[0,0.25]},
+  {n:"밀어치기 (팔로우)", d:"당점 0.42 R 위. 수구가 제1적구를 맞힌 뒤 앞으로 밀려 나갑니다. 아래 끌어치기와 배치·각도가 완전히 같으니 수구의 뒷길만 비교하세요.",
+   b:[[2.5,2],[1,3.7],[5.5,2.5],[7.4,1.0]], cue:0, a:9.85, p:2.2, t:[0,0.42]},
+  {n:"끌어치기 (드로우)", d:"같은 배치·같은 각도에서 당점만 0.42 R 아래로. 수구가 역회전을 남긴 채 되돌아옵니다.",
+   b:[[2.5,2],[1,3.7],[5.5,2.5],[7.4,1.0]], cue:0, a:9.85, p:2.8, t:[0,-0.42]},
+  {n:"1/2 두께 · 분리각 측정", d:"절단각이 정확히 30.0°가 되도록 기하학적으로 배치했습니다. 화면의 하늘색 30° 룰 선과 흰색 실측 궤적이 얼마나 겹치는지 보세요.",
+   b:[[1.795,1.213],[0.693,3.417],[4,2],[6.992,3.575]], cue:0, a:22.168, p:2.3, t:[0,0.4]},
+  {n:"제각돌리기", d:"수구 → 제1적구 → 쿠션 2개 → 제2적구. 회전량이 결과를 좌우합니다. → 득점",
+   b:[[1.1,0.8],[0.6,3.6],[2.6,0.75],[6.4,3.1]], cue:0, a:352.6, p:3.8, t:[0.45,0.1]},
+  {n:"옆돌리기", d:"제1적구를 맞히고 장쿠션을 크게 도는 코스. 우회전을 빼면 어떻게 무너지는지 확인해 보세요. → 득점",
+   b:[[1.2,3.2],[0.5,0.6],[2.4,3.3],[6.6,0.9]], cue:0, a:13.1, p:3.6, t:[0.4,0.15]},
+  {n:"앞돌리기", d:"수구가 제1적구를 스치고 앞쪽 쿠션부터 도는 코스. → 득점",
+   b:[[2.2,1.0],[0.6,3.5],[3.4,2.6],[6.8,1.2]], cue:0, a:296.9, p:3.1, t:[0.3,0.2]},
+  {n:"뒤돌리기", d:"제1적구를 얇게 맞혀 뒤쪽 쿠션을 먼저 쓰는 코스. 얇은 두께 제어 연습. → 득점",
+   b:[[3.0,2.4],[0.6,0.5],[1.6,3.3],[6.4,1.0]], cue:0, a:123, p:3.4, t:[-0.35,0.15]},
+  {n:"비껴치기", d:"큰 절단각으로 갈라 치는 코스. 스로우와 분리각이 뚜렷하게 드러납니다. → 득점",
+   b:[[2.0,2.0],[0.6,0.5],[3.6,2.0],[3.6,3.6]], cue:0, a:355.6, p:2.4, t:[0,0.3]},
+  {n:"쿠션 반사각 실험", d:"다른 공을 구석으로 치운 배치. 판정은 무시하고, 계기 탭 로그에서 첫 쿠션의 입사각 → 반사각만 보세요. 당점 좌우를 바꾸면 값이 확 달라집니다.",
+   b:[[2,1],[0.4,3.7],[7.6,3.7],[7.6,0.3]], cue:0, a:293, p:3.0, t:[0.45,0.1]},
+  {n:"키스 주의 배치", d:"제1적구가 되돌아와 수구와 다시 부딪히는(키스) 전형적 상황. 충돌 로그에 같은 공이 두 번 나옵니다.",
+   b:[[2.0,2.0],[0.5,3.6],[3.2,2.0],[4.6,2.0]], cue:0, a:213.5, p:2.6, t:[0,0.4]}
+];
+
+function loadPreset(pr){
+  setBalls(pr.b.map(([px,py])=>pt(px,py)));
+  setCue(pr.cue);
+  S.shot.angle = pr.a*Math.PI/180;
+  S.shot.power = pr.p;
+  S.mode="setup"; S.playing=false; S.frameT=0; S.preShot=null;
+  S.history=[]; $("btnRestore").disabled=true;
+  S.drill=null; renderDrill();
+  $("btnPlay").textContent="▶";
+  setTip(pr.t[0], pr.t[1]);
+  syncAngleUI(); syncShotUI(); recompute();
+}
+document.getElementById("presets").innerHTML = PRESETS.map((p,i)=>
+  `<button class="preset" data-i="${i}"><b>${p.n}</b><span>${p.d}</span></button>`).join("");
+document.querySelectorAll(".preset").forEach(b=>b.addEventListener("click",()=>loadPreset(PRESETS[+b.dataset.i])));
+
+$("btnRandom").addEventListener("click", ()=>{
+  const out=[];
+  for(let i=0;i<4;i++){
+    let tries=0, p;
+    do{
+      p = {x:(Math.random()-0.5)*(L-3*R), y:(Math.random()-0.5)*(W-3*R)};
+      tries++;
+    } while(tries<300 && out.some(o=>Math.hypot(o.x-p.x,o.y-p.y) < 2.4*R));
+    out.push(p);
+  }
+  setBalls(out); S.preShot=null; S.mode="setup"; recompute();
+});
+$("btnMirror").addEventListener("click", ()=>{
+  S.balls.forEach(b=>b.x=-b.x);
+  S.shot.angle = Math.PI - S.shot.angle;
+  S.shot.tipX = -S.shot.tipX;
+  syncAngleUI(); setTip(S.shot.tipX,S.shot.tipY); recompute();
+});
+
+/* ══════════════════════════════════════════════════════════
+   10-B. 파이브 앤 하프 시스템 계산기
+   ══════════════════════════════════════════════════════════ */
+function nearContactY(A){ return A.nearY + (A.flipY ? -R : R); }
+function farContactY(A){ return A.farY + (A.flipY ? R : -R); }
+function nearContactX(A){ return A.nearSX + (A.flipX ? R : -R); }
+
+/* 겨냥선을 뒤로 연장해 수구수를 읽는다 */
+function readCueNumber(A, cx, cy, dx, dy){
+  const ny = nearContactY(A), nx = nearContactX(A);
+  // 뒤쪽(-d) 방향으로 가까운 장쿠션과 만나는 지점
+  if(Math.abs(dy) > 1e-6){
+    const t = (ny - cy)/dy;
+    if(t < 0){
+      const x = cx + dx*t;
+      const u = A.xu(x);
+      if(u >= -0.05 && u <= 8.05) return {kind:"long", u:Math.max(0,Math.min(8,u)), D:sysD_long(Math.max(0,Math.min(8,u))), x, y:ny};
+    }
+  }
+  if(Math.abs(dx) > 1e-6){
+    const t = (nx - cx)/dx;
+    if(t < 0){
+      const y = cy + dy*t;
+      const v = A.yv(y);
+      if(v >= -0.05 && v <= 4.05) return {kind:"short", v:Math.max(0,Math.min(4,v)), D:sysD_short(Math.max(0,Math.min(4,v))), x:nx, y};
+    }
+  }
+  return null;
+}
+
+function solveSystem(T){
+  const A = sysAxes(S.sys.dir);
+  const c = S.balls[S.cue];
+  const fy = farContactY(A);
+  let uf = 3, out = null;
+  for(let it=0; it<60; it++){
+    const fx = A.ux(Math.max(0, Math.min(8, uf)));
+    let dx = fx - c.x, dy = fy - c.y;
+    const len = Math.hypot(dx,dy) || 1e-9; dx/=len; dy/=len;
+    const rd = readCueNumber(A, c.x, c.y, dx, dy);
+    if(!rd) return null;
+    const need = (rd.D - T)/10;                 // 새 1쿠션 포인트
+    const next = uf + (need - uf)*0.6;          // 완화 반복
+    if(Math.abs(next - uf) < 1e-4){ uf = next; out = {rd, fx, fy, dx, dy}; break; }
+    uf = Math.max(-1, Math.min(9, next));
+    out = {rd, fx, fy, dx, dy};
+  }
+  if(!out || uf < -0.2 || uf > 8.2) return null;
+  const fx = A.ux(Math.max(0,Math.min(8,uf)));
+  let dx = fx - c.x, dy = fy - c.y;
+  const len = Math.hypot(dx,dy) || 1e-9; dx/=len; dy/=len;
+  const rd = readCueNumber(A, c.x, c.y, dx, dy);
+  if(!rd) return null;
+  return {A, uf, F:10*uf, D:rd.D, T, angle:Math.atan2(dy,dx),
+          cx:c.x, cy:c.y, fx, fy, dx:rd.x, dy:rd.y, kind:rd.kind};
+}
+
+function sysRunningTip(A){ return (A.flipX !== A.flipY) ? 0.35 : -0.35; }
+
+/* 계산한 각도로 실제로 쳐 보고 3쿠션 도착 번호를 읽는다 */
+function measureSystem(sol){
+  const A = sol.A;
+  const tip = sysRunningTip(A);
+  const balls = S.balls.map(b=>({...b}));
+  // 적구 간섭 제거: 다른 공을 모서리로 옮긴 가상 배치
+  const clear = balls.map((b,i)=> i===S.cue ? b : ({id:b.id,
+      x:(i%2? -1:1)*(L/2-R-0.002), y:(i<2? 1:-1)*(W/2-R-0.002)}));
+  const res = simulate(clear, {angle:sol.angle, power:3.6, tipX:tip, tipY:0.28}, S.cue);
+  const cu = res.events.filter(e=>e.kind==="cushion" && e.a===S.cue);
+  if(cu.length < 3) return {ok:false, why:"3쿠션까지 돌지 못했습니다", res};
+  const wantFar  = A.flipY ? "하" : "상";
+  const wantNear = A.flipY ? "상" : "하";
+  if(cu[0].rail !== wantFar) return {ok:false, why:`1쿠션이 ${cu[0].rail}쿠션으로 갔습니다`, res};
+  const third = cu.find((e,i)=> i>=2 && e.rail===wantNear) || cu[2];
+  if(third.rail !== wantNear) return {ok:false, why:`3쿠션이 ${third.rail}쿠션입니다`, res};
+  const u = A.xu(third.x);
+  return {ok:true, arrive:10*u, u, x:third.x, y:third.y,
+          f1:10*A.xu(cu[0].x), res};
+}
+
+function updateSysPanel(){
+  const sol = solveSystem(S.sys.T);
+  if(!sol){
+    $("sysD").textContent = "—"; $("sysF").textContent = "—";
+    $("sysNote").textContent = "이 위치·방향에서는 코스가 성립하지 않습니다. 수구를 3쿠션 쪽 장쿠션 근처로 옮기거나 방향을 바꿔 보세요.";
+    S.sys.last = null; render(); return;
+  }
+  $("sysD").textContent = sol.D.toFixed(1) + (sol.kind==="short" ? "  (단쿠션)" : "");
+  $("sysF").textContent = sol.F.toFixed(1);
+  $("sysNote").textContent = `${sol.D.toFixed(0)} − ${sol.F.toFixed(0)} = ${S.sys.T} · 1쿠션 ${(sol.F/10).toFixed(2)}포인트를 겨냥`;
+  const AA = sysAxes(S.sys.dir);
+  S.sys.last = {cx:sol.cx, cy:sol.cy, fx:sol.fx, fy:sol.fy, dx:sol.dx, dy:sol.dy,
+                tx:AA.ux(S.sys.T/10), ty:nearContactY(AA),
+                ax:S.sys.last ? S.sys.last.ax : undefined,
+                ay:S.sys.last ? S.sys.last.ay : undefined};
+  render();
+  return sol;
+}
+$("sysT").addEventListener("input", e=>{
+  S.sys.T = +e.target.value;
+  $("sysTlabel").textContent = S.sys.T; $("sysTv").textContent = S.sys.T;
+  if(S.sys.last){ S.sys.last.ax=undefined; S.sys.last.ay=undefined; }
+  updateSysPanel();
+});
+document.querySelectorAll('#sysDir button, #sysDir2 button').forEach(b=>b.addEventListener("click", ()=>{
+  S.sys.dir = +b.dataset.dir;
+  document.querySelectorAll('#sysDir button, #sysDir2 button')
+    .forEach(x=>x.setAttribute("aria-pressed", x===b));
+  S.show.sys = true; $("tgSys").checked = true;
+  if(S.sys.last){ S.sys.last.ax=undefined; S.sys.last.ay=undefined; }
+  updateSysPanel();
+}));
+$("sysApply").addEventListener("click", ()=>{
+  S.show.sys = true; $("tgSys").checked = true;
+  const sol = solveSystem(S.sys.T);
+  if(!sol) return;
+  S.shot.angle = sol.angle;
+  S.shot.power = 3.6;
+  setTip(sysRunningTip(sol.A), 0.28);
+  syncAngleUI(); syncShotUI(); updateSysPanel(); recompute();
+});
+$("sysCheck").addEventListener("click", ()=>{
+  S.show.sys = true; $("tgSys").checked = true;
+  const sol = solveSystem(S.sys.T);
+  const el = $("sysResult");
+  if(!sol){ el.innerHTML = `<tr><td class="note">코스가 성립하지 않습니다.</td></tr>`; return; }
+  const m = measureSystem(sol);
+  if(!m.ok){
+    el.innerHTML = `<tr><td colspan="2" class="note">${m.why}. 수구 위치나 방향을 바꿔 보세요.</td></tr>`;
+    return;
+  }
+  const err = m.arrive - S.sys.T;
+  const cls = Math.abs(err) <= 5 ? "res-ok" : (Math.abs(err) <= 12 ? "res-mid" : "res-bad");
+  const A = sol.A;
+  S.sys.last = Object.assign(S.sys.last||{}, {ax:m.x, ay:m.y, keepT:true});
+  render();
+  el.innerHTML = [
+    ["시스템 예측 3쿠션수", S.sys.T.toFixed(0)],
+    ["실제 도착 3쿠션수", `<span class="${cls}">${m.arrive.toFixed(1)}</span>`],
+    ["오차", `<span class="${cls}">${err>0?"+":""}${err.toFixed(1)} (${(err/10).toFixed(2)}포인트)</span>`],
+    ["실제 1쿠션수", m.f1.toFixed(1)],
+    ["사용한 스트로크", `세기 3.6 · 순회전 0.35R · 상단 0.28R`]
+  ].map(r=>`<tr><th style="text-transform:none;font-size:11.5px;color:var(--ink-2)">${r[0]}</th><td class="n">${r[1]}</td></tr>`).join("");
+});
+
+/* ══════════════════════════════════════════════════════════
+   10-C. 랜덤 훈련 모드
+   ══════════════════════════════════════════════════════════ */
+const DRILLS = [
+  {k:"thick",  n:"두께 맞히기",     d:"지정된 두께로 제1적구를 맞히세요. 조준만으로 채점합니다."},
+  {k:"score",  n:"득점 도전",       d:"무작위 배치에서 적구 두 개를 모두 맞혀 득점하세요."},
+  {k:"arrive", n:"쿠션 도착",       d:"지정한 쿠션 포인트에 수구를 정확히 보내세요. 회전 감각 훈련."},
+  {k:"system", n:"파이브앤하프",     d:"주어진 3쿠션 목표수로 수구를 도착시키세요. 시스템 적용 훈련."}
+];
+const TOL = {
+  thick:  [0.10, 0.06, 0.035],
+  arrive: [0.22, 0.14, 0.085],
+  system: [12, 7, 4]
+};
+let drillLevel = 0;
+
+function loadStats(){
+  try{ return JSON.parse(localStorage.getItem("sagu-drill")||"{}"); }catch(_){ return {}; }
+}
+function saveStats(s){ try{ localStorage.setItem("sagu-drill", JSON.stringify(s)); }catch(_){} }
+
+/* ══════════════════════════════════════════════════════════
+   10b. 스테이지 · 재화 · 꾸미기 (싱글 미션 모드)
+   ══════════════════════════════════════════════════════════ */
+const STAGES = [
+  {n:"기본기 1",   type:"thick",  level:0, d:"두께 감각을 익히는 첫 단계."},
+  {n:"기본기 2",   type:"arrive", level:0, d:"쿠션 한두 번으로 정확한 지점 보내기."},
+  {n:"첫 득점",    type:"score",  level:0, d:"적구 두 개를 모두 맞혀 득점하세요."},
+  {n:"기본기 3",   type:"thick",  level:0, d:"다른 각도에서 두께 맞히기."},
+  {n:"회전 감각 1", type:"arrive", level:0, d:"당점 회전으로 도착점을 조절해 보세요."},
+  {n:"시스템 입문", type:"system", level:0, d:"파이브 앤 하프의 기초."},
+  {n:"두께 심화",   type:"thick",  level:1, d:"허용 오차가 좁아집니다."},
+  {n:"득점 심화",   type:"score",  level:1, d:"더 넓게 흩어진 배치."},
+  {n:"회전 감각 2", type:"arrive", level:1, d:"2~3쿠션 도착 훈련."},
+  {n:"시스템 응용", type:"system", level:1, d:"다양한 목표수에 대응하기."},
+  {n:"정밀 두께",   type:"thick",  level:2, d:"고수의 영역 — 오차 3.5% 이내."},
+  {n:"정밀 도착",   type:"arrive", level:2, d:"밀리미터 단위 컨트롤."},
+  {n:"실전 득점",   type:"score",  level:2, d:"까다로운 배치에서 득점하기."},
+  {n:"시스템 정밀", type:"system", level:2, d:"목표수 오차 4 이내."},
+  {n:"종합 테스트", type:"thick",  level:2, d:"모든 걸 갖춘 마지막 관문 — 앞부분."},
+  {n:"파이널 챌린지", type:"system", level:2, d:"이 실험실의 마지막 스테이지."}
+];
+const STAR_CHIPS = 10; // 별 1개당 칩
+
+const CUE_SKINS = [
+  {id:"classic", name:"클래식",   cost:0,
+   css:"linear-gradient(to bottom,#4b2e18 0%,#6b4a2c 18%,#a97f4e 45%,#e8d9b4 72%,#2a2a2a 84%,#f2f2f2 90%,#3f7fb0 96%,#2c5f85 100%)",
+   stops:[[0,"#cfd8dd"],[0.06,"#2a2a2a"],[0.1,"#e8d9b4"],[1,"#6b4a2c"]]},
+  {id:"ebony", name:"에보니",     cost:150,
+   css:"linear-gradient(to bottom,#0c0c0c 0%,#1c1c1c 22%,#3a3a3a 48%,#d8d8dc 74%,#2a2a2a 85%,#f4f4f4 90%,#c23b4a 96%,#7a1622 100%)",
+   stops:[[0,"#f4f4f4"],[0.06,"#2a2a2a"],[0.1,"#d8d8dc"],[1,"#0c0c0c"]]},
+  {id:"crimson", name:"크림슨",   cost:150,
+   css:"linear-gradient(to bottom,#3a0d13 0%,#7a1f2b 20%,#b96a4e 48%,#f3e2c4 74%,#2a2a2a 85%,#fbeedd 90%,#e0b23f 96%,#8a6b1e 100%)",
+   stops:[[0,"#fbeedd"],[0.06,"#2a2a2a"],[0.1,"#f3e2c4"],[1,"#3a0d13"]]},
+  {id:"azure", name:"애저",       cost:200,
+   css:"linear-gradient(to bottom,#0c2233 0%,#12405f 20%,#2b6f96 48%,#dff1fb 74%,#2a2a2a 85%,#f2fbff 90%,#7fd6ff 96%,#1f6f8f 100%)",
+   stops:[[0,"#f2fbff"],[0.06,"#2a2a2a"],[0.1,"#dff1fb"],[1,"#0c2233"]]},
+  {id:"gold", name:"골드",        cost:300,
+   css:"linear-gradient(to bottom,#3a2e10 0%,#7a5f1e 20%,#caa53d 48%,#fff3cf 74%,#2a2a2a 85%,#fffaf0 90%,#ffd77a 96%,#a4791a 100%)",
+   stops:[[0,"#fffaf0"],[0.06,"#2a2a2a"],[0.1,"#fff3cf"],[1,"#3a2e10"]]}
+];
+const CLOTH_SKINS = [
+  {id:"green",     name:"그린 클래식", cost:0,   rail:["#4b3626","#3a2a1e","#2c2016"], cushion:"#0a4737", clothA:"#146b53", clothB:"#0b4e3c", dia:"#e2cd94"},
+  {id:"navy",      name:"네이비",     cost:150, rail:["#2c3138","#20242a","#16191d"], cushion:"#0d2d44", clothA:"#155a8a", clothB:"#0c3c60", dia:"#dfe8ef"},
+  {id:"burgundy",  name:"버건디",     cost:150, rail:["#3a2420","#2a1917","#1c0f0d"], cushion:"#5c1219", clothA:"#7a1f2b", clothB:"#4d1119", dia:"#f0d9a8"},
+  {id:"charcoal",  name:"차콜 매트",  cost:200, rail:["#2a2a2a","#202020","#141414"], cushion:"#232323", clothA:"#33373a", clothB:"#1e2224", dia:"#c9c9c9"},
+  {id:"violet",    name:"바이올렛",   cost:250, rail:["#302036","#221828","#16101c"], cushion:"#25143a", clothA:"#4a2e73", clothB:"#2e1a4d", dia:"#e8d6ff"}
+];
+
+function loadProgress(){
+  let p; try{ p = JSON.parse(localStorage.getItem("sagu-progress")||"null"); }catch(_){ p=null; }
+  if(!p) p = {};
+  if(typeof p.chips!=="number") p.chips = 0;
+  if(!p.stages) p.stages = {};
+  if(!p.ownedCue) p.ownedCue = ["classic"];
+  if(!p.ownedCloth) p.ownedCloth = ["green"];
+  if(!p.curCue) p.curCue = "classic";
+  if(!p.curCloth) p.curCloth = "green";
+  return p;
+}
+function saveProgress(){ try{ localStorage.setItem("sagu-progress", JSON.stringify(PROGRESS)); }catch(_){} }
+let PROGRESS = loadProgress();
+
+function curCueSkin(){ return CUE_SKINS.find(s=>s.id===PROGRESS.curCue) || CUE_SKINS[0]; }
+function curClothSkin(){ return CLOTH_SKINS.find(s=>s.id===PROGRESS.curCloth) || CLOTH_SKINS[0]; }
+function applyCueSkin(){
+  const sk = curCueSkin();
+  if(cpStick) cpStick.style.background = sk.css;
+}
+function stageUnlocked(i){
+  if(i===0) return true;
+  const prev = PROGRESS.stages[i-1];
+  return !!(prev && prev.stars>=1);
+}
+
+function rndPos(pad){
+  return {x:(Math.random()-0.5)*(L-2*R-2*(pad||0.05)), y:(Math.random()-0.5)*(W-2*R-2*(pad||0.05))};
+}
+function placeAway(idx){   // 방해되지 않게 모서리로
+  const spots=[[-1,1],[-1,-1],[1,1],[1,-1]];
+  const s=spots[idx%4];
+  return {x:s[0]*(L/2-R-0.004), y:s[1]*(W/2-R-0.004)};
+}
+
+function newDrill(){
+  const type = S.drill ? S.drill.type : "thick";
+  const lv = drillLevel;
+  let balls, target = {};
+  if(type==="thick"){
+    const minD = [0.45,0.7,0.95][lv];
+    let c, o, tries=0;
+    do{ c = rndPos(0.12); o = rndPos(0.12); tries++; }
+    while(tries<400 && Math.hypot(c.x-o.x,c.y-o.y) < minD);
+    balls=[c,o,placeAway(0),placeAway(1)];
+    // 수구=0, 제1적구는 index2(적구A)가 되도록 배치
+    balls=[c, placeAway(2), o, placeAway(3)];
+    const opts = lv===0 ? [0.75,0.5,0.25] : (lv===1 ? [0.875,0.75,0.5,0.25,0.125] : [0.875,0.75,0.625,0.5,0.375,0.25,0.125]);
+    target.thick = opts[Math.floor(Math.random()*opts.length)];
+  } else if(type==="score"){
+    const sep = [2.6, 3.4, 4.6][lv]*R;
+    const out=[];
+    for(let i=0;i<4;i++){
+      let p, t=0;
+      do{ p = rndPos(0.09); t++; } while(t<400 && out.some(o=>Math.hypot(o.x-p.x,o.y-p.y) < sep));
+      out.push(p);
+    }
+    balls = out;
+  } else if(type==="arrive"){
+    /* 실제로 도달 가능한 지점만 목표로 낸다 */
+    const need = lv+1;                        // 1~3 쿠션
+    let found = null;
+    for(let tries=0; tries<60 && !found; tries++){
+      const c = rndPos(0.15);
+      const cand = [c, placeAway(0), placeAway(1), placeAway(2)];
+      const ang = Math.random()*Math.PI*2;
+      const res = simulate(cand.map((b,i)=>({id:i,x:b.x,y:b.y})),
+                           {angle:ang, power:3.2, tipX:0, tipY:0.3}, 0);
+      const cu = res.events.filter(e=>e.kind==="cushion" && e.a===0);
+      if(cu.length < need) continue;
+      const e = cu[need-1];
+      // 가장 가까운 포인트로 스냅
+      let pt;
+      if(e.rail==="상" || e.rail==="하"){
+        const u = Math.max(1, Math.min(7, Math.round((e.x + L/2)/(L/8))));
+        pt = {x:-L/2+u*L/8, y:(e.rail==="상"? W/2-R : -W/2+R), label:`${e.rail}쿠션 ${u}포인트`};
+      } else {
+        const v = Math.max(1, Math.min(3, Math.round((e.y + W/2)/(W/4))));
+        pt = {x:(e.rail==="우"? L/2-R : -L/2+R), y:-W/2+v*W/4, label:`${e.rail}쿠션 ${v}포인트`};
+      }
+      if(Math.hypot(e.x-pt.x, e.y-pt.y) > 0.16) continue;   // 스냅 오차가 크면 버림
+      found = {balls:cand, pt};
+    }
+    if(!found){
+      const c = rndPos(0.15);
+      found = {balls:[c, placeAway(0), placeAway(1), placeAway(2)],
+               pt:{x:0, y:-W/2+R, label:"하쿠션 4포인트"}};
+    }
+    balls = found.balls; target.cush = need; target.pt = found.pt;
+  } else {                                     // system
+    /* 실제로 도달 가능한 목표만 낸다: 1쿠션을 무작위로 골라 쳐 보고,
+       그 결과 도착한 3쿠션수를 반올림해 문제로 삼는다. */
+    const A = sysAxes(S.sys.dir);
+    let found = null;
+    for(let tries=0; tries<40 && !found; tries++){
+      const u = 5.5 + Math.random()*2.4;
+      const c = {x:A.ux(Math.min(8, u)), y:nearContactY(A)};
+      const cand = [c, placeAway(0), placeAway(1), placeAway(2)];
+      const uf = 1 + Math.random()*4.5;
+      const ang = Math.atan2(farContactY(A)-c.y, A.ux(uf)-c.x);
+      const res = simulate(cand.map((b,i)=>({id:i,x:b.x,y:b.y})),
+                           {angle:ang, power:3.6, tipX:sysRunningTip(A), tipY:0.28}, 0);
+      const cu = res.events.filter(e=>e.kind==="cushion" && e.a===0);
+      const wantFar = A.flipY ? "하" : "상", wantNear = A.flipY ? "상" : "하";
+      if(cu.length<3 || cu[0].rail!==wantFar) continue;
+      const third = cu.find((e,i)=>i>=2 && e.rail===wantNear);
+      if(!third) continue;
+      const arrive = 10*A.xu(third.x);
+      if(arrive < 8 || arrive > 62) continue;
+      found = {balls:cand, T:Math.round(arrive/5)*5, ang};
+    }
+    if(!found){
+      const c = {x:A.ux(7), y:nearContactY(A)};
+      found = {balls:[c, placeAway(0), placeAway(1), placeAway(2)], T:30, ang:null};
+    }
+    balls = found.balls;
+    target.T = found.T; target.ang = found.ang;
+    S.sys.T = target.T; $("sysT").value = target.T;
+    $("sysTlabel").textContent = target.T; $("sysTv").textContent = target.T;
+  }
+  setBalls(balls.map(b=>({x:b.x, y:b.y})));
+  setCue(0, true);
+  S.drill = {type, level:lv, target, judged:null, layout:balls.map(b=>({x:b.x, y:b.y}))};
+  S.mode="setup"; S.playing=false; S.frameT=0; S.history=[]; $("btnRestore").disabled=true;
+  $("btnPlay").textContent="▶";
+  if(type==="system"){ S.show.sys=true; $("tgSys").checked=true; updateSysPanel(); }
+  recompute(); renderDrill();
+  if(S.mission) renderMission();
+}
+
+function judgeDrill(res){
+  const d = S.drill; if(!d) return;
+  const lv = d.level;
+  let pass=false, err=null, detail="";
+  if(d.type==="thick"){
+    const ev = res.events.find(e=>e.kind==="ball" && (e.a===res.cue||e.b===res.cue));
+    const other = ev ? (ev.a===res.cue ? ev.b : ev.a) : null;
+    const cushBefore = ev ? res.events.filter(x=>x.kind==="cushion" && x.a===res.cue && x.t < ev.t).length : 0;
+    if(!ev){ detail="적구를 맞히지 못했습니다"; err=1; }
+    else if(other !== 2){ detail="지정한 적구가 아닌 다른 공을 먼저 맞혔습니다"; err=1; }
+    else if(cushBefore > 0){ detail=`쿠션을 ${cushBefore}번 거친 뒤 맞았습니다 — 직접 맞혀야 합니다`; err=1; }
+    else{
+      const th = 1 - Math.sin(ev.info.cut*Math.PI/180);
+      err = Math.abs(th - d.target.thick);
+      pass = err <= TOL.thick[lv];
+      detail = `목표 ${fracLabel(d.target.thick)} · 실제 ${(th*100).toFixed(1)}% (${fracLabel(th)})`;
+    }
+  } else if(d.type==="score"){
+    const an = analyze(res);
+    pass = an.cls==="good"; err = pass?0:1; detail = an.verdict;
+  } else if(d.type==="arrive"){
+    const cu = res.events.filter(e=>e.kind==="cushion" && e.a===res.cue);
+    if(cu.length < d.target.cush){ detail=`쿠션 ${cu.length}회 (${d.target.cush}회 필요)`; err=9; }
+    else{
+      const e = cu[d.target.cush-1];
+      err = Math.hypot(e.x-d.target.pt.x, e.y-d.target.pt.y);
+      pass = err <= TOL.arrive[lv];
+      detail = `${d.target.cush}쿠션 도착점과 ${(err*1000).toFixed(0)} mm 차이`;
+    }
+  } else {
+    const sol = solveSystem(d.target.T);
+    const A = sysAxes(S.sys.dir);
+    const cu = res.events.filter(e=>e.kind==="cushion" && e.a===res.cue);
+    const wantFar = A.flipY ? "하" : "상", wantNear = A.flipY ? "상" : "하";
+    const third = cu.length>=3 && cu[0].rail===wantFar ? (cu.find((e,i)=>i>=2 && e.rail===wantNear)) : null;
+    if(!third){ detail="3쿠션 코스가 성립하지 않았습니다"; err=99; }
+    else{
+      const arrive = 10*A.xu(third.x);
+      err = Math.abs(arrive - d.target.T);
+      pass = err <= TOL.system[lv];
+      detail = `목표 ${d.target.T} · 도착 ${arrive.toFixed(1)}`;
+    }
+  }
+  d.judged = {pass, err, detail};
+  const st = loadStats();
+  const key = d.type + "_" + lv;
+  const s = st[key] || {n:0, ok:0, streak:0, best:0, sum:0};
+  s.n++; if(pass){ s.ok++; s.streak++; s.best=Math.max(s.best,s.streak); } else s.streak=0;
+  if(err!=null && isFinite(err)) s.sum += err;
+  st[key]=s; saveStats(st);
+  if(S.mission) judgeMissionResult(d, res);
+  renderDrill();
+}
+
+function renderDrill(){
+  const box = $("drillQ"), d = S.drill;
+  if(!d){ box.innerHTML = `<p>훈련 종목을 고르면 무작위 배치가 나옵니다.</p>`; renderStats(); return; }
+  const meta = DRILLS.find(x=>x.k===d.type);
+  let q = "";
+  if(d.type==="thick")  q = `<b class="big-num">${fracLabel(d.target.thick)}</b> 두께로 적구를 맞히세요`;
+  if(d.type==="score")  q = `이 배치에서 <b>득점</b>하세요`;
+  if(d.type==="arrive") q = `<b>${d.target.cush}쿠션</b> 뒤 <b class="big-num">${d.target.pt.label}</b>에 도착`;
+  if(d.type==="system") q = `3쿠션 목표수 <b class="big-num">${d.target.T}</b> 로 보내세요`;
+  const j = d.judged;
+  const jhtml = j ? `<div class="${j.pass?"res-ok":"res-bad"}" style="font-weight:700">${j.pass?"성공":"실패"} — ${j.detail}</div>`
+                  : `<div class="note">조준하고 Space 로 샷하면 자동 채점됩니다. (N 키 = 새 문제)</div>`;
+  box.innerHTML = `<p style="font-size:13px">${q}</p><div class="note">${meta.d}</div>${jhtml}`;
+  renderStats();
+}
+function renderStats(){
+  const st = loadStats(), rows=[];
+  for(const dr of DRILLS) for(let lv=0; lv<3; lv++){
+    const s = st[dr.k+"_"+lv]; if(!s || !s.n) continue;
+    rows.push(`<tr><th style="text-transform:none;font-size:11.5px;color:var(--ink-2)">${dr.n} · ${["쉬움","보통","어려움"][lv]}</th>
+      <td class="n">${s.ok}/${s.n} (${Math.round(100*s.ok/s.n)}%)</td>
+      <td class="n">연속 ${s.streak} · 최고 ${s.best}</td></tr>`);
+  }
+  $("drillStats").innerHTML = rows.length? rows.join("") : `<tr><td class="note">아직 기록이 없습니다.</td></tr>`;
+}
+
+/* ── 미션(스테이지) ─────────────────────────────────────── */
+function updateChipUI(){ $("chipCount").textContent = PROGRESS.chips; }
+
+function renderStageGrid(){
+  const box = $("stageGrid");
+  box.innerHTML = STAGES.map((st,i)=>{
+    const unlocked = stageUnlocked(i);
+    const rec = PROGRESS.stages[i];
+    const stars = rec ? rec.stars : 0;
+    const state = !unlocked ? "locked" : (S.mission && S.mission.idx===i ? "current" : (stars>0 ? "cleared" : "open"));
+    const starTxt = unlocked ? "★".repeat(stars) + "☆".repeat(3-stars) : "";
+    return `<button class="stage-node" data-state="${state}" data-i="${i}" ${unlocked?"":"disabled"} title="${st.n}">
+      <span class="sn-num">${unlocked ? i+1 : ""}</span>
+      <span class="sn-stars">${starTxt}</span>
+    </button>`;
+  }).join("");
+  box.querySelectorAll(".stage-node").forEach(b=>{
+    if(b.disabled) return;
+    b.addEventListener("click", ()=>startStage(+b.dataset.i));
+  });
+}
+
+function startStage(i){
+  if(!stageUnlocked(i)) return;
+  const st = STAGES[i];
+  S.mission = {idx:i};
+  drillLevel = st.level;
+  S.drill = {type:st.type, level:st.level, target:{}, judged:null};
+  newDrill();
+  renderStageGrid();
+}
+
+function starsFor(d, res){
+  const type = d.type, lv = d.level, j = d.judged;
+  if(!j.pass) return 0;
+  if(type==="score"){
+    const an = analyze(res);
+    return an.cuCount===0 ? 3 : 2;               // 쿠션 없이 직접 클리어하면 3성
+  }
+  const tol = TOL[type][lv];
+  if(j.err <= tol*0.25) return 3;
+  if(j.err <= tol*0.55) return 2;
+  return 1;
+}
+
+function judgeMissionResult(d, res){
+  const i = S.mission.idx;
+  const stars = starsFor(d, res);
+  const prev = PROGRESS.stages[i] || {stars:0};
+  if(stars > prev.stars){
+    PROGRESS.chips += (stars - prev.stars) * STAR_CHIPS;
+    PROGRESS.stages[i] = {stars};
+    saveProgress();
+  }
+  updateChipUI(); renderStageGrid(); renderShop(); renderMission();
+}
+
+function renderMission(){
+  const box = $("missionQ");
+  if(!S.mission){ box.innerHTML = `<p>스테이지를 선택하세요.</p>`; return; }
+  const i = S.mission.idx, st = STAGES[i], d = S.drill;
+  let q = "";
+  if(d.type==="thick")  q = `<b class="big-num">${fracLabel(d.target.thick)}</b> 두께로 적구를 맞히세요`;
+  if(d.type==="score")  q = `이 배치에서 <b>득점</b>하세요`;
+  if(d.type==="arrive") q = `<b>${d.target.cush}쿠션</b> 뒤 <b class="big-num">${d.target.pt.label}</b>에 도착`;
+  if(d.type==="system") q = `3쿠션 목표수 <b class="big-num">${d.target.T}</b> 로 보내세요`;
+  const j = d.judged;
+  const prevStars = (PROGRESS.stages[i]||{stars:0}).stars;
+  let jhtml;
+  if(!j){
+    jhtml = `<div class="note">조준하고 Space 로 샷하면 자동 채점됩니다.</div>`;
+  } else {
+    const stars = starsFor(d, S.res);
+    jhtml = `<div class="${j.pass?"res-ok":"res-bad"}" style="font-weight:700">
+      ${j.pass?"클리어":"실패"} — ${j.detail}
+      ${j.pass?`<div style="color:var(--brass);letter-spacing:2px;margin-top:4px">${"★".repeat(stars)}${"☆".repeat(3-stars)}</div>`:""}
+      ${j.pass && stars>prevStars ? `<div class="note">+${(stars-prevStars)*STAR_CHIPS} 💠</div>` : ""}
+    </div>`;
+  }
+  box.innerHTML = `<p style="font-size:13px"><b>${i+1}. ${st.n}</b><br>${q}</p><div class="note">${st.d}</div>${jhtml}`;
+}
+$("missionRetry").addEventListener("click", ()=>{
+  const d = S.drill; if(!d || !d.layout) return;
+  setBalls(d.layout.map(b=>({x:b.x, y:b.y})));
+  d.judged = null;
+  S.mode="setup"; S.playing=false; S.frameT=0; $("btnPlay").textContent="▶";
+  recompute(); renderMission();
+});
+$("missionExit").addEventListener("click", ()=>{
+  S.mission = null;
+  renderStageGrid(); renderMission();
+});
+
+/* ── 꾸미기 상점 ────────────────────────────────────────── */
+function renderShop(){
+  $("cueShop").innerHTML = CUE_SKINS.map(sk=>{
+    const owned = PROGRESS.ownedCue.includes(sk.id);
+    const state = PROGRESS.curCue===sk.id ? "selected" : (owned ? "owned" : "locked");
+    return `<button class="shop-item" data-state="${state}" data-shop="cue" data-id="${sk.id}">
+      <span class="si-swatch" style="background:${sk.css}"></span>
+      <span class="si-name">${sk.name}</span>
+      <span class="si-cost">${owned ? (PROGRESS.curCue===sk.id?"사용 중":"보유함") : "💠 "+sk.cost}</span>
+    </button>`;
+  }).join("");
+  $("clothShop").innerHTML = CLOTH_SKINS.map(sk=>{
+    const owned = PROGRESS.ownedCloth.includes(sk.id);
+    const state = PROGRESS.curCloth===sk.id ? "selected" : (owned ? "owned" : "locked");
+    return `<button class="shop-item" data-state="${state}" data-shop="cloth" data-id="${sk.id}">
+      <span class="si-swatch" style="background:linear-gradient(135deg,${sk.clothA},${sk.clothB})"></span>
+      <span class="si-name">${sk.name}</span>
+      <span class="si-cost">${owned ? (PROGRESS.curCloth===sk.id?"사용 중":"보유함") : "💠 "+sk.cost}</span>
+    </button>`;
+  }).join("");
+  document.querySelectorAll(".shop-item").forEach(b=>b.addEventListener("click", ()=>onShopClick(b.dataset.shop, b.dataset.id)));
+}
+function onShopClick(shop, id){
+  const list = shop==="cue" ? CUE_SKINS : CLOTH_SKINS;
+  const owned = shop==="cue" ? PROGRESS.ownedCue : PROGRESS.ownedCloth;
+  const sk = list.find(s=>s.id===id); if(!sk) return;
+  if(!owned.includes(id)){
+    if(PROGRESS.chips < sk.cost) return;
+    PROGRESS.chips -= sk.cost; owned.push(id);
+  }
+  if(shop==="cue") PROGRESS.curCue = id; else PROGRESS.curCloth = id;
+  saveProgress(); updateChipUI(); renderShop(); applyCueSkin(); render();
+}
+$("missionReset").addEventListener("click", ()=>{
+  try{ localStorage.removeItem("sagu-progress"); }catch(_){}
+  PROGRESS = loadProgress();
+  S.mission = null;
+  updateChipUI(); renderStageGrid(); renderMission(); renderShop(); applyCueSkin(); render();
+});
+
+$("drillTypes").innerHTML = DRILLS.map(d=>
+  `<button class="preset" data-k="${d.k}"><b>${d.n}</b><span>${d.d}</span></button>`).join("");
+document.querySelectorAll('#drillTypes .preset').forEach(b=>b.addEventListener("click", ()=>{
+  document.querySelectorAll('#drillTypes .preset').forEach(x=>x.style.borderColor = x===b ? "var(--accent)" : "");
+  S.mission = null;
+  S.drill = {type:b.dataset.k, level:drillLevel, target:{}, judged:null};
+  newDrill();
+}));
+document.querySelectorAll('#drillLevel button').forEach(b=>b.addEventListener("click", ()=>{
+  drillLevel = +b.dataset.lv;
+  document.querySelectorAll('#drillLevel button').forEach(x=>x.setAttribute("aria-pressed", x===b));
+  if(S.drill) newDrill();
+}));
+$("drillNext").addEventListener("click", ()=>{ if(S.drill) newDrill(); });
+$("drillRetry").addEventListener("click", ()=>{
+  const d = S.drill; if(!d || !d.layout) return;
+  setBalls(d.layout.map(b=>({x:b.x, y:b.y})));
+  d.judged = null;
+  S.mode="setup"; S.playing=false; S.frameT=0; $("btnPlay").textContent="▶";
+  recompute(); renderDrill();
+});
+/* 실제로 목표에 닿는 각도를 시뮬레이션으로 찾아 준다 */
+function clearedBalls(){
+  return S.balls.map((b,i)=> i===S.cue ? {id:b.id, x:b.x, y:b.y}
+    : ({id:b.id, x:(i%2?-1:1)*(L/2-R-0.002), y:(i<2?1:-1)*(W/2-R-0.002)}));
+}
+function sysArrivalErr(angle, T){
+  const A = sysAxes(S.sys.dir);
+  const res = simulate(clearedBalls(), {angle, power:3.6, tipX:sysRunningTip(A), tipY:0.28}, S.cue);
+  const cu = res.events.filter(e=>e.kind==="cushion" && e.a===S.cue);
+  const wantFar = A.flipY ? "하" : "상", wantNear = A.flipY ? "상" : "하";
+  if(cu.length<3 || cu[0].rail!==wantFar) return null;
+  const third = cu.find((e,i)=>i>=2 && e.rail===wantNear);
+  if(!third) return null;
+  return Math.abs(10*A.xu(third.x) - T);
+}
+function arriveErr(angle, need, pt){
+  const res = simulate(clearedBalls(), {angle, power:3.2, tipX:0, tipY:0.3}, S.cue);
+  const cu = res.events.filter(e=>e.kind==="cushion" && e.a===S.cue);
+  if(cu.length < need) return null;
+  const e = cu[need-1];
+  return Math.hypot(e.x-pt.x, e.y-pt.y);
+}
+function refineAngle(fn, a0, span, step){
+  let best=null;
+  for(let a=a0-span; a<=a0+span+1e-9; a+=step){
+    const e = fn(a);
+    if(e!=null && (!best || e < best.e)) best={a, e};
+  }
+  return best;
+}
+$("drillGiveUp").addEventListener("click", ()=>{
+  const d = S.drill; if(!d) return;
+  if(d.type==="thick"){
+    // 목표 두께가 되는 조준각으로 맞춰 준다
+    const c = S.balls[S.cue], o = S.balls[2];
+    const dd = Math.hypot(o.x-c.x, o.y-c.y);
+    const base = Math.atan2(o.y-c.y, o.x-c.x);
+    const perp = 2*R*(1 - d.target.thick);
+    S.shot.angle = base + Math.asin(Math.max(-1,Math.min(1, perp/dd)));
+    syncAngleUI(); recompute();
+  } else if(d.type==="system"){
+    const A = sysAxes(S.sys.dir);
+    const sol = solveSystem(d.target.T);
+    const a0 = (d.target.ang != null) ? d.target.ang : (sol ? sol.angle : S.shot.angle);
+    setTip(sysRunningTip(A), 0.28); S.shot.power = 3.6;
+    let best = refineAngle(a=>sysArrivalErr(a, d.target.T), a0, 3*Math.PI/180, 0.15*Math.PI/180);
+    if(best) best = refineAngle(a=>sysArrivalErr(a, d.target.T), best.a, 0.35*Math.PI/180, 0.05*Math.PI/180) || best;
+    if(best){
+      S.shot.angle = best.a;
+      if(sol){
+        const gap = (best.a - sol.angle)*180/Math.PI;
+        $("sysNote").textContent = `실제로 닿는 각도는 시스템 계산보다 ${gap>0?"+":""}${gap.toFixed(2)}° 차이납니다.`;
+      }
+    }
+    syncAngleUI(); syncShotUI(); recompute();
+  } else if(d.type==="arrive"){
+    const c = S.balls[S.cue];
+    const a0 = Math.atan2(d.target.pt.y-c.y, d.target.pt.x-c.x);
+    setTip(0, 0.3); S.shot.power = 3.2;
+    let best;
+    if(d.target.cush === 1){ best = {a:a0}; }
+    else {
+      best = refineAngle(a=>arriveErr(a, d.target.cush, d.target.pt), Math.PI, Math.PI, 2*Math.PI/180);
+      if(best) best = refineAngle(a=>arriveErr(a, d.target.cush, d.target.pt), best.a, 2.2*Math.PI/180, 0.15*Math.PI/180) || best;
+    }
+    if(best){ S.shot.angle = best.a; syncAngleUI(); syncShotUI(); recompute(); }
+  }
+});
+$("drillReset").addEventListener("click", ()=>{ saveStats({}); renderStats(); });
+
+/* ══════════════════════════════════════════════════════════
+   11. 탭 · 테마 · 이론
+   ══════════════════════════════════════════════════════════ */
+document.querySelectorAll('.tabs button').forEach(b=>b.addEventListener("click",()=>{
+  document.querySelectorAll('.tabs button').forEach(x=>x.setAttribute("aria-selected", x===b));
+  document.querySelectorAll('.panel').forEach(p=>p.dataset.open = (p.dataset.panel===b.dataset.tab)?"1":"0");
+  if(b.dataset.tab==="sys"){ S.show.sys = true; $("tgSys").checked = true; updateSysPanel(); }
+}));
+
+$("btnTheme").addEventListener("click", ()=>{
+  const cur = document.documentElement.getAttribute("data-theme");
+  const dark = cur ? cur==="dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+  document.documentElement.setAttribute("data-theme", dark ? "light" : "dark");
+  try{ localStorage.setItem("sagu-theme", dark?"light":"dark"); }catch(_){}
+});
+try{ const th=localStorage.getItem("sagu-theme"); if(th) document.documentElement.setAttribute("data-theme",th); }catch(_){}
+
+const THEORY = [
+  {h:"두께와 절단각은 같은 말의 앞뒤", p:"수구가 적구의 정중앙을 지나가면 '풀 두께', 옆구리를 스치면 '얇은 두께'입니다. 겨냥선과 두 공 중심을 잇는 선이 벌어진 각이 절단각(θ)이고, 둘은 <b>두께 = 1 − sin θ</b> 로 딱 붙어 있습니다. 절단각 30°가 정확히 1/2 두께입니다.", f:"두께 f = 1 − sin θ  ·  θ = 30° → f = 0.50"},
+  {h:"분리각 30° 룰", p:"자연스럽게 굴러온 수구가 적구를 맞히면, 적구는 두 공 중심을 잇는 선을 따라 나가고 수구는 그 직각(접선) 방향으로 튕겼다가 남아 있는 전진 회전 때문에 앞쪽으로 휘어 돕니다. 그 결과 웬만한 두께(1/4~3/4)에서 두 공이 벌어지는 각은 <b>거의 30°로 일정</b>합니다. 화면의 하늘색 점선이 30° 룰, 흰색 점선이 시뮬레이션 실측입니다. 아주 두껍거나 아주 얇으면 룰이 깨집니다.", f:"접선 방향 = 중심선 ⊥ · 자연 구름 + 중간 두께 → 분리각 ≈ 30°"},
+  {h:"당점이 곧 회전량", p:"큐가 공 중심에서 벗어난 만큼 회전이 걸립니다. 중심에서 위로 0.4 R(반지름의 40%)을 때리면 처음부터 미끄러짐 없는 <b>자연 구름</b>이 됩니다. 그보다 위면 밀어치기, 아래면 끌어치기입니다. 0.5 R을 넘기면 팁이 미끄러지는 미스큐 영역이라 위젯에서 붉은 점선으로 막아 뒀습니다.", f:"ω = 5·V·(offset/R) / (2R)  ·  offset = 0.4R → ω = V/R (자연 구름)"},
+  {h:"미끄러지다 구르기 시작하는 지점", p:"중심을 때린 공은 처음엔 미끄러지며 갑니다. 접지점 상대속도는 <b>3.5·μs·g</b> 의 비율로 줄고, 다 줄어들면 속도가 처음의 5/7로 떨어진 채 구르기 시작합니다. 세기를 바꿔가며 조준 탭 아래 표시되는 활주 거리를 보세요.", f:"v_roll = (5/7)·v₀  ·  t_slide = 2v₀ / (7·μs·g)"},
+  {h:"좌우 회전과 스로우", p:"횡회전이 걸린 수구가 적구에 닿으면 두 공 표면이 스치면서 적구를 옆으로 밀어냅니다. 이게 <b>스로우</b>입니다. 오른쪽 회전이면 적구는 왼쪽으로 밀려나고, 동시에 적구에는 반대 방향 회전이 옮겨 갑니다. 얇게 칠수록(절단각이 클수록) 절단에 의한 스로우도 함께 커집니다.", f:"접선 임펄스 Jt = −sgn(u)·min(μ·Jn, m|u|/7)"},
+  {h:"쿠션 반사각은 왜 안 맞나", p:"쿠션은 공의 중심이 아니라 <b>중심보다 조금 위(지름의 0.635 높이)</b>를 때립니다. 그래서 튕길 때 위치 에너지가 회전으로 바뀌고, 옆회전이 걸려 있으면 쿠션 천과의 마찰이 진행 방향을 틀어 버립니다. 순방향 회전(순회전)이면 반사각이 벌어지고, 역방향이면 좁아집니다. 계기 탭 로그에서 입사각 → 반사각을 직접 비교해 보세요.", f:"접점 높이 h = 0.635 × 지름 · e는 속도가 빠를수록 감소"},
+  {h:"사구 규칙 한 줄 정리", p:"내 수구로 <b>빨간 공 두 개를 모두</b> 맞히면 1점. 상대 수구를 건드리면 감점입니다. 화면 위 번호 뱃지 ①②가 수구가 실제로 맞힌 순서(제1적구 → 제2적구)를 보여 주고, 이동선 색도 같은 규칙을 씁니다 — <b>흰색 = 수구</b>, <b>주황 = 제1적구</b>, <b>하늘 = 제2적구</b>, <b>회색 = 상대 수구</b>.", f:"득점 = 적구 A ∧ 적구 B ∧ ¬상대 수구"},
+  {h:"파이브 앤 하프는 왜 “반”인가", p:"이 시스템의 핵심은 수구수 눈금이 <b>한 포인트에 5씩</b>, 즉 다른 눈금의 절반 간격이라는 점입니다. 시뮬레이터로 여러 코스를 자동으로 쳐서 이 절반 간격이 물리적으로 맞는지 검증했더니 기울기 0.45가 나왔습니다(이론 0.50). 시스템 탭에서 <b>실측 대조</b>를 누르면 계산값과 이 당구대의 실제 도착점을 나란히 볼 수 있습니다.", f:"3쿠션수 = 수구수 − 1쿠션수"},
+  {h:"이 시뮬레이터가 아직 못 하는 것", p:"큐를 세워 치는 <b>마세</b>와 점프, 공의 수직 튀어오름, 천의 방향성(결)과 습도 변화, 공에 묻은 초크에 의한 마찰 편차는 반영하지 않았습니다. 평면 위 미끄럼·구름·회전과 두 종류의 충돌만 정직하게 풀고 있습니다.", f:null}
+];
+document.getElementById("theory").innerHTML = THEORY.map(t=>
+  `<div class="card"><h4>${t.h}</h4><p>${t.p}</p>${t.f?`<div class="fm">${t.f}</div>`:""}</div>`
+).join("") + `<div class="note warnbox">물리 상수는 카롬 라사지·카롬볼의 통상 실측 범위를 기본값으로 잡았습니다. 실제 당구장은 천 상태·습도·공 상태에 따라 달라지므로, 물리 탭에서 값을 조정해 내 당구장에 맞추는 것이 정확합니다.</div>`;
+
+/* 검증용 훅 (물리 엔진을 외부에서 호출해 결과를 대조할 때 사용) */
+window.__PRESETS = PRESETS;
+window.__sysAxes = sysAxes;
+window.__sysMeasure = (T)=>{ const sol=solveSystem(T); if(!sol) return null; return measureSystem(sol); };
+window.__sagu = {simulate, aimGeom, analyze, S, P, get R(){return R;}, get L(){return L;}, get W(){return W;}, setBalls, pt, contactOrder};
+
+/* ══════════════════════════════════════════════════════════
+   12. 부팅
+   ══════════════════════════════════════════════════════════ */
+new ResizeObserver(()=>{ fit(); render(); }).observe(cv.parentElement);
+fit();
+syncPhys();
+setTip(0,0.25);
+$("btnRestore").disabled = true;
+Object.entries(TG).forEach(([id,key])=>{ $(id).checked = S.show[key]; });
+$("tgAuto").checked = S.autoKeep;
+renderStats(); renderDrill();
+loadPreset(PRESETS[0]);
+updateSysPanel();
+applyCueSkin(); updateChipUI(); renderStageGrid(); renderShop(); renderMission();
+requestAnimationFrame(loop);
+})();
+</script>
