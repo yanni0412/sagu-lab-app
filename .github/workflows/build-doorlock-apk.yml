@@ -1,0 +1,71 @@
+name: Build DoorOn APK
+
+on:
+  push:
+    paths:
+      - 'doorlock/**'
+      - 'doorlock-app/**'
+      - '.github/workflows/build-doorlock-apk.yml'
+  workflow_dispatch: {}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: doorlock-app
+    steps:
+      - name: 코드 체크아웃
+        uses: actions/checkout@v4
+
+      - name: JDK 21 설치
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Node.js 설치
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: npm 의존성 설치
+        run: npm ci
+
+      - name: Gradle 캐시
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-dooron-${{ runner.os }}-${{ hashFiles('doorlock-app/android/**/*.gradle*') }}
+
+      - name: 웹 자산(doorlock/)을 android 프로젝트로 동기화
+        run: npx cap sync android
+
+      - name: 디버그 APK 빌드
+        working-directory: doorlock-app/android
+        run: chmod +x gradlew && ./gradlew assembleDebug --stacktrace
+
+      - name: APK 업로드
+        uses: actions/upload-artifact@v4
+        with:
+          name: dooron-debug-apk
+          path: doorlock-app/android/app/build/outputs/apk/debug/app-debug.apk
+
+  firmware:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 코드 체크아웃
+        uses: actions/checkout@v4
+
+      - name: Arduino CLI 설치
+        uses: arduino/setup-arduino-cli@v2
+
+      - name: ESP32 보드 패키지 설치
+        run: |
+          arduino-cli core update-index --additional-urls https://espressif.github.io/arduino-esp32/package_esp32_index.json
+          arduino-cli core install esp32:esp32 --additional-urls https://espressif.github.io/arduino-esp32/package_esp32_index.json
+
+      - name: 펌웨어 컴파일 검사
+        run: arduino-cli compile --fqbn esp32:esp32:esp32 doorlock-app/firmware/doorlock_esp32

@@ -1,0 +1,18 @@
+{
+  "name": "dooron-app",
+  "version": "1.0.0",
+  "private": true,
+  "description": "도어온 스마트 도어락 Android 앱 (Capacitor)",
+  "scripts": {
+    "sync": "cap sync android"
+  },
+  "dependencies": {
+    "@capacitor-community/bluetooth-le": "^8.3.0",
+    "@capacitor/android": "^8.5.0",
+    "@capacitor/cli": "^8.5.0",
+    "@capacitor/core": "^8.5.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0"
+  }
+}

@@ -376,8 +376,158 @@ class HttpLockDriver {
     return res.json();
   }
 }
-const driver = new MockLockDriver();
 window.DoorOn = {HttpLockDriver};   // 콘솔에서 확인용
+
+/* ---------- BLE: 도어온 프로토콜 (firmware/doorlock_esp32 와 짝) ----------
+   앱 → 도어락 (CMD 쓰기)
+     [0x01]                     일회용 난수(nonce) 요청
+     [0x02]                     상태 요청
+     [op, arg, mac(16)]         인증 명령. mac = HMAC-SHA256(키, nonce‖op‖arg) 앞 16바이트
+                                op: 0x00 키 확인, 0x10 열기, 0x11 잠그기, 0x20 자동잠금 초(arg, 0=끔)
+   도어락 → 앱 (EVT 알림)
+     [0x81, nonce(8)]           난수 (10초 유효, 한 번 쓰면 폐기 → 재전송 공격 방지)
+     [0x90, op, code]           결과 code: 0 성공 1 키 불일치 2 이중잠금 3 난수 만료 4 문 열림 5 잘못된 명령 6 잠시 차단
+     [0xA0, locked, doorOpen, battery, autoLockSec]   상태
+     [0xB0, kind, detail]       현장 이벤트 kind: 1 열림 2 잠김 3 경고 / detail: 열림·잠김=방법, 경고=사유  */
+const BLE = {
+  SVC:"d00a0001-7c3e-4b9a-9f1e-3a5c2b8e6f10",
+  CMD:"d00a0002-7c3e-4b9a-9f1e-3a5c2b8e6f10",
+  EVT:"d00a0003-7c3e-4b9a-9f1e-3a5c2b8e6f10",
+};
+const BLE_OP = {check:0x00, unlock:0x10, lock:0x11, autolock:0x20};
+const BLE_ERR = {1:"보안 키가 맞지 않아요", 2:"실내에서 이중 잠금이 걸려 있어요", 3:"요청 시간이 지났어요. 다시 시도하세요",
+  4:"문이 열려 있어 잠글 수 없어요", 5:"도어락이 명령을 이해하지 못했어요", 6:"인증 실패가 반복돼 잠시 차단됐어요. 30초 후 다시 시도하세요"};
+const BLE_METHOD = {1:"pin", 2:"inside", 3:"auto", 4:"app", 5:"card"};
+
+const hexToBytes = h => Uint8Array.from(h.match(/../g), b => parseInt(b, 16));
+const bytesToHex = b => Array.from(b, x => x.toString(16).padStart(2, "0")).join("");
+async function hmac16(keyHex, bytes){
+  const key = await crypto.subtle.importKey("raw", hexToBytes(keyHex), {name:"HMAC", hash:"SHA-256"}, false, ["sign"]);
+  return new Uint8Array(await crypto.subtle.sign("HMAC", key, Uint8Array.from(bytes))).slice(0, 16);
+}
+
+/* 전송 계층: APK(Capacitor 네이티브 플러그인) / 브라우저(Web Bluetooth) */
+const isNative = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+const NativeBle = {
+  _p:null, _ready:null,
+  get p(){ return this._p || (this._p = window.Capacitor.registerPlugin("BluetoothLe")); },
+  supported:true,
+  init(){ return this._ready || (this._ready = this.p.initialize({}).catch(e => { this._ready = null; throw e; })); },
+  async pick(){ await this.init(); const d = await this.p.requestDevice({services:[BLE.SVC]}); return {id:d.deviceId, name:d.name || "도어락"}; },
+  async connect(id, onDisc){
+    await this.init();
+    this.subs = this.subs || {};
+    if (this.subs["d" + id]) await this.subs["d" + id].remove();
+    this.subs["d" + id] = await this.p.addListener(`disconnected|${id}`, onDisc);
+    await this.p.connect({deviceId:id, timeout:10000});
+  },
+  async notify(id, cb){
+    if (this.subs["n" + id]) await this.subs["n" + id].remove();
+    this.subs["n" + id] = await this.p.addListener(`notification|${id}|${BLE.SVC}|${BLE.EVT}`, e => cb(hexToBytes((e && e.value || "").replace(/[^0-9a-f]/gi, ""))));
+    await this.p.startNotifications({deviceId:id, service:BLE.SVC, characteristic:BLE.EVT});
+  },
+  write(id, bytes){ return this.p.write({deviceId:id, service:BLE.SVC, characteristic:BLE.CMD, value:bytesToHex(bytes)}); },
+  disconnect(id){ return this.p.disconnect({deviceId:id}).catch(() => {}); },
+};
+const WebBle = {
+  devs:new Map(), chars:new Map(),
+  get supported(){ return !!navigator.bluetooth; },
+  async pick(){
+    const d = await navigator.bluetooth.requestDevice({filters:[{services:[BLE.SVC]}]});
+    this.devs.set(d.id, d); return {id:d.id, name:d.name || "도어락"};
+  },
+  async connect(id, onDisc){
+    let d = this.devs.get(id);
+    if (!d && navigator.bluetooth.getDevices) d = (await navigator.bluetooth.getDevices()).find(x => x.id === id);
+    if (!d) {   // 브라우저가 기기를 기억하지 못하면 다시 골라야 함
+      const picked = await navigator.bluetooth.requestDevice({filters:[{services:[BLE.SVC]}]});
+      d = picked; this.devs.set(id, d);
+    }
+    d.ongattserverdisconnected = onDisc;
+    const server = await d.gatt.connect(), svc = await server.getPrimaryService(BLE.SVC);
+    this.chars.set(id, {d, cmd:await svc.getCharacteristic(BLE.CMD), evt:await svc.getCharacteristic(BLE.EVT)});
+  },
+  async notify(id, cb){
+    const c = this.chars.get(id);
+    c.evt.oncharacteristicvaluechanged = e => { const v = e.target.value; cb(new Uint8Array(v.buffer.slice(v.byteOffset, v.byteOffset + v.byteLength))); };
+    await c.evt.startNotifications();
+  },
+  write(id, bytes){ const c = this.chars.get(id); return (c.cmd.writeValueWithResponse || c.cmd.writeValue).call(c.cmd, Uint8Array.from(bytes)); },
+  async disconnect(id){ const c = this.chars.get(id); if (c && c.d.gatt.connected) c.d.gatt.disconnect(); },
+};
+const bleT = isNative ? NativeBle : WebBle;
+
+class BleLockDriver {
+  constructor(onEvent){ this.onEvent = onEvent; this.live = new Set(); this.waiters = []; }
+  get supported(){ return bleT.supported; }
+  pick(){ return bleT.pick(); }
+  async connect(device){
+    if (this.live.has(device.id)) return;
+    await bleT.connect(device.bleId, () => { this.live.delete(device.id); this.onEvent(device, {type:"disconnected"}); });
+    await bleT.notify(device.bleId, bytes => this._rx(device, bytes));
+    this.live.add(device.id);
+    await bleT.write(device.bleId, [0x02]);   // 현재 상태 받아오기
+  }
+  async disconnect(device){ this.live.delete(device.id); await bleT.disconnect(device.bleId); }
+  _expect(device, hdr, ms = 5000){
+    return new Promise((resolve, reject) => {
+      const w = {dev:device.id, hdr, resolve, timer:setTimeout(() => { this.waiters = this.waiters.filter(x => x !== w); reject(new Error("도어락이 응답하지 않아요")); }, ms)};
+      this.waiters.push(w);
+    });
+  }
+  _rx(device, b){
+    if (!b.length) return;
+    const w = this.waiters.find(x => x.dev === device.id && x.hdr === b[0]);
+    if (w) { clearTimeout(w.timer); this.waiters = this.waiters.filter(x => x !== w); w.resolve(b); }
+    if (b[0] === 0xA0 && b.length >= 5) this.onEvent(device, {type:"state", locked:!!b[1], doorOpen:!!b[2], battery:b[3], autoLockSec:b[4]});
+    if (b[0] === 0xB0 && b.length >= 3) this.onEvent(device, {type:"event", kind:b[1], detail:b[2]});
+  }
+  async send(device, cmd, arg = 0){
+    await this.connect(device);
+    const nP = this._expect(device, 0x81);
+    await bleT.write(device.bleId, [0x01]);
+    const nonce = (await nP).slice(1, 9);
+    const op = BLE_OP[cmd];
+    const mac = await hmac16(device.keyHex, [...nonce, op, arg]);
+    const rP = this._expect(device, 0x90);
+    await bleT.write(device.bleId, [op, arg, ...mac]);
+    const r = await rP;
+    if (r[2] !== 0) throw new Error(BLE_ERR[r[2]] || `도어락 오류 (${r[2]})`);
+    return {ok:true};
+  }
+}
+
+const mock = new MockLockDriver();
+const ble = new BleLockDriver(onBleEvent);
+const driverFor = d => d.kind === "ble" ? ble : mock;
+
+function onBleEvent(d, ev){
+  d = S.devices.find(x => x.id === d.id); if (!d) return;
+  if (ev.type === "disconnected") { if (d.online) toast(`${d.name} 블루투스 연결이 끊겼어요`, true); d.online = false; }
+  else if (ev.type === "state") {
+    Object.assign(d, {online:true, locked:ev.locked, doorOpen:ev.doorOpen, battery:ev.battery, autoLock:ev.autoLockSec > 0});
+    if (ev.autoLockSec) d.autoLockSec = ev.autoLockSec;
+  } else if (ev.type === "event") {
+    if (ev.kind === 1) { d.locked = false; log(d, "unlock", BLE_METHOD[ev.detail] || "inside"); notice(d, "unlock", `${METHOD[BLE_METHOD[ev.detail]] || "도어락"}(으)로 문이 열렸어요`); }
+    else if (ev.kind === 2) { d.locked = true; log(d, "lock", BLE_METHOD[ev.detail] || "auto"); }
+    else if (ev.kind === 3) {
+      const why = ev.detail === 1 ? "문 열림 지속" : "인증 실패 반복";
+      log(d, "alert", "door", why);
+      if (ev.detail === 1) notice(d, "door", "문이 오래 열려 있어요", true);
+      else if (d.intrusionAlarm) notice(d, "alert", "잘못된 키로 여러 번 열려고 했어요. 침입 시도일 수 있어요", true);
+    }
+  }
+  save(); render();
+}
+
+async function bleConnect(){
+  const d = dev();
+  if (busy) return;
+  busy = true; render();
+  try { await ble.connect(d); toast(`${d.name}에 연결했어요`); }
+  catch (e) { toast(e.name === "NotFoundError" ? "기기 선택을 취소했어요" : `연결 실패: ${e.message || e}`, true); }
+  finally { busy = false; render(); }
+}
 
 /* ══════════════════════════════════════════════════════════
    4. 핵심 동작: 열기 / 잠그기 / 자동잠금 / 기록 / 알림
@@ -410,7 +560,7 @@ function setLocked(d, locked, method, who){
 
 function scheduleAutoLock(d){
   clearTimeout(T(d.id).auto);
-  if (!d.autoLock) return;
+  if (!d.autoLock || d.kind === "ble") return;   // BLE 도어락은 기기가 직접 자동잠금
   T(d.id).auto = setTimeout(() => {
     if (d.locked) return;
     if (d.doorOpen) return scheduleAutoLock(d);   // 문이 닫힐 때까지 대기
@@ -427,7 +577,7 @@ async function remote(cmd){
   }
   busy = true; render();
   try {
-    await driver.send(d, cmd);
+    await driverFor(d).send(d, cmd);
     setLocked(d, cmd === "lock", "app", "나");
     toast(cmd === "lock" ? "문을 잠갔어요" : "문을 열었어요");
   } catch (e) {
@@ -518,20 +668,20 @@ function logRow(l, showDevice){
 
 const VIEWS = {
   home(d){
-    const open = !d.locked, off = !d.online;
+    const open = !d.locked, off = !d.online, isBle = d.kind === "ble";
     const cls = off ? "offline" : open ? "open" : "";
-    const state = off ? "연결 끊김" : open ? "열림" : "잠김";
-    const hint = busy ? "도어락에 명령을 보내는 중…" :
-      off ? "도어락 전원·Wi-Fi 상태를 확인하세요" :
+    const state = off ? (isBle ? "연결 안 됨" : "연결 끊김") : open ? "열림" : "잠김";
+    const hint = busy ? (off ? "블루투스로 연결하는 중…" : "도어락에 명령을 보내는 중…") :
+      off ? (isBle ? "도어락 근처에서 버튼을 <b>눌러 연결</b>하세요" : "도어락 전원·Wi-Fi 상태를 확인하세요") :
       open ? (d.autoLock ? `<b>${d.autoLockSec}초 후 자동 잠김</b> · 눌러서 바로 잠그기` : "눌러서 잠그기") :
       "버튼을 <b>길게 눌러</b> 문 열기";
     const lastLog = S.logs.filter(l => l.deviceId === d.id).slice(0, 4);
     const battLow = d.battery <= 20;
     return `
       <div class="status-line"><span class="conn-dot ${off ? "off" : ""}"></span>
-        ${off ? "오프라인" : "연결됨 · Wi-Fi"} <span style="color:var(--ink-3)">· ${esc(d.model)}</span></div>
+        ${off ? "오프라인" : isBle ? "연결됨 · 블루투스" : "연결됨 · Wi-Fi"} <span style="color:var(--ink-3)">· ${esc(d.model)}</span></div>
       <div class="lock-stage">
-        <button class="lock-btn ${cls} ${busy ? "busy" : ""}" id="lockBtn" aria-label="${state}. ${open ? "눌러서 잠그기" : "길게 눌러 열기"}" ${off || busy ? "disabled" : ""}>
+        <button class="lock-btn ${cls} ${busy ? "busy" : ""}" id="lockBtn" aria-label="${state}. ${off ? "눌러서 연결" : open ? "눌러서 잠그기" : "길게 눌러 열기"}" ${(off && !isBle) || busy ? "disabled" : ""}>
           <span class="ring"></span>
           <span class="face">${open ? ICON.unlock : off ? ICON.wifiOff : ICON.lock}<span class="state">${state}</span></span>
         </button>
@@ -542,10 +692,10 @@ const VIEWS = {
         <div class="tile"><div class="k">문 상태</div><div class="v ${d.doorOpen ? "warn" : ""}">${d.doorOpen ? "열려 있음" : "닫힘"}</div></div>
         <div class="tile"><div class="k">자동 잠금</div><div class="v">${d.autoLock ? d.autoLockSec + "초" : "끔"}</div></div>
       </div>
-      <div class="quick">
+      ${isBle ? "" : `<div class="quick">
         <button data-act="new-key">${ICON.key}임시 비밀번호</button>
         <button data-act="keypad">${ICON.door}키패드 체험</button>
-      </div>
+      </div>`}
       <h3>최근 출입</h3>
       <div class="list">${lastLog.length ? lastLog.map(l => logRow(l)).join("") : `<div class="empty">아직 기록이 없어요</div>`}</div>
       ${S.logs.filter(l => l.deviceId === d.id).length > 4 ? `<button class="btn block" style="margin-top:10px" data-act="go-log">전체 기록 보기</button>` : ""}`;
@@ -576,6 +726,7 @@ const VIEWS = {
       `반복 · ${k.days.map(i => DAY[i]).join("")} ${minToStr(k.fromMin)}~${minToStr(k.toMin)}`;
     return `<h2>출입키</h2>
       <h3>임시 비밀번호</h3>
+      ${d.kind === "ble" ? `<p class="note" style="margin-top:0">이 블루투스 도어락 예제 펌웨어에는 키패드가 없어서 임시 비밀번호가 기기에 적용되지 않아요. 앱 안의 기록용으로만 쓰여요.</p>` : ""}
       <div class="list">
         ${keys.map(k => { const [n, c] = label[keyStatus(k)]; const shown = reveal.has(k.id); return `
           <button class="row" data-key="${k.id}">
@@ -596,7 +747,8 @@ const VIEWS = {
   },
 
   settings(d){
-    const sw = (name, on, extra = "") => `<label class="switch"><input type="checkbox" data-set="${name}" ${on ? "checked" : ""} ${extra}><i></i></label>`;
+    const isBle = d.kind === "ble";
+    const sw =(name, on, extra = "") => `<label class="switch"><input type="checkbox" data-set="${name}" ${on ? "checked" : ""} ${extra}><i></i></label>`;
     return `<h2>설정</h2>
       <h3>도어락 · ${esc(d.name)}</h3>
       <div class="list">
@@ -604,10 +756,12 @@ const VIEWS = {
         <div class="row"><div class="body"><div class="t1">자동 잠금</div><div class="t2">문이 닫히면 자동으로 잠가요</div></div>${sw("autoLock", d.autoLock)}</div>
         <div class="row"><div class="body"><div class="t1">자동 잠금 시간</div></div>
           <select data-set="autoLockSec" ${d.autoLock ? "" : "disabled"}>${[3,5,10,30].map(s => `<option value="${s}" ${d.autoLockSec === s ? "selected" : ""}>${s}초</option>`).join("")}</select></div>
-        <div class="row"><div class="body"><div class="t1">이중 잠금</div><div class="t2">켜면 외부·원격으로 열 수 없어요 (실내 강제잠금)</div></div>${sw("doubleLock", d.doubleLock)}</div>
-        <div class="row"><div class="body"><div class="t1">침입 경보</div><div class="t2">비밀번호 5회 오류·강제 개방 시 경보</div></div>${sw("intrusionAlarm", d.intrusionAlarm)}</div>
-        <div class="row"><div class="body"><div class="t1">음량</div></div>
-          <select data-set="volume">${["무음","작게","중간","크게"].map(v => `<option ${d.volume === v ? "selected" : ""}>${v}</option>`).join("")}</select></div>
+        ${isBle ? "" : `<div class="row"><div class="body"><div class="t1">이중 잠금</div><div class="t2">켜면 외부·원격으로 열 수 없어요 (실내 강제잠금)</div></div>${sw("doubleLock", d.doubleLock)}</div>`}
+        <div class="row"><div class="body"><div class="t1">침입 경보</div><div class="t2">${isBle ? "잘못된 키로 5회 시도하면 알림" : "비밀번호 5회 오류·강제 개방 시 경보"}</div></div>${sw("intrusionAlarm", d.intrusionAlarm)}</div>
+        ${isBle ? "" : `<div class="row"><div class="body"><div class="t1">음량</div></div>
+          <select data-set="volume">${["무음","작게","중간","크게"].map(v => `<option ${d.volume === v ? "selected" : ""}>${v}</option>`).join("")}</select></div>`}
+        ${isBle ? `<button class="row" data-act="ble-key"><div class="body"><div class="t1">보안 키</div><div class="t2">도어락 펌웨어가 시리얼에 출력한 32자리 키</div></div><span class="side num">${esc(d.keyHex.slice(0, 4))}••••</span></button>
+          <button class="row" data-act="ble-reconnect"><div class="body"><div class="t1">${d.online ? "연결 끊기" : "블루투스 연결"}</div></div></button>` : ""}
       </div>
 
       <h3>보안</h3>
@@ -626,14 +780,14 @@ const VIEWS = {
         <div class="row"><div class="body"><div class="t1">배터리 부족 알림</div></div>${sw("n.battery", S.notify.battery)}</div>
       </div>
 
-      <h3>데모 시뮬레이터</h3>
+      ${isBle ? "" : `<h3>데모 시뮬레이터</h3>
       <div class="list">
         <button class="row" data-sim="finger"><span class="ico op">${ICON.unlock}</span><div class="body"><div class="t1">가족이 지문으로 출입</div></div></button>
         <button class="row" data-act="keypad"><span class="ico op">${ICON.door}</span><div class="body"><div class="t1">도어락 키패드에 번호 입력</div><div class="t2">임시 비밀번호 확인용 · 5회 틀리면 침입 경보</div></div></button>
         <button class="row" data-sim="door"><span class="ico">${ICON.door}</span><div class="body"><div class="t1">문 ${d.doorOpen ? "닫기" : "열어두기"}</div><div class="t2">10초 이상 열려 있으면 알림</div></div></button>
         <button class="row" data-sim="battery"><span class="ico">${ICON.battery}</span><div class="body"><div class="t1">배터리 ${d.battery <= 20 ? "교체 (100%)" : "-15%"}</div></div></button>
         <button class="row" data-sim="online"><span class="ico">${ICON.wifiOff}</span><div class="body"><div class="t1">${d.online ? "연결 끊기" : "다시 연결"}</div></div></button>
-      </div>
+      </div>`}
 
       <h3>기타</h3>
       <div class="list">
@@ -641,7 +795,7 @@ const VIEWS = {
         ${S.devices.length > 1 ? `<button class="row" data-act="del-device"><div class="body"><div class="t1" style="color:var(--bad)">이 도어락 삭제</div></div></button>` : ""}
         <button class="row" data-act="reset"><div class="body"><div class="t1" style="color:var(--bad)">모든 데이터 초기화</div></div></button>
       </div>
-      <p class="note">현재는 가상 도어락(MockLockDriver)으로 동작해요. 실제 기기 연동은 README를 참고하세요.</p>`;
+      <p class="note">${isBle ? "블루투스 도어락은 명령마다 일회용 난수 + HMAC 서명으로 인증해요." : "가상 도어락(데모)이에요. 실제 기기는 ‘도어락 추가 → 블루투스 도어락’으로 등록하세요."}</p>`;
   },
 };
 
@@ -843,7 +997,59 @@ function deviceSheet(){
   }));
 }
 
-async function addDevice(){
+function addDevice(){
+  sheet(`<h4>도어락 추가</h4><p class="sub">어떤 도어락을 등록할까요?</p>
+    <div class="list" style="box-shadow:none; border:1px solid var(--line); margin-top:12px">
+      <button class="row" id="addBle"><span class="ico ac">${ICON.lock}</span><div class="body"><div class="t1">블루투스 도어락</div>
+        <div class="t2">도어온 펌웨어(ESP32)를 올린 실제 기기</div></div></button>
+      <button class="row" id="addMock"><span class="ico">${ICON.door}</span><div class="body"><div class="t1">가상 도어락 (데모)</div>
+        <div class="t2">기기 없이 기능 체험</div></div></button>
+    </div>`,
+  (el, close) => {
+    el.querySelector("#addBle").onclick = () => { close(); addBleDevice(); };
+    el.querySelector("#addMock").onclick = () => { close(); addMockDevice(); };
+  });
+}
+
+function addBleDevice(){
+  if (!ble.supported) return sheet(`<h4>블루투스를 쓸 수 없어요</h4>
+    <p class="sub" style="margin-top:6px">이 브라우저는 Web Bluetooth를 지원하지 않아요. <b>도어온 APK</b>를 설치하거나,
+    안드로이드·PC의 <b>Chrome</b>에서 https 주소로 열어 주세요. (아이폰 Safari는 미지원)</p>
+    <button class="btn block" style="margin-top:16px" data-close>확인</button>`);
+  sheet(`<h4>블루투스 도어락 등록</h4>
+    <p class="sub">도어락 전원을 켜고 휴대폰을 가까이 두세요.</p>
+    <label class="field"><span>이름</span><input id="bName" maxlength="20" value="현관문 (BLE)"></label>
+    <label class="field"><span>보안 키 (32자리)</span><input id="bKey" class="num" autocomplete="off" autocapitalize="off" spellcheck="false"
+      placeholder="펌웨어 시리얼 모니터에 나온 키"></label>
+    <p class="note" style="margin:8px 0 0">키를 아는 사람만 문을 열 수 있어요. 남에게 보여주지 마세요.</p>
+    <div class="btn-row"><button class="btn" data-close>취소</button><button class="btn primary" id="bGo">기기 찾기</button></div>`,
+  (el, close) => {
+    const go = el.querySelector("#bGo");
+    go.onclick = async () => {
+      const keyHex = el.querySelector("#bKey").value.replace(/[\s:-]/g, "").toLowerCase();
+      if (!/^[0-9a-f]{32}$/.test(keyHex)) return toast("보안 키는 0-9, a-f로 된 32자리여야 해요", true);
+      const name = el.querySelector("#bName").value.trim() || "도어락";
+      go.disabled = true; go.textContent = "찾는 중…";
+      let d;
+      try {
+        const picked = await ble.pick();   // 반드시 버튼 클릭 직후 호출 (브라우저 정책)
+        d = {id:uid(), kind:"ble", bleId:picked.id, keyHex, name, model:picked.name || "도어온 BLE", locked:true, doorOpen:false,
+          battery:100, online:false, autoLock:true, autoLockSec:5, doubleLock:false, intrusionAlarm:true, volume:"중간"};
+        go.textContent = "인증 중…";
+        await ble.send(d, "check");
+        S.devices.push(d); S.currentId = d.id; d.online = true;
+        save(); close(); tab = "home"; render(); toast(`${name}을(를) 등록했어요`);
+        bleT.write(d.bleId, [0x02]).catch(() => {});   // 등록 직후 실제 상태 받아오기
+      } catch (e) {
+        if (d) ble.disconnect(d).catch(() => {});
+        toast(e.name === "NotFoundError" ? "기기 선택을 취소했어요" : `등록 실패: ${e.message || e}`, true);
+        go.disabled = false; go.textContent = "기기 찾기";
+      }
+    };
+  });
+}
+
+async function addMockDevice(){
   const close = sheet(`<h4>도어락 추가</h4><p class="sub" id="pairMsg">도어락 배터리 커버 안의 <b>등록 버튼</b>을 누르세요…</p>
     <div style="height:4px; background:var(--surface-2); border-radius:2px; margin:18px 0; overflow:hidden"><div id="pairBar" style="height:100%; width:0; background:var(--accent); transition:width 2.4s linear"></div></div>
     <button class="btn block" data-close>취소</button>`,
@@ -853,7 +1059,7 @@ async function addDevice(){
   close();
   textSheet("새 도어락 이름", "이름", `도어락 ${S.devices.length + 1}`, name => {
     const id = uid();
-    S.devices.push({id, name, model:"DL-500 Wi-Fi", locked:true, doorOpen:false, battery:100, online:true,
+    S.devices.push({id, kind:"mock", name, model:"DL-500 Wi-Fi", locked:true, doorOpen:false, battery:100, online:true,
       autoLock:true, autoLockSec:5, doubleLock:false, intrusionAlarm:true, volume:"중간"});
     S.currentId = id; save(); tab = "home"; render(); toast(`${name}을(를) 등록했어요`);
   });
@@ -903,7 +1109,7 @@ let hold = null;
 main.addEventListener("pointerdown", e => {
   const btn = e.target.closest("#lockBtn"); if (!btn || btn.disabled) return;
   const d = dev();
-  if (!d.locked) return;          // 열린 상태: 클릭으로 바로 잠금
+  if (!d.locked || !d.online) return;   // 열린 상태: 클릭으로 바로 잠금 / 오프라인: 클릭으로 연결
   btn.setPointerCapture(e.pointerId);
   const t0 = performance.now();
   const step = now => {
@@ -926,7 +1132,7 @@ main.addEventListener("contextmenu", e => { if (e.target.closest("#lockBtn")) e.
 main.addEventListener("click", e => {
   const t = e.target;
   const lockBtn = t.closest("#lockBtn");
-  if (lockBtn) { if (!dev().locked) remote("lock"); else if (e.detail === 0) remote("unlock"); return; }  // detail 0 = 키보드(Enter/Space)
+  if (lockBtn) { if (!dev().online) { if (dev().kind === "ble") bleConnect(); } else if (!dev().locked) remote("lock"); else if (e.detail === 0) remote("unlock"); return; }  // detail 0 = 키보드(Enter/Space)
   const f = t.closest("[data-filter]"); if (f) { logFilter = f.dataset.filter; render(); return; }
   const k = t.closest("[data-key]"); if (k) return keyDetail(k.dataset.key);
   const m = t.closest("[data-member]"); if (m) return memberSheet(m.dataset.member);
@@ -954,7 +1160,14 @@ main.addEventListener("click", e => {
     "pin": setPin,
     "pin-off": async () => { if (await askPin({title:"앱 비밀번호 해제", sub:"현재 비밀번호를 입력하세요", verify:true})) { S.security.pinHash = null; save(); render(); toast("앱 비밀번호를 해제했어요"); } },
     "add-device": addDevice,
+    "ble-reconnect": () => { const d = dev(); if (d.online) ble.disconnect(d).then(() => { d.online = false; save(); render(); }); else bleConnect(); },
+    "ble-key": () => textSheet("보안 키 변경", "32자리 키", "", v => {
+      v = v.replace(/[\s:-]/g, "").toLowerCase();
+      if (!/^[0-9a-f]{32}$/.test(v)) return toast("보안 키는 0-9, a-f로 된 32자리여야 해요", true);
+      dev().keyHex = v; save(); render(); toast("보안 키를 바꿨어요");
+    }),
     "del-device": () => confirmSheet(`${dev().name} 삭제`, "기록과 임시 비밀번호도 함께 지워져요.", "삭제", () => {
+      if (dev().kind === "ble") ble.disconnect(dev()).catch(() => {});
       const id = dev().id; clearTimeout(T(id).auto); clearTimeout(T(id).door); clearTimeout(T(id).doorAlert);
       S.devices = S.devices.filter(x => x.id !== id); S.logs = S.logs.filter(x => x.deviceId !== id);
       S.keys = S.keys.filter(x => x.deviceId !== id); S.notices = S.notices.filter(x => x.deviceId !== id);
@@ -973,6 +1186,14 @@ document.addEventListener("click", e => {    // 시트 안의 data-act (예: 기
 main.addEventListener("change", e => {
   const el = e.target.closest("[data-set]"); if (!el) return;
   const d = dev(), k = el.dataset.set, v = el.type === "checkbox" ? el.checked : el.value;
+  if (d.kind === "ble" && (k === "autoLock" || k === "autoLockSec")) {   // 기기에 직접 설정
+    const sec = k === "autoLock" ? (v ? d.autoLockSec : 0) : +v;
+    ble.send(d, "autolock", sec)
+      .then(() => { d.autoLock = sec > 0; if (sec) d.autoLockSec = sec; toast("도어락 설정을 바꿨어요"); })
+      .catch(err => toast(err.message, true))
+      .finally(() => { save(); render(); });
+    return;
+  }
   if (k.startsWith("n.")) S.notify[k.slice(2)] = v;
   else if (k === "confirmRemote") S.security.confirmRemote = v;
   else if (k === "autoLockSec") d.autoLockSec = +v;
@@ -994,7 +1215,7 @@ async function setPin(){
    8. 시작
    ══════════════════════════════════════════════════════════ */
 // 새로고침 전에 열려 있던 도어락은 자동잠금 타이머를 다시 건다
-S.devices.forEach(d => { if (!d.locked) scheduleAutoLock(d); });
+S.devices.forEach(d => { if (d.kind === "ble") d.online = false; else if (!d.locked) scheduleAutoLock(d); });
 setInterval(() => { if (tab === "keys") render(); }, 30000);   // 임시키 상태(예정→사용 가능→만료) 갱신
 render();
 if (S.security.pinHash) askPin({title:"도어온", sub:"앱 비밀번호를 입력하세요", verify:true, cancelable:false});
