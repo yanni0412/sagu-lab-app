@@ -1,10 +1,10 @@
 apply plugin: 'com.android.application'
 
 android {
-    namespace = "com.honeyappa.dooron"
+    namespace = "com.honeyappa.caron"
     compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "com.honeyappa.dooron"
+        applicationId "com.honeyappa.caron"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1

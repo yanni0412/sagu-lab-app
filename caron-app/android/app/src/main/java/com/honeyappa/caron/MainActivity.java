@@ -1,4 +1,4 @@
-package com.honeyappa.dooron;
+package com.honeyappa.caron;
 
 import com.getcapacitor.BridgeActivity;
 

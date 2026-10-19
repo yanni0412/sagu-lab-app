@@ -1,11 +1,11 @@
-name: Build DoorOn APK
+name: Build CarOn APK
 
 on:
   push:
     paths:
-      - 'doorlock/**'
-      - 'doorlock-app/**'
-      - '.github/workflows/build-doorlock-apk.yml'
+      - 'caron/**'
+      - 'caron-app/**'
+      - '.github/workflows/build-caron-apk.yml'
   workflow_dispatch: {}
 
 jobs:
@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: doorlock-app
+        working-directory: caron-app
     steps:
       - name: 코드 체크아웃
         uses: actions/checkout@v4
@@ -38,20 +38,20 @@ jobs:
           path: |
             ~/.gradle/caches
             ~/.gradle/wrapper
-          key: gradle-dooron-${{ runner.os }}-${{ hashFiles('doorlock-app/android/**/*.gradle*') }}
+          key: gradle-caron-${{ runner.os }}-${{ hashFiles('caron-app/android/**/*.gradle*') }}
 
-      - name: 웹 자산(doorlock/)을 android 프로젝트로 동기화
+      - name: 웹 자산(caron/)을 android 프로젝트로 동기화
         run: npx cap sync android
 
       - name: 디버그 APK 빌드
-        working-directory: doorlock-app/android
+        working-directory: caron-app/android
         run: chmod +x gradlew && ./gradlew assembleDebug --stacktrace
 
       - name: APK 업로드
         uses: actions/upload-artifact@v4
         with:
-          name: dooron-debug-apk
-          path: doorlock-app/android/app/build/outputs/apk/debug/app-debug.apk
+          name: caron-debug-apk
+          path: caron-app/android/app/build/outputs/apk/debug/app-debug.apk
 
   firmware:
     runs-on: ubuntu-latest
@@ -68,4 +68,4 @@ jobs:
           arduino-cli core install esp32:esp32 --additional-urls https://espressif.github.io/arduino-esp32/package_esp32_index.json
 
       - name: 펌웨어 컴파일 검사
-        run: arduino-cli compile --fqbn esp32:esp32:esp32 doorlock-app/firmware/doorlock_esp32
+        run: arduino-cli compile --fqbn esp32:esp32:esp32 caron-app/firmware/caron_esp32

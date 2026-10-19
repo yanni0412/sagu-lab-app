@@ -1,8 +1,8 @@
 {
-  "name": "dooron-app",
+  "name": "caron-app",
   "version": "1.0.0",
   "private": true,
-  "description": "도어온 스마트 도어락 Android 앱 (Capacitor)",
+  "description": "카온 차량 원격제어 Android 앱 (Capacitor)",
   "scripts": {
     "sync": "cap sync android"
   },

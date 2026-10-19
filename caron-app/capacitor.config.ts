@@ -1,9 +1,9 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.honeyappa.dooron',
-  appName: '도어온',
-  webDir: '../doorlock'
+  appId: 'com.honeyappa.caron',
+  appName: '카온',
+  webDir: '../caron'
 };
 
 export default config;
