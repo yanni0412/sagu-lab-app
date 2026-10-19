@@ -14,18 +14,12 @@ jobs:
       - name: 코드 체크아웃
         uses: actions/checkout@v4
 
-      - name: Arduino CLI 설치
-        uses: arduino/setup-arduino-cli@v2
-
-      - name: ESP32 보드 패키지 설치
-        env:
-          URL: https://espressif.github.io/arduino-esp32/package_esp32_index.json
-        run: |
-          for i in 1 2 3 4 5; do
-            arduino-cli core update-index --additional-urls "$URL" && \
-            arduino-cli core install esp32:esp32 --additional-urls "$URL" && break
-            echo "인덱스/보드 설치 재시도 $i..." && sleep $((i*5))
-          done
-
-      - name: 펌웨어 컴파일 검사
-        run: arduino-cli compile --fqbn esp32:esp32:esp32 caron-app/firmware/caron_esp32
+      - name: ESP32 펌웨어 컴파일 검사
+        uses: arduino/compile-sketches@v1
+        with:
+          fqbn: esp32:esp32:esp32
+          platforms: |
+            - name: esp32:esp32
+              source-url: https://espressif.github.io/arduino-esp32/package_esp32_index.json
+          sketch-paths: |
+            - caron-app/firmware/caron_esp32
