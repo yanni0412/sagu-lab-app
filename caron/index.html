@@ -277,7 +277,7 @@ function seed(){
   return {
     car:{kind:"demo", name:"내 차", plate:"12가 3456", bleId:null, keyHex:DEMO_KEY,
       locked:true, engine:false, engineUntil:0, trunk:false, voltage:126, runMin:10, walkAway:true, online:false},
-    settings:{autoUnlock:false, shake:false, confirmUnlock:false, pinHash:null},
+    settings:{autoUnlock:false, walkAwayLock:false, shake:false, confirmUnlock:false, pinHash:null},
     logs:[
       {id:uid(), t:now - 42*6e4, type:"lock", src:"앱"},
       {id:uid(), t:now - 47*6e4, type:"stop", src:"시간 종료"},
@@ -356,6 +356,7 @@ const NativeBle = {
     await this.p.startNotifications({deviceId:id, service:curU().SVC, characteristic:curU().EVT});
   },
   write(id, bytes){ return this.p.write({deviceId:id, service:curU().SVC, characteristic:curU().CMD, value:bytesToHex(bytes)}); },
+  async readRssi(id){ try { return (await this.p.readRssi({deviceId:id})).value; } catch { return null; } },
   disconnect(id){ return this.p.disconnect({deviceId:id}).catch(() => {}); },
 };
 /* 전송 계층 ② 브라우저: Web Bluetooth (안드로이드·PC Chrome, https) */
@@ -376,6 +377,7 @@ const WebBle = {
     await this.ch.evt.startNotifications();
   },
   write(id, bytes){ const c = this.ch.cmd; return (c.writeValueWithResponse || c.writeValue).call(c, Uint8Array.from(bytes)); },
+  async readRssi(){ return null; },   // Web Bluetooth는 RSSI 미지원
   async disconnect(){ if (this.ch && this.ch.d.gatt.connected) this.ch.d.gatt.disconnect(); },
 };
 /* 전송 계층 ③ 데모: 펌웨어 로직을 그대로 흉내 내는 가상 차량 */
@@ -389,6 +391,7 @@ const DemoCar = {
   async pick(){ return {id:"demo", name:"카온 데모 차량"}; },
   async connect(id, onDisc){ await sleep(350); this.onDisc = onDisc; this.load(); if (this.st.engine) this.armEngine(); },
   async notify(id, cb){ this.cb = cb; },
+  async readRssi(){ return typeof window.__rssi === "number" ? window.__rssi : -55; },
   async disconnect(){ this.cb = null; },
   armEngine(){
     clearTimeout(this.timers.eng);
@@ -496,6 +499,7 @@ const Link = {
     return {nonce, rest};
   },
   send(cmd, arg = 0){ return C().kind === "mp686" ? this.mpControl(cmd) : this.auth(OP[cmd], arg, C().keyHex); },
+  async rssi(){ const t = this.t(); return t.readRssi ? t.readRssi(this.id()) : null; },
   /* 보안 키 재발급: 새 키 조각 2개를 받아 기존 키로 풀고, 새 키로 확인해야 기기가 확정 */
   async rekey(){
     const old = C().keyHex;
@@ -668,8 +672,8 @@ const VIEWS = {
     const ck = (name, on, dis = false) => `<label class="check"><input type="checkbox" data-set="${name}" ${on ? "checked" : ""} ${dis ? "disabled" : ""}><i></i></label>`;
     return `<div class="page">
       <div class="list">
-        <div class="row"><div class="body"><div class="t1">근접 자동 열림</div><div class="t2">블루투스 범위에 들어오면 자동으로 문 열림${isNative ? "" : " (APK 전용)"}</div></div>${ck("autoUnlock", s.autoUnlock, !isNative && (ble || mp))}</div>
-        ${mp ? "" : `<div class="row"><div class="body"><div class="t1">멀어지면 자동 잠금</div><div class="t2">연결이 끊기고 10초 뒤 기기가 스스로 잠금</div></div>${ck("walkAway", c.walkAway, !c.online)}</div>`}
+        <div class="row"><div class="body"><div class="t1">가까워지면 자동 열림</div><div class="t2">차에 다가가 블루투스가 연결되면 문 열림${isNative ? "" : " · APK 전용"}</div></div>${ck("autoUnlock", s.autoUnlock, !isNative)}</div>
+        <div class="row"><div class="body"><div class="t1">멀어지면 자동 잠금</div><div class="t2">차에서 멀어져 신호가 약해지면 잠금${isNative ? "" : " · APK 전용"}</div></div>${ck("walkAwayLock", s.walkAwayLock, !isNative)}</div>
         <div class="row"><div class="body"><div class="t1">흔들어서 잠금/열림</div><div class="t2">연결된 상태에서 휴대폰을 세게 두 번 흔들기</div></div>${ck("shake", s.shake)}</div>
         <button class="row" data-act="scan"><div class="body"><div class="t1">기기 검색</div><div class="t2">${ble || mp ? `등록됨: ${esc(c.bleName || "기기")}${mp ? " · 크라운 호환" : ""}` : "차량에 설치한 기기 연결"}</div></div></button>
         <button class="row" data-act="name"><div class="body"><div class="t1">이름 변경</div><div class="t2">${esc(c.name)}</div></div></button>
@@ -716,7 +720,12 @@ const VIEWS = {
         <li>잠금·열기·찾기: 한 번 누르기</li>
         <li>트렁크·원격 시동: 길게 누르기 (실수 방지)</li>
         <li>시동이 걸려 있을 때 가운데 버튼: 시동 끄기</li>
-        <li>문을 열고 30초 안에 차 문을 열지 않으면 자동으로 다시 잠겨요</li>
+      </ul>
+      <h3>자동 기능</h3>
+      <ul>
+        <li><b>흔들어서 잠금/열림</b>: 연결된 상태에서 휴대폰을 세게 두 번 흔들면 잠금↔열림 (설정에서 켜기)</li>
+        <li><b>가까워지면 열림</b>: 차에 다가가 블루투스가 연결되면 자동으로 문 열림 (APK 전용)</li>
+        <li><b>멀어지면 잠금</b>: 차에서 멀어져 신호가 약해지면 자동으로 잠금 (APK 전용 · 신호세기 기준)</li>
       </ul>
       <h3>보안</h3>
       <ul>
@@ -1000,8 +1009,8 @@ main.addEventListener("click", e => {
 main.addEventListener("change", e => {
   const el = e.target.closest("[data-set]"); if (!el) return;
   const k = el.dataset.set, v = el.type === "checkbox" ? el.checked : +el.value;
-  if ((k === "runMin" || k === "walkAway") && C().kind !== "mp686") {   // ESP32 기기에 저장되는 설정
-    Link.send(k === "runMin" ? "runmin" : "walkaway", +v)
+  if (k === "runMin" && C().kind === "ble") {        // ESP32 기기에 저장되는 원격시동 시간
+    Link.send("runmin", +v)
       .then(() => toast("기기 설정을 바꿨어요"))
       .catch(err => toast(err.message, true))
       .finally(() => render());
@@ -1044,13 +1053,40 @@ function onMotion(e){
   if (now - lastPeak > 120) lastPeak = now;
 }
 
-/* ---------- 근접 자동 열림 (APK): 끊겨 있으면 주기적으로 재연결, 붙는 순간 열기 ---------- */
-setInterval(async () => {
+/* ---------- 근접 엔진 ----------
+   가까워지면 열림: 끊겨 있으면 주기적으로 재연결 → 붙는 순간 잠겨 있으면 열기
+   멀어지면 잠금: 연결된 동안 신호세기(RSSI)를 재서, 약해진 상태가 이어지면 잠그고 끊기
+   (RSSI는 APK 네이티브에서만 읽을 수 있어요. 데모는 테스트용 가상값)          */
+const FAR_DBM = -88;        // 이보다 약하면 "멀어짐"으로 간주
+const FAR_HOLD = 4000;      // 멀어진 상태가 이만큼 이어지면 잠금
+let proxFarSince = 0, proxBusy = false;
+async function proximityTick(){
   const c = C();
-  if (!isNative || (c.kind !== "ble" && c.kind !== "mp686") || c.online || busy || document.hidden) return;
-  const ok = await connectNow(false);
-  if (ok && S.settings.autoUnlock) { await sleep(300); if (C().locked) act("unlock", "근접 자동"); }
-}, 7000);
+  if (proxBusy || busy || document.hidden) return;
+  if (c.kind !== "demo" && c.kind !== "ble" && c.kind !== "mp686") return;
+  const canReconnect = isNative || c.kind === "demo";
+  proxBusy = true;
+  try {
+    if (!c.online) {
+      proxFarSince = 0;
+      if (!canReconnect) return;
+      if (!S.settings.autoUnlock && !S.settings.walkAwayLock) return;   // 할 일 없으면 연결 유지 안 함
+      const ok = await connectNow(false);
+      if (ok && S.settings.autoUnlock && C().locked) { await sleep(300); await act("unlock", "근접 자동"); }
+      return;
+    }
+    if (S.settings.walkAwayLock && !c.locked && !c.engine) {
+      const rssi = await Link.rssi().catch(() => null);
+      if (rssi == null) return;                 // RSSI 못 읽음(웹 등) → 멀어지면잠금 불가
+      if (rssi < FAR_DBM) {
+        if (!proxFarSince) proxFarSince = Date.now();
+        else if (Date.now() - proxFarSince > FAR_HOLD) { proxFarSince = 0; await act("lock", "근접 자동"); }
+      } else proxFarSince = 0;
+    } else proxFarSince = 0;
+  } finally { proxBusy = false; }
+}
+setInterval(proximityTick, 3500);
+window.__proximityTick = proximityTick;   // 테스트 훅
 
 /* 시동 남은 시간 표시 */
 setInterval(() => {
