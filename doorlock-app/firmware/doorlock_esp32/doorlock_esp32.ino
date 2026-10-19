@@ -30,7 +30,7 @@ const uint32_t DOOR_ALERT_MS = 60000;   // 문이 이만큼 열려 있으면 경
 #define CMD_UUID "d00a0002-7c3e-4b9a-9f1e-3a5c2b8e6f10"
 #define EVT_UUID "d00a0003-7c3e-4b9a-9f1e-3a5c2b8e6f10"
 
-enum { R_OK = 0, R_BADMAC = 1, R_DOUBLE = 2, R_NONCE = 3, R_DOOROPEN = 4, R_BADCMD = 5, R_LOCKOUT = 6 };
+enum { RES_OK = 0, RES_BADMAC = 1, RES_DOUBLE = 2, RES_NONCE = 3, RES_DOOROPEN = 4, RES_BADCMD = 5, RES_LOCKOUT = 6 };
 enum { M_KEYPAD = 1, M_INSIDE = 2, M_AUTO = 3, M_APP = 4 };
 
 Preferences prefs;
@@ -144,11 +144,11 @@ void handleCommand(const uint8_t* b, size_t n) {
     return;
   }
   if (n == 1 && b[0] == 0x02) { sendState(); return; }
-  if (n != 18) { result(n ? b[0] : 0, R_BADCMD); return; }
+  if (n != 18) { result(n ? b[0] : 0, RES_BADCMD); return; }
 
   uint8_t op = b[0], arg = b[1];
-  if (millis() < lockoutUntil) { result(op, R_LOCKOUT); return; }
-  if (!nonceValid || millis() - nonceAt > 10000) { nonceValid = false; result(op, R_NONCE); return; }
+  if (millis() < lockoutUntil) { result(op, RES_LOCKOUT); return; }
+  if (!nonceValid || millis() - nonceAt > 10000) { nonceValid = false; result(op, RES_NONCE); return; }
 
   uint8_t msg[10], mac[16];
   memcpy(msg, nonce, 8);
@@ -156,7 +156,7 @@ void handleCommand(const uint8_t* b, size_t n) {
   nonceValid = false;                                 // 성공·실패와 관계없이 한 번 쓰면 폐기
   hmac16(msg, 10, mac);
   if (!equal16(mac, b + 2)) {
-    result(op, R_BADMAC);
+    result(op, RES_BADMAC);
     if (++failCount >= 5) {
       failCount = 0;
       lockoutUntil = millis() + 30000;
@@ -168,16 +168,16 @@ void handleCommand(const uint8_t* b, size_t n) {
   failCount = 0;
 
   switch (op) {
-    case 0x00: result(op, R_OK); sendState(); break;   // 키 확인
-    case 0x10: result(op, R_OK); setLocked(false, M_APP, true); break;
+    case 0x00: result(op, RES_OK); sendState(); break;   // 키 확인
+    case 0x10: result(op, RES_OK); setLocked(false, M_APP, true); break;
     case 0x11:
-      if (HAS_DOOR_SENSOR && doorOpen) { result(op, R_DOOROPEN); break; }
-      result(op, R_OK); setLocked(true, M_APP, true); break;
+      if (HAS_DOOR_SENSOR && doorOpen) { result(op, RES_DOOROPEN); break; }
+      result(op, RES_OK); setLocked(true, M_APP, true); break;
     case 0x20:
       autoLockSec = arg;
       prefs.begin("dooron", false); prefs.putUChar("auto", autoLockSec); prefs.end();
-      result(op, R_OK); sendState(); break;
-    default: result(op, R_BADCMD);
+      result(op, RES_OK); sendState(); break;
+    default: result(op, RES_BADCMD);
   }
 }
 
