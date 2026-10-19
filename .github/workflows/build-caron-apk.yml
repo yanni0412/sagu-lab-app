@@ -4,7 +4,10 @@ on:
   push:
     paths:
       - 'caron/**'
-      - 'caron-app/**'
+      - 'caron-app/package.json'
+      - 'caron-app/package-lock.json'
+      - 'caron-app/capacitor.config.ts'
+      - 'caron-app/android/**'
       - '.github/workflows/build-caron-apk.yml'
   workflow_dispatch: {}
 
@@ -52,20 +55,3 @@ jobs:
         with:
           name: caron-debug-apk
           path: caron-app/android/app/build/outputs/apk/debug/app-debug.apk
-
-  firmware:
-    runs-on: ubuntu-latest
-    steps:
-      - name: 코드 체크아웃
-        uses: actions/checkout@v4
-
-      - name: Arduino CLI 설치
-        uses: arduino/setup-arduino-cli@v2
-
-      - name: ESP32 보드 패키지 설치
-        run: |
-          arduino-cli core update-index --additional-urls https://espressif.github.io/arduino-esp32/package_esp32_index.json
-          arduino-cli core install esp32:esp32 --additional-urls https://espressif.github.io/arduino-esp32/package_esp32_index.json
-
-      - name: 펌웨어 컴파일 검사
-        run: arduino-cli compile --fqbn esp32:esp32:esp32 caron-app/firmware/caron_esp32
