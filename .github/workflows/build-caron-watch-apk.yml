@@ -1,0 +1,57 @@
+name: Build CarOn Watch APK
+
+on:
+  push:
+    paths:
+      - 'caron-watch/**'
+      - 'caron-watch-app/package.json'
+      - 'caron-watch-app/package-lock.json'
+      - 'caron-watch-app/capacitor.config.ts'
+      - 'caron-watch-app/android/**'
+      - '.github/workflows/build-caron-watch-apk.yml'
+  workflow_dispatch: {}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: caron-watch-app
+    steps:
+      - name: 코드 체크아웃
+        uses: actions/checkout@v4
+
+      - name: JDK 21 설치
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Node.js 설치
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: npm 의존성 설치
+        run: npm ci
+
+      - name: Gradle 캐시
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-caronwatch-${{ runner.os }}-${{ hashFiles('caron-watch-app/android/**/*.gradle*') }}
+
+      - name: 웹 자산(caron-watch/)을 android 프로젝트로 동기화
+        run: npx cap sync android
+
+      - name: 디버그 APK 빌드 (Wear OS)
+        working-directory: caron-watch-app/android
+        run: chmod +x gradlew && ./gradlew assembleDebug --stacktrace
+
+      - name: APK 업로드
+        uses: actions/upload-artifact@v4
+        with:
+          name: caron-watch-debug-apk
+          path: caron-watch-app/android/app/build/outputs/apk/debug/app-debug.apk

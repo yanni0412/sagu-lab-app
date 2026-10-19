@@ -1,0 +1,13 @@
+{
+  "name": "caron-watch-app",
+  "version": "1.0.0",
+  "private": true,
+  "description": "카온 워치 (Wear OS) — Capacitor",
+  "dependencies": {
+    "@capacitor-community/bluetooth-le": "^8.3.0",
+    "@capacitor/android": "^8.5.0",
+    "@capacitor/cli": "^8.5.0",
+    "@capacitor/core": "^8.5.0"
+  },
+  "devDependencies": { "typescript": "^5.4.0" }
+}
