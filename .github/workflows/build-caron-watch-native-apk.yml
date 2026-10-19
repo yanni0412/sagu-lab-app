@@ -1,0 +1,41 @@
+name: Build CarOn Watch Native APK
+
+on:
+  push:
+    paths:
+      - 'caron-watch-native/**'
+      - '.github/workflows/build-caron-watch-native-apk.yml'
+  workflow_dispatch: {}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: caron-watch-native
+    steps:
+      - name: 코드 체크아웃
+        uses: actions/checkout@v4
+
+      - name: JDK 21 설치
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Gradle 캐시
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-caronwatchnative-${{ runner.os }}-${{ hashFiles('caron-watch-native/**/*.gradle*') }}
+
+      - name: 디버그 APK 빌드 (Wear OS 네이티브)
+        run: chmod +x gradlew && ./gradlew assembleDebug --stacktrace
+
+      - name: APK 업로드
+        uses: actions/upload-artifact@v4
+        with:
+          name: caron-watch-native-debug-apk
+          path: caron-watch-native/app/build/outputs/apk/debug/app-debug.apk
