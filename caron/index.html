@@ -312,6 +312,23 @@ const UUID = {
   CMD:"ca700002-5e1f-4b2a-8c3d-7a9e0b1c2d30",
   EVT:"ca700003-5e1f-4b2a-8c3d-7a9e0b1c2d30",
 };
+/* MP686: 지오르돈/크라운 호환 모듈 (APK 분석 결과, FFE0 서비스의 시리얼 통신) */
+const MP_UUID = {
+  SVC:"0000ffe0-0000-1000-8000-00805f9b34fb",
+  CMD:"0000ffe4-0000-1000-8000-00805f9b34fb",   // 쓰기
+  EVT:"0000ffe9-0000-1000-8000-00805f9b34fb",   // 알림
+};
+const uuidsFor = kind => kind === "mp686" ? MP_UUID : UUID;
+const curU = () => uuidsFor(C().kind);
+/* MP686 프로토콜: 헤더 0xCD, 평문, 체크섬=앞바이트 합의 하위 1바이트 */
+const MP_CMD = {lock:0xC1, unlock:0xC2, trunk:0xC3, find:0xC4, start:0xC5, stop:0xC6};
+const MP_WARN = {0xE1:"문 열림", 0xE2:"트렁크 열림", 0xE3:"충격 감지", 0xE4:"시동 경보"};
+const mpSum = a => { let s = 0; for (const x of a) s = (s + x) & 0xFF; return s; };
+const mpFrame = a => { const d = [...a]; d.push(mpSum(d)); return d; };
+const mpLoginPkt = (pwd, autoUnlock) => { const d = [0xCD, 0x0A, autoUnlock ? 1 : 0]; for (let i = 0; i < 6; i++) d.push(i < pwd.length ? pwd.charCodeAt(i) & 0xFF : 0); return mpFrame(d); };
+const mpPwdPkt = (oldP, newP) => { const d = [0xCD, 0x0B]; for (let i = 0; i < 6; i++) d.push(i < oldP.length ? oldP.charCodeAt(i) & 0xFF : 0); for (let i = 0; i < 6; i++) d.push(i < newP.length ? newP.charCodeAt(i) & 0xFF : 0); return mpFrame(d); };
+const mpAutoLockPkt = on => mpFrame([0xCD, 0x0F, on ? 1 : 0]);
+
 const OP = {check:0x00, unlock:0x10, lock:0x11, trunk:0x12, find:0x13, start:0x14, stop:0x15, runmin:0x21, walkaway:0x22, rekey:0x30};
 const ERR = {1:"보안 키가 맞지 않아요", 3:"요청 시간이 지났어요. 다시 눌러 주세요", 5:"기기가 명령을 이해하지 못했어요",
   6:"인증 실패가 반복돼 30초간 차단됐어요", 7:"보닛이 열려 있어 시동할 수 없어요", 8:"브레이크가 밟혀 있어 원격 시동할 수 없어요",
@@ -326,7 +343,7 @@ const NativeBle = {
   get p(){ return this._p || (this._p = window.Capacitor.registerPlugin("BluetoothLe")); },
   supported:true,
   init(){ return this._ready || (this._ready = this.p.initialize({}).catch(e => { this._ready = null; throw e; })); },
-  async pick(){ await this.init(); const d = await this.p.requestDevice({services:[UUID.SVC]}); return {id:d.deviceId, name:d.name}; },
+  async pick(){ await this.init(); const d = await this.p.requestDevice({services:[curU().SVC]}); return {id:d.deviceId, name:d.name}; },
   async connect(id, onDisc){
     await this.init();
     if (this.subs.d) await this.subs.d.remove();
@@ -335,24 +352,24 @@ const NativeBle = {
   },
   async notify(id, cb){
     if (this.subs.n) await this.subs.n.remove();
-    this.subs.n = await this.p.addListener(`notification|${id}|${UUID.SVC}|${UUID.EVT}`, e => cb(hexToBytes(((e && e.value) || "").replace(/[^0-9a-f]/gi, ""))));
-    await this.p.startNotifications({deviceId:id, service:UUID.SVC, characteristic:UUID.EVT});
+    this.subs.n = await this.p.addListener(`notification|${id}|${curU().SVC}|${curU().EVT}`, e => cb(hexToBytes(((e && e.value) || "").replace(/[^0-9a-f]/gi, ""))));
+    await this.p.startNotifications({deviceId:id, service:curU().SVC, characteristic:curU().EVT});
   },
-  write(id, bytes){ return this.p.write({deviceId:id, service:UUID.SVC, characteristic:UUID.CMD, value:bytesToHex(bytes)}); },
+  write(id, bytes){ return this.p.write({deviceId:id, service:curU().SVC, characteristic:curU().CMD, value:bytesToHex(bytes)}); },
   disconnect(id){ return this.p.disconnect({deviceId:id}).catch(() => {}); },
 };
 /* 전송 계층 ② 브라우저: Web Bluetooth (안드로이드·PC Chrome, https) */
 const WebBle = {
   devs:new Map(), ch:null,
   get supported(){ return !!navigator.bluetooth; },
-  async pick(){ const d = await navigator.bluetooth.requestDevice({filters:[{services:[UUID.SVC]}]}); this.devs.set(d.id, d); return {id:d.id, name:d.name}; },
+  async pick(){ const d = await navigator.bluetooth.requestDevice({filters:[{services:[curU().SVC]}]}); this.devs.set(d.id, d); return {id:d.id, name:d.name}; },
   async connect(id, onDisc){
     let d = this.devs.get(id);
     if (!d && navigator.bluetooth.getDevices) d = (await navigator.bluetooth.getDevices()).find(x => x.id === id);
-    if (!d) { d = await navigator.bluetooth.requestDevice({filters:[{services:[UUID.SVC]}]}); this.devs.set(id, d); }
+    if (!d) { d = await navigator.bluetooth.requestDevice({filters:[{services:[curU().SVC]}]}); this.devs.set(id, d); }
     d.ongattserverdisconnected = onDisc;
-    const svc = await (await d.gatt.connect()).getPrimaryService(UUID.SVC);
-    this.ch = {d, cmd:await svc.getCharacteristic(UUID.CMD), evt:await svc.getCharacteristic(UUID.EVT)};
+    const svc = await (await d.gatt.connect()).getPrimaryService(curU().SVC);
+    this.ch = {d, cmd:await svc.getCharacteristic(curU().CMD), evt:await svc.getCharacteristic(curU().EVT)};
   },
   async notify(id, cb){
     this.ch.evt.oncharacteristicvaluechanged = e => { const v = e.target.value; cb(new Uint8Array(v.buffer.slice(v.byteOffset, v.byteOffset + v.byteLength))); };
@@ -413,44 +430,72 @@ const DemoCar = {
 /* 공통 링크: 난수 받기 → HMAC 서명 → 결과 대기 */
 const Link = {
   live:false, waiters:[],
-  t(){ return C().kind === "ble" ? (isNative ? NativeBle : WebBle) : DemoCar; },
-  id(){ return C().kind === "ble" ? C().bleId : "demo"; },
+  t(){ return C().kind === "demo" ? DemoCar : (isNative ? NativeBle : WebBle); },
+  id(){ return C().kind === "demo" ? "demo" : C().bleId; },
   async connect(){
     if (this.live) return;
     const t = this.t(), id = this.id();
     await t.connect(id, () => { this.live = false; onLink({type:"disconnected"}); });
     await t.notify(id, b => this.rx(b));
     this.live = true;
-    onLink({type:"connected"});
-    await t.write(id, [0x02]);
+    if (C().kind === "mp686") { try { await this.mpLogin(); } catch (e) { this.live = false; await t.disconnect(id).catch(() => {}); throw e; } }
+    else { onLink({type:"connected"}); await t.write(id, [0x02]); }
   },
   async disconnect(){ const was = this.live; this.live = false; await this.t().disconnect(this.id()); if (was) onLink({type:"disconnected", quiet:true}); },
-  expect(hdr, ms = 6000){
+  expect(match, ms = 6000){
     return new Promise((resolve, reject) => {
-      const w = {hdr, resolve, timer:setTimeout(() => { this.waiters = this.waiters.filter(x => x !== w); reject(new Error("차량 기기가 응답하지 않아요")); }, ms)};
+      const w = {match, resolve, timer:setTimeout(() => { this.waiters = this.waiters.filter(x => x !== w); reject(new Error("차량 기기가 응답하지 않아요")); }, ms)};
       this.waiters.push(w);
     });
   },
   rx(b){
     if (!b.length) return;
-    const w = this.waiters.find(x => x.hdr === b[0]);
+    const w = this.waiters.find(x => x.match(b));
     if (w) { clearTimeout(w.timer); this.waiters = this.waiters.filter(x => x !== w); w.resolve(b); }
+    if (C().kind === "mp686") return mpHandle(b);
     if (b[0] === 0xA0 && b.length >= 8) onLink({type:"state", locked:!!b[1], engine:!!b[2], trunk:!!b[3], minsLeft:b[4], voltage:b[5], walkAway:!!b[6], runMin:b[7]});
     if (b[0] === 0xB0 && b.length >= 3) onLink({type:"event", kind:b[1], detail:b[2]});
   },
+  /* ---- MP686 (크라운 호환) ---- */
+  async mpWrite(bytes){ await this.connect(); await this.t().write(this.id(), bytes); },
+  async mpLogin(){
+    const w = this.expect(b => b[0] === 0xCD && b[1] === 0x0A, 5000);
+    await this.t().write(this.id(), mpLoginPkt(C().pwd || "000000", S.settings.autoUnlock));
+    const r = await w;
+    if (r[2] !== 0) throw new Error("비밀번호가 맞지 않아요");
+    onLink({type:"connected"});
+    if (r.length >= 4) onLink({type:"mpstate", locked:r[3] === 0xA1 ? true : r[3] === 0xA2 ? false : C().locked});
+  },
+  async mpControl(cmd){
+    const code = MP_CMD[cmd]; if (code == null) throw new Error("지원하지 않는 명령");
+    await this.connect();
+    const w = this.expect(b => b[0] === 0xCD && b[1] === 0x0D && b[2] === code, cmd === "start" ? 12000 : 6000);
+    await this.t().write(this.id(), mpFrame([0xCD, 0x0D, code]));
+    const r = await w;
+    if (r[3] !== 0) throw new Error("차량이 명령을 거부했어요");
+    return r;
+  },
+  async mpChangePwd(newP){
+    await this.connect();
+    const w = this.expect(b => b[0] === 0xCD && b[1] === 0x0B, 5000);
+    await this.t().write(this.id(), mpPwdPkt(C().pwd || "000000", newP));
+    const r = await w;
+    if (r[2] !== 0) throw new Error("기기가 비밀번호 변경을 거부했어요");
+    C().pwd = newP; save();
+  },
   async auth(op, arg, keyHex, extra = []){
     await this.connect();
-    const nP = this.expect(0x81);
+    const nP = this.expect(b => b[0] === 0x81);
     await this.t().write(this.id(), [0x01]);
     const nonce = (await nP).slice(1, 9);
     const mac = await hmac(keyHex, [...nonce, op, arg]);
-    const waits = [this.expect(0x90, op === OP.start ? 12000 : 6000), ...extra.map(h => this.expect(h))];
+    const waits = [this.expect(b => b[0] === 0x90, op === OP.start ? 12000 : 6000), ...extra.map(h => this.expect(b => b[0] === h))];
     await this.t().write(this.id(), [op, arg, ...mac]);
     const [r, ...rest] = await Promise.all(waits);
     if (r[2] !== 0) throw new Error(ERR[r[2]] || `기기 오류 (${r[2]})`);
     return {nonce, rest};
   },
-  send(cmd, arg = 0){ return this.auth(OP[cmd], arg, C().keyHex); },
+  send(cmd, arg = 0){ return C().kind === "mp686" ? this.mpControl(cmd) : this.auth(OP[cmd], arg, C().keyHex); },
   /* 보안 키 재발급: 새 키 조각 2개를 받아 기존 키로 풀고, 새 키로 확인해야 기기가 확정 */
   async rekey(){
     const old = C().keyHex;
@@ -487,6 +532,10 @@ function onLink(ev){
     if (ev.runMin) c.runMin = ev.runMin;
     c.engineUntil = ev.engine ? (c.engine && Math.abs(c.engineUntil - Date.now() - ev.minsLeft * 6e4) < 6e4 ? c.engineUntil : Date.now() + ev.minsLeft * 6e4) : 0;
     if (wasLocked !== ev.locked && !fx) fx = ev.locked ? "flash1" : "flash2";
+  } else if (ev.type === "mpstate") {
+    c.online = true;
+    if (c.locked !== ev.locked && !fx) fx = ev.locked ? "flash1" : "flash2";
+    c.locked = ev.locked;
   } else if (ev.type === "event") {
     const k = ev.kind, d = ev.detail;
     if (k === 1) { log("unlock", SRC_LOCK[d] || "리모컨"); toast(`${SRC_LOCK[d] || "리모컨"}(으)로 문이 열렸어요`); }
@@ -497,6 +546,26 @@ function onLink(ev){
     else if (k === 6) log("trunk", "리모컨");
   }
   save(); render();
+}
+
+/* MP686(크라운 호환) 수신 프레임 처리 */
+function mpHandle(b){
+  const c = C();
+  if (b[0] !== 0xCD || b.length < 3) return;
+  const type = b[1];
+  if (type === 0x0D && b[3] === 0) {          // 제어 성공 → 상태 반영 (앱·리모컨 공통)
+    const cmd = b[2];
+    if (cmd === 0xC1) c.locked = true;
+    else if (cmd === 0xC2) c.locked = false;
+    else if (cmd === 0xC5) c.engine = true;
+    else if (cmd === 0xC6) c.engine = false;
+  } else if (type === 0x0E) {                  // 경보
+    const why = MP_WARN[b[2]] || "경보";
+    log("alarm", why); toast(`경보: ${why}`, true); vibrate([200, 100, 200]);
+  } else if (type === 0xA1) {                  // 시동 상태 알림
+    c.engine = b[2] !== 0;
+  }
+  c.online = true; save(); render();
 }
 
 let busy = "";
@@ -511,7 +580,7 @@ async function act(cmd, src = "앱"){
     await Link.send(cmd);
     log(cmd, src);
     fx = {lock:"flash1", unlock:"flash2", find:"find", trunk:"flash1"}[cmd] || null;
-    if (cmd === "start") toast(`시동을 걸었어요 · ${C().runMin}분 뒤 자동으로 꺼져요`);
+    if (cmd === "start") toast(C().kind === "mp686" ? "시동을 걸었어요" : `시동을 걸었어요 · ${C().runMin}분 뒤 자동으로 꺼져요`);
     else toast(`${LABEL[cmd]} 완료`);
     vibrate(30);
   } catch (e) {
@@ -569,9 +638,9 @@ const VIEWS = {
     const dis = !on || !!busy;
     const chips = [
       on ? (c.locked ? `<span class="chip good">잠김</span>` : `<span class="chip warn">열림</span>`) : `<span class="chip">연결 안 됨</span>`,
-      on && c.engine ? `<span class="chip warn num" id="engChip">시동 중 · ${mmss(engineLeft())}</span>` : "",
+      on && c.engine ? (engineLeft() > 0 ? `<span class="chip warn num" id="engChip">시동 중 · ${mmss(engineLeft())}</span>` : `<span class="chip warn">시동 중</span>`) : "",
       on && c.trunk ? `<span class="chip warn">트렁크 열림</span>` : "",
-      on && c.voltage ? `<span class="chip ${c.voltage < 118 ? "bad" : ""} num">배터리 ${(c.voltage / 10).toFixed(1)}V</span>` : "",
+      on && c.voltage && c.kind !== "mp686" ? `<span class="chip ${c.voltage < 118 ? "bad" : ""} num">배터리 ${(c.voltage / 10).toFixed(1)}V</span>` : "",
     ].join("");
     const hint = busy ? (busy === "connect" ? "연결하는 중…" : `${LABEL[busy]} 신호 보내는 중…`) :
       !on ? "오른쪽 블루투스 버튼을 눌러 차량과 연결하세요" :
@@ -595,25 +664,26 @@ const VIEWS = {
   },
 
   settings(){
-    const c = C(), s = S.settings, ble = c.kind === "ble";
+    const c = C(), s = S.settings, ble = c.kind === "ble", mp = c.kind === "mp686";
     const ck = (name, on, dis = false) => `<label class="check"><input type="checkbox" data-set="${name}" ${on ? "checked" : ""} ${dis ? "disabled" : ""}><i></i></label>`;
     return `<div class="page">
       <div class="list">
-        <div class="row"><div class="body"><div class="t1">근접 자동 열림</div><div class="t2">블루투스 범위에 들어오면 자동으로 문 열림${isNative ? "" : " (APK 전용)"}</div></div>${ck("autoUnlock", s.autoUnlock, !isNative && ble)}</div>
-        <div class="row"><div class="body"><div class="t1">멀어지면 자동 잠금</div><div class="t2">연결이 끊기고 10초 뒤 기기가 스스로 잠금</div></div>${ck("walkAway", c.walkAway, !c.online)}</div>
+        <div class="row"><div class="body"><div class="t1">근접 자동 열림</div><div class="t2">블루투스 범위에 들어오면 자동으로 문 열림${isNative ? "" : " (APK 전용)"}</div></div>${ck("autoUnlock", s.autoUnlock, !isNative && (ble || mp))}</div>
+        ${mp ? "" : `<div class="row"><div class="body"><div class="t1">멀어지면 자동 잠금</div><div class="t2">연결이 끊기고 10초 뒤 기기가 스스로 잠금</div></div>${ck("walkAway", c.walkAway, !c.online)}</div>`}
         <div class="row"><div class="body"><div class="t1">흔들어서 잠금/열림</div><div class="t2">연결된 상태에서 휴대폰을 세게 두 번 흔들기</div></div>${ck("shake", s.shake)}</div>
-        <button class="row" data-act="scan"><div class="body"><div class="t1">기기 검색</div><div class="t2">${ble ? `등록됨: ${esc(c.bleName || "카온 기기")}` : "차량에 설치한 카온 기기 연결"}</div></div></button>
+        <button class="row" data-act="scan"><div class="body"><div class="t1">기기 검색</div><div class="t2">${ble || mp ? `등록됨: ${esc(c.bleName || "기기")}${mp ? " · 크라운 호환" : ""}` : "차량에 설치한 기기 연결"}</div></div></button>
         <button class="row" data-act="name"><div class="body"><div class="t1">이름 변경</div><div class="t2">${esc(c.name)}</div></div></button>
         <button class="row" data-act="plate"><div class="body"><div class="t1">차량 번호</div><div class="t2">${esc(c.plate || "설정 안 됨")}</div></div></button>
-        <div class="row"><div class="body"><div class="t1">원격 시동 시간</div><div class="t2">시간이 지나면 자동으로 꺼짐</div></div>
-          <select data-set="runMin" ${c.online ? "" : "disabled"}>${[5,10,15,20,30].map(m => `<option value="${m}" ${c.runMin === m ? "selected" : ""}>${m}분</option>`).join("")}</select></div>
+        ${mp ? "" : `<div class="row"><div class="body"><div class="t1">원격 시동 시간</div><div class="t2">시간이 지나면 자동으로 꺼짐</div></div>
+          <select data-set="runMin" ${c.online ? "" : "disabled"}>${[5,10,15,20,30].map(m => `<option value="${m}" ${c.runMin === m ? "selected" : ""}>${m}분</option>`).join("")}</select></div>`}
         <button class="row" data-act="rekey" ${ble ? "" : "hidden"}><div class="body"><div class="t1">기기 비밀번호 변경</div><div class="t2">보안 키를 새로 발급해 이전 키를 무효화</div></div></button>
+        ${mp ? `<button class="row" data-act="mppwd"><div class="body"><div class="t1">기기 비밀번호 변경</div><div class="t2">크라운 모듈의 숫자 비밀번호(기본 000000)</div></div></button>` : ""}
         <button class="row" data-act="pin"><div class="body"><div class="t1">앱 잠금 비밀번호</div><div class="t2">${s.pinHash ? "설정됨 · 눌러서 변경" : "앱 실행 시 6자리 비밀번호 확인"}</div></div></button>
         <div class="row"><div class="body"><div class="t1">문 열기 전 비밀번호 확인</div><div class="t2">앱 잠금 비밀번호가 있어야 켤 수 있어요</div></div>${ck("confirmUnlock", s.confirmUnlock, !s.pinHash)}</div>
         ${s.pinHash ? `<button class="row danger" data-act="pin-off"><div class="body"><div class="t1">앱 잠금 비밀번호 해제</div></div></button>` : ""}
-        ${ble ? `<button class="row" data-act="to-demo"><div class="body"><div class="t1">데모 모드로 전환</div><div class="t2">등록한 기기 정보는 삭제돼요</div></div></button>` : ""}
+        ${ble || mp ? `<button class="row" data-act="to-demo"><div class="body"><div class="t1">데모 모드로 전환</div><div class="t2">등록한 기기 정보는 삭제돼요</div></div></button>` : ""}
         <button class="row danger" data-act="reset"><div class="body"><div class="t1">모든 데이터 초기화</div></div></button>
-        <div class="row"><div class="body"><div class="t1">앱 버전 정보</div><div class="t2">1.0 · ${ble ? "블루투스 기기" : "데모 모드"}</div></div></div>
+        <div class="row"><div class="body"><div class="t1">앱 버전 정보</div><div class="t2">1.0 · ${ble ? "블루투스 기기" : mp ? "크라운 호환(MP686)" : "데모 모드"}</div></div></div>
       </div></div>`;
   },
 
@@ -638,8 +708,9 @@ const VIEWS = {
     return `<div class="page"><div class="prose">
       <h2>카온 차량 원격제어</h2>
       <p>휴대폰 블루투스로 차 문 잠금·열림, 트렁크, 차량 찾기(경적·비상등), 원격 시동을 제어하는 앱이에요.
-      차량에 <b>카온 기기(ESP32 + 릴레이)</b>를 설치하고 <b>설정 → 기기 검색</b>으로 연결하세요.
+      <b>설정 → 기기 검색</b>에서 <b>크라운 호환(MP686)</b> 모듈이나 직접 만든 <b>카온 기기(ESP32)</b>에 연결하세요.
       기기가 없으면 <b>데모 모드</b>로 모든 기능을 체험할 수 있어요.</p>
+      <div class="warn">⚠️ 크라운 호환(MP686) 모듈은 명령이 평문으로 오가고 기본 비밀번호(000000)를 쓰는 경우가 많아, 보안이 약해요. 비밀번호를 꼭 바꾸세요.</div>
       <h3>사용법</h3>
       <ul>
         <li>잠금·열기·찾기: 한 번 누르기</li>
@@ -766,10 +837,23 @@ function scanSheet(){
   if (!t.supported) return sheet(`<h4>블루투스를 쓸 수 없어요</h4>
     <p class="sub" style="margin-top:6px">이 브라우저는 블루투스를 지원하지 않아요. <b>카온 APK</b>를 설치하거나 안드로이드·PC의
     <b>Chrome</b>에서 https 주소로 열어 주세요.</p><button class="btn block" style="margin-top:16px" data-close>확인</button>`);
-  sheet(`<h4>기기 검색</h4>
+  sheet(`<h4>기기 종류</h4><p class="sub">어떤 기기에 연결할까요?</p>
+    <div class="list" style="margin-top:12px; border:1px solid var(--line); border-radius:12px; overflow:hidden">
+      <button class="row" id="pickMp"><div class="body"><div class="t1">크라운 호환 (MP686)</div><div class="t2">지오르돈/크라운 계열 · FFE0 모듈</div></div></button>
+      <button class="row" id="pickEsp"><div class="body"><div class="t1">카온 기기 (ESP32)</div><div class="t2">직접 만든 기기 · 보안 키 32자리</div></div></button>
+    </div>`,
+  (el, close) => {
+    el.querySelector("#pickMp").onclick = () => { close(); scanMp686(); };
+    el.querySelector("#pickEsp").onclick = () => { close(); scanEsp32(); };
+  });
+}
+
+function scanEsp32(){
+  const t = isNative ? NativeBle : WebBle;
+  sheet(`<h4>카온 기기 연결</h4>
     <p class="sub">차량 시동을 끄고(ACC 전원만) 휴대폰을 차 가까이 두세요.</p>
     <label class="field"><span>보안 키 (32자리)</span><input id="bKey" class="num" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="기기 시리얼 모니터에 나온 키"></label>
-    <p class="note">키는 카온 기기를 처음 켰을 때 시리얼(115200)에 출력돼요. 이 키를 아는 사람만 차를 열 수 있어요.</p>
+    <p class="note">키는 카온 기기를 처음 켰을 때 시리얼(115200)에 출력돼요.</p>
     <div class="btn-row"><button class="btn" data-close>취소</button><button class="btn primary" id="bGo">검색 시작</button></div>`,
   (el, close) => {
     const go = el.querySelector("#bGo");
@@ -780,8 +864,9 @@ function scanSheet(){
       const prev = {...C()};
       try {
         await Link.disconnect();
-        const picked = await t.pick();             // 버튼 클릭 직후에 호출해야 함 (브라우저 정책)
-        Object.assign(C(), {kind:"ble", bleId:picked.id, bleName:picked.name || "카온 기기", keyHex, online:false});
+        Object.assign(C(), {kind:"ble", keyHex, online:false});
+        const picked = await t.pick();
+        C().bleId = picked.id; C().bleName = picked.name || "카온 기기";
         go.textContent = "인증 중…";
         await Link.send("check");
         save(); close(); tab = "control"; render(); toast("기기를 등록했어요");
@@ -789,6 +874,38 @@ function scanSheet(){
         await Link.disconnect().catch(() => {});
         S.car = prev; S.car.online = false; save(); render();
         toast(e.name === "NotFoundError" ? "기기 선택을 취소했어요" : `등록 실패: ${e.message || e}`, true);
+        go.disabled = false; go.textContent = "검색 시작";
+      }
+    };
+  });
+}
+
+function scanMp686(){
+  const t = isNative ? NativeBle : WebBle;
+  sheet(`<h4>크라운 호환 기기 연결</h4>
+    <p class="sub">차량 ACC 전원만 켜고 휴대폰을 가까이 두세요.</p>
+    <label class="field"><span>기기 비밀번호 (숫자 6자리)</span><input id="mPwd" inputmode="numeric" maxlength="6" value="000000"></label>
+    <p class="note">크라운 앱에서 쓰던 비밀번호예요. 바꾼 적 없으면 기본값 000000.</p>
+    <div class="btn-row"><button class="btn" data-close>취소</button><button class="btn primary" id="mGo">검색 시작</button></div>`,
+  (el, close) => {
+    const go = el.querySelector("#mGo");
+    go.onclick = async () => {
+      const pwd = el.querySelector("#mPwd").value.replace(/\D/g, "");
+      if (pwd.length < 1 || pwd.length > 6) return toast("비밀번호는 숫자 1~6자리여야 해요", true);
+      go.disabled = true; go.textContent = "검색 중…";
+      const prev = {...C()};
+      try {
+        await Link.disconnect();
+        Object.assign(C(), {kind:"mp686", pwd, keyHex:null, online:false});
+        const picked = await t.pick();
+        C().bleId = picked.id; C().bleName = picked.name || "크라운 기기";
+        go.textContent = "로그인 중…";
+        await Link.connect();   // 로그인까지 수행, 비번 틀리면 예외
+        save(); close(); tab = "control"; render(); toast("기기를 연결했어요");
+      } catch (e) {
+        await Link.disconnect().catch(() => {});
+        S.car = prev; S.car.online = false; save(); render();
+        toast(e.name === "NotFoundError" ? "기기 선택을 취소했어요" : `연결 실패: ${e.message || e}`, true);
         go.disabled = false; go.textContent = "검색 시작";
       }
     };
@@ -863,9 +980,14 @@ main.addEventListener("click", e => {
       catch (err) { toast(`변경 실패: ${err.message || err}`, true); }
       finally { busy = ""; render(); }
     }),
-    "to-demo": () => confirmSheet("데모 모드로 전환", "등록한 기기와 보안 키가 이 휴대폰에서 지워져요.", "전환", async () => {
+    mppwd: () => textSheet("기기 비밀번호 변경", "새 비밀번호 (숫자 6자리)", "", v => {
+      v = (v || "").replace(/\D/g, "");
+      if (v.length < 1 || v.length > 6) { toast("숫자 1~6자리로 입력하세요", true); return false; }
+      Link.mpChangePwd(v).then(() => { render(); toast("기기 비밀번호를 바꿨어요"); }).catch(e => toast(e.message || e, true));
+    }, {attrs:'inputmode="numeric" maxlength="6"'}),
+    "to-demo": () => confirmSheet("데모 모드로 전환", "등록한 기기 정보가 이 휴대폰에서 지워져요.", "전환", async () => {
       await Link.disconnect().catch(() => {});
-      Object.assign(C(), {kind:"demo", bleId:null, bleName:null, keyHex:DEMO_KEY, online:false}); save(); render(); connectNow(false);
+      Object.assign(C(), {kind:"demo", bleId:null, bleName:null, keyHex:DEMO_KEY, pwd:null, online:false}); save(); render(); connectNow(false);
     }),
     reset: () => confirmSheet("모든 데이터 초기화", "기기 등록·보안 키·기록·앱 비밀번호가 처음 상태로 돌아가요.", "초기화", async () => {
       await Link.disconnect().catch(() => {});
@@ -878,11 +1000,16 @@ main.addEventListener("click", e => {
 main.addEventListener("change", e => {
   const el = e.target.closest("[data-set]"); if (!el) return;
   const k = el.dataset.set, v = el.type === "checkbox" ? el.checked : +el.value;
-  if (k === "runMin" || k === "walkAway") {          // 기기에 저장되는 설정
+  if ((k === "runMin" || k === "walkAway") && C().kind !== "mp686") {   // ESP32 기기에 저장되는 설정
     Link.send(k === "runMin" ? "runmin" : "walkaway", +v)
       .then(() => toast("기기 설정을 바꿨어요"))
       .catch(err => toast(err.message, true))
       .finally(() => render());
+    return;
+  }
+  if (k === "autoUnlock") {                          // MP686은 로그인 패킷에 담겨 전송됨
+    S.settings.autoUnlock = v; save(); render();
+    if (C().kind === "mp686" && C().online) Link.mpLogin().catch(() => {});
     return;
   }
   S.settings[k] = v;
@@ -920,7 +1047,7 @@ function onMotion(e){
 /* ---------- 근접 자동 열림 (APK): 끊겨 있으면 주기적으로 재연결, 붙는 순간 열기 ---------- */
 setInterval(async () => {
   const c = C();
-  if (!isNative || c.kind !== "ble" || c.online || busy || document.hidden) return;
+  if (!isNative || (c.kind !== "ble" && c.kind !== "mp686") || c.online || busy || document.hidden) return;
   const ok = await connectNow(false);
   if (ok && S.settings.autoUnlock) { await sleep(300); if (C().locked) act("unlock", "근접 자동"); }
 }, 7000);
