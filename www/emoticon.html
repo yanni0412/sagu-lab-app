@@ -1,0 +1,1932 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>이모티콘 공방</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Gothic+A1:wght@500;700;900&family=IBM+Plex+Sans+KR:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f4efe6; --surface:#ffffff; --surface-2:#f7f3ec; --line:#e2d9c9;
+  --ink:#2a1d17; --ink-2:#5b4a40; --ink-3:#8c7b70;
+  --accent:#e2475a; --accent-ink:#ffffff; --accent-soft:#fde3e5;
+  --good:#1f7a4d; --warn:#b07310; --bad:#bd3a2e;
+  --check-a:#ffffff; --check-b:#ece6dc;
+  --shadow:0 1px 2px rgba(42,29,23,.06),0 8px 24px rgba(42,29,23,.07);
+  --r:10px;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#15110f; --surface:#1f1a17; --surface-2:#28211d; --line:#3a302a;
+    --ink:#f2e9e2; --ink-2:#cbb9ad; --ink-3:#988579;
+    --accent:#ff7a88; --accent-ink:#2a0c10; --accent-soft:#3d1f23;
+    --good:#4bc79c; --warn:#e0a844; --bad:#ef7d6f;
+    --check-a:#2a2420; --check-b:#211c19;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px rgba(0,0,0,.35);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#15110f; --surface:#1f1a17; --surface-2:#28211d; --line:#3a302a;
+  --ink:#f2e9e2; --ink-2:#cbb9ad; --ink-3:#988579;
+  --accent:#ff7a88; --accent-ink:#2a0c10; --accent-soft:#3d1f23;
+  --good:#4bc79c; --warn:#e0a844; --bad:#ef7d6f;
+  --check-a:#2a2420; --check-b:#211c19;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px rgba(0,0,0,.35);
+}
+*{box-sizing:border-box}
+[hidden]{display:none !important}
+body{
+  margin:0;background:var(--bg);color:var(--ink);
+  font-family:"IBM Plex Sans KR",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:14px;line-height:1.55;-webkit-font-smoothing:antialiased;
+}
+h1,h2,h3{font-family:"Gothic A1",sans-serif;margin:0;text-wrap:balance}
+button,select,input,textarea{font-family:inherit;font-size:13px;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.topbar{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
+  padding:12px 16px;border-bottom:1px solid var(--line);background:var(--surface);
+  position:sticky;top:0;z-index:20;
+}
+.brand{display:flex;align-items:center;gap:10px}
+.brand .mark{font-size:26px;line-height:1}
+.brand h1{font-size:18px;font-weight:900}
+.brand p{margin:0;font-size:11.5px;color:var(--ink-3)}
+
+.btn{
+  border:1px solid var(--line);background:var(--surface-2);color:var(--ink);
+  padding:8px 13px;border-radius:var(--r);cursor:pointer;font-weight:600;
+  transition:background .15s,border-color .15s,transform .06s;
+}
+.btn:hover{background:var(--accent-soft);border-color:var(--accent)}
+.btn:active{transform:translateY(1px)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.sm{padding:5px 10px;font-size:12px;border-radius:8px}
+.btn:disabled{opacity:.45;cursor:default}
+.btn[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+
+.work{display:grid;grid-template-columns:minmax(300px,440px) minmax(0,1fr);gap:18px;padding:16px;max-width:1200px;margin:0 auto;align-items:start}
+@media (max-width:860px){.work{grid-template-columns:minmax(0,1fr)}}
+
+.stage{position:sticky;top:72px;display:flex;flex-direction:column;gap:10px}
+@media (max-width:860px){.stage{position:static}}
+.canvasbox{
+  background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:10px;box-shadow:var(--shadow);
+}
+canvas#cv{
+  display:block;width:100%;height:auto;aspect-ratio:1/1;border-radius:8px;
+  background:repeating-conic-gradient(var(--check-a) 0 25%, var(--check-b) 0 50%) 0 0/20px 20px;
+}
+.transport{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.transport .grow{flex:1}
+.status{font-size:12px;color:var(--ink-3);min-height:1.4em}
+.status.bad{color:var(--bad)} .status.good{color:var(--good)}
+
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);overflow:hidden}
+.tabs{display:flex;border-bottom:1px solid var(--line);background:var(--surface-2)}
+.tabs button{
+  flex:1;border:0;background:none;padding:12px 4px;cursor:pointer;font-weight:700;color:var(--ink-3);
+  border-bottom:3px solid transparent;font-size:13px;
+}
+.tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+.tabpane{padding:16px;display:none;flex-direction:column;gap:16px}
+.tabpane.on{display:flex}
+
+.field{display:flex;flex-direction:column;gap:6px}
+.field > label,.field > .lbl{font-weight:700;font-size:12.5px;color:var(--ink-2)}
+.field .sub{font-size:11.5px;color:var(--ink-3);font-weight:400}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.row > .grow{flex:1;min-width:0}
+input[type=text],input[type=password],textarea,select{
+  width:100%;border:1px solid var(--line);background:var(--surface-2);border-radius:var(--r);padding:9px 11px;
+}
+textarea{resize:vertical;min-height:60px}
+input[type=color]{width:38px;height:32px;border:1px solid var(--line);border-radius:8px;padding:2px;background:var(--surface-2)}
+input[type=range]{width:100%;accent-color:var(--accent)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:480px){.grid2{grid-template-columns:1fr}}
+
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chips button{
+  border:1px solid var(--line);background:var(--surface-2);border-radius:999px;padding:6px 11px;cursor:pointer;font-size:12.5px;font-weight:600;
+}
+.chips button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.swatches{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.swatches button{width:26px;height:26px;border-radius:50%;border:2px solid var(--line);cursor:pointer;padding:0}
+.swatches button[aria-pressed="true"]{border-color:var(--ink);box-shadow:0 0 0 2px var(--surface) inset}
+
+.note{font-size:12px;color:var(--ink-2);background:var(--surface-2);border:1px solid var(--line);border-radius:var(--r);padding:10px 12px}
+.note b{color:var(--ink)}
+.note.warn{border-color:color-mix(in srgb,var(--warn) 45%,var(--line))}
+details.adv{border:1px dashed var(--line);border-radius:var(--r);padding:8px 12px}
+details.adv summary{cursor:pointer;font-weight:700;font-size:12.5px;color:var(--ink-2)}
+details.adv[open]{padding-bottom:12px}
+details.adv .field{margin-top:10px}
+.hr{height:1px;background:var(--line);margin:2px 0}
+.exports{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.exports .btn{text-align:left;display:flex;flex-direction:column;gap:2px}
+.exports .btn small{font-weight:400;font-size:11px;color:inherit;opacity:.75}
+.rec-dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--bad);margin-right:6px;animation:blink 1s infinite}
+@keyframes blink{50%{opacity:.2}}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="mark" aria-hidden="true">🎨</span>
+    <div>
+      <h1>이모티콘 공방</h1>
+      <p>캐릭터 · 움직임 · 대사 소리를 한 번에</p>
+    </div>
+  </div>
+  <div class="row">
+    <button class="btn sm" id="btnTheme">◐ 테마</button>
+    <a class="btn sm" href="index.html" style="text-decoration:none">← 실험실</a>
+  </div>
+</header>
+
+<main class="work">
+  <section class="stage">
+    <div class="canvasbox"><canvas id="cv" width="360" height="360" aria-label="이모티콘 미리보기"></canvas></div>
+    <div class="transport">
+      <button class="btn primary" id="btnPlay">▶ 소리와 함께 재생</button>
+      <button class="btn" id="btnLoop" aria-pressed="true" title="움직임 미리보기 반복">↻ 반복 미리보기</button>
+      <span class="grow"></span>
+      <span class="status" id="durInfo"></span>
+    </div>
+    <div class="status" id="status" role="status"></div>
+  </section>
+
+  <section class="panel">
+    <div class="tabs" role="tablist">
+      <button role="tab" aria-selected="true" data-tab="char">① 캐릭터</button>
+      <button role="tab" aria-selected="false" data-tab="motion">② 움직임</button>
+      <button role="tab" aria-selected="false" data-tab="voice">③ 대사·소리</button>
+      <button role="tab" aria-selected="false" data-tab="export">④ 저장</button>
+    </div>
+
+    <!-- ① 캐릭터 -->
+    <div class="tabpane on" data-pane="char">
+      <div class="field">
+        <label for="inName">셀러브리티 이름</label>
+        <div class="row">
+          <input class="grow" type="text" id="inName" placeholder="예: 유명 가수, 배우, 운동선수 이름" autocomplete="off">
+          <button class="btn primary" id="btnFromName">특징 반영</button>
+        </div>
+        <span class="sub">이름만 넣으면 이름으로 기본 특징을 정해요. 아래 '외모 키워드'를 같이 쓰면 더 비슷해지고, AI 분석을 켜면 이름만으로도 대표 특징(헤어·안경·수염 등)을 찾아 줘요.</span>
+      </div>
+      <div class="field">
+        <label for="inDesc">외모 키워드 <span class="sub">(선택 · 쉼표로 구분)</span></label>
+        <textarea id="inDesc" rows="2" placeholder="예: 금발 단발, 동그란 안경, 볼터치, 콧수염, 빨간 옷, 비니"></textarea>
+      </div>
+
+      <details class="adv" id="aiBox">
+        <summary>🤖 AI로 이름 분석하기 (선택 · Claude API 키 필요)</summary>
+        <div class="field">
+          <label for="inKey">Anthropic API 키</label>
+          <input type="password" id="inKey" placeholder="sk-ant-..." autocomplete="off">
+          <span class="sub">키는 이 기기에만 저장돼요. 요청은 기기에서 Anthropic으로 바로 가므로 본인 키만 쓰세요. 비워 두면 AI 없이 동작해요.</span>
+        </div>
+        <label class="row" style="font-size:12.5px"><input type="checkbox" id="inSaveKey"> 이 기기에 키 기억하기</label>
+      </details>
+
+      <div class="note warn">
+        <b>초상권·퍼블리시티권 안내</b> — 실존 인물을 닮은 캐릭터는 <b>개인적인 재미·팬 활동</b> 용도로만 써 주세요.
+        본인 허락 없이 판매(이모티콘 스토어 제출 포함)하거나 광고에 쓰면 퍼블리시티권 침해가 될 수 있고, 플랫폼 심사에서도 거절돼요.
+        이 도구는 사진처럼 똑같이 그리지 않고 <b>헤어·안경 같은 대표 특징만 귀여운 캐릭터로</b> 바꿔요.
+      </div>
+
+      <div class="hr"></div>
+      <div id="charControls" style="display:flex;flex-direction:column;gap:14px"></div>
+      <div class="row"><button class="btn sm" id="btnRandom">🎲 무작위</button><button class="btn sm" id="btnResetChar">기본값</button></div>
+    </div>
+
+    <!-- ② 움직임 -->
+    <div class="tabpane" data-pane="motion">
+      <div class="field"><span class="lbl">움직임</span><div class="chips" id="motionChips"></div></div>
+      <div class="grid2">
+        <div class="field"><label for="inSpeed">속도 <span class="sub" id="speedVal"></span></label><input type="range" id="inSpeed" min="0.5" max="2" step="0.1" value="1"></div>
+        <div class="field"><label for="inLoop">한 바퀴 길이 <span class="sub" id="loopVal"></span></label><input type="range" id="inLoop" min="1" max="4" step="0.5" value="2"></div>
+      </div>
+      <label class="row" style="font-size:12.5px"><input type="checkbox" id="inFx" checked> 하트·눈물·반짝이 같은 효과 그리기</label>
+      <div class="field"><span class="lbl">배경</span><div class="chips" id="bgChips"></div>
+        <div class="row"><input type="color" id="inBg1" value="#ffe9a8"><input type="color" id="inBg2" value="#ffb4c2"><span class="sub">GIF는 '투명'을 고르면 배경이 비어요.</span></div>
+      </div>
+    </div>
+
+    <!-- ③ 대사·소리 -->
+    <div class="tabpane" data-pane="voice">
+      <div class="field">
+        <label for="inLine">대사</label>
+        <input type="text" id="inLine" value="안녕하세요!" maxlength="40">
+      </div>
+      <div class="field"><span class="lbl">글자 표시</span><div class="chips" id="textChips"></div></div>
+      <div class="field"><span class="lbl">목소리</span><div class="chips" id="srcChips"></div></div>
+
+      <div id="srcBabble" class="field">
+        <span class="lbl">캐릭터 목소리 <span class="sub">대사 글자 수에 맞춰 '뽀로롱' 소리를 만들고 입을 맞춰 움직여요 (저장 가능)</span></span>
+        <div class="chips" id="presetChips"></div>
+        <div class="grid2">
+          <div class="field"><label for="inPitch">높낮이 <span class="sub" id="pitchVal"></span></label><input type="range" id="inPitch" min="0.6" max="1.8" step="0.05" value="1"></div>
+          <div class="field"><label for="inTalk">말 빠르기 <span class="sub" id="talkVal"></span></label><input type="range" id="inTalk" min="0.6" max="1.8" step="0.05" value="1"></div>
+        </div>
+      </div>
+
+      <div id="srcTts" class="field" hidden>
+        <span class="lbl">기계 음성(TTS) <span class="sub">기기에 깔린 음성으로 대사를 읽어요</span></span>
+        <select id="inVoice"></select>
+        <div class="note">TTS는 <b>미리듣기 전용</b>이에요. 브라우저가 TTS 소리를 파일로 넘겨주지 않아서 영상에는 안 들어가요. 영상에 담으려면 '캐릭터 목소리'나 '내 녹음'을 쓰세요.</div>
+      </div>
+
+      <div id="srcRec" class="field" hidden>
+        <span class="lbl">내 목소리 / 소리 파일 <span class="sub">녹음하거나 파일을 올리면 소리 크기에 맞춰 입이 움직여요</span></span>
+        <div class="row">
+          <button class="btn" id="btnRec">🎙 녹음 시작</button>
+          <label class="btn" style="cursor:pointer">📁 파일 올리기<input type="file" id="inFile" accept="audio/*" hidden></label>
+          <span class="sub" id="recInfo">아직 소리가 없어요</span>
+        </div>
+        <div class="field"><span class="lbl">음성 변조</span><div class="chips" id="fxChips"></div></div>
+      </div>
+
+      <div class="note">
+        유명인 <b>목소리를 흉내 내는 AI 음성 복제는 넣지 않았어요.</b> 본인 동의 없는 목소리 복제는 딥페이크·사칭 문제로 이어질 수 있어서예요.
+        대신 캐릭터 전용 목소리, 내 목소리 녹음(+변조), 기기 TTS를 쓸 수 있어요.
+      </div>
+
+      <div class="grid2">
+        <div class="field"><span class="lbl">효과음</span><div class="chips" id="sfxChips"></div></div>
+        <div class="field"><label for="inDelay">대사 시작 시점 <span class="sub" id="delayVal"></span></label><input type="range" id="inDelay" min="0" max="2" step="0.1" value="0.2"></div>
+      </div>
+    </div>
+
+    <!-- ④ 저장 -->
+    <div class="tabpane" data-pane="export">
+      <div class="exports">
+        <button class="btn primary" id="btnWebm">🎬 영상 + 소리<small>WebM · 소리 포함 · 실시간 녹화</small></button>
+        <button class="btn" id="btnGif">🖼 움직이는 GIF<small>360×360 · 소리 없음</small></button>
+        <button class="btn" id="btnPng">📷 지금 장면 PNG<small>멈춘 이미지 한 장</small></button>
+        <button class="btn" id="btnWav">🔊 소리만 WAV<small>대사 소리 파일</small></button>
+      </div>
+      <div class="field">
+        <label for="inFps">GIF 초당 장면 수 <span class="sub" id="fpsVal"></span></label>
+        <input type="range" id="inFps" min="8" max="24" step="1" value="15">
+      </div>
+      <div class="note">
+        <b>쓰는 법</b> — 메신저 이모티콘으로는 GIF가 가장 잘 맞고, 소리까지 보내려면 WebM 영상을 쓰세요.
+        카카오 '소리 이모티콘'처럼 소리를 따로 내야 하는 곳에는 GIF + WAV를 같이 내보내면 돼요.
+      </div>
+      <div class="status" id="exportStatus"></div>
+    </div>
+  </section>
+</main>
+
+<script>
+"use strict";
+/* =========================================================
+   0. 공통 유틸
+   ========================================================= */
+const $ = (s, el = document) => el.querySelector(s);
+const $$ = (s, el = document) => [...el.querySelectorAll(s)];
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const lerp = (a, b, t) => a + (b - a) * t;
+const TAU = Math.PI * 2;
+const INK = "#2a1d17";
+const W = 360;
+
+function store(key, val) {
+  try {
+    if (val === undefined) return localStorage.getItem(key);
+    if (val === null) localStorage.removeItem(key); else localStorage.setItem(key, val);
+  } catch (e) { return null; }
+}
+function hashStr(s) {
+  let h = 2166136261;
+  for (const ch of s) { h ^= ch.codePointAt(0); h = Math.imul(h, 16777619); }
+  return h >>> 0;
+}
+function rng(seed) {
+  return () => {
+    seed |= 0; seed = seed + 0x6D2B79F5 | 0;
+    let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+function setStatus(msg, kind = "", el = $("#status")) {
+  el.textContent = msg;
+  el.className = "status" + (kind ? " " + kind : "");
+}
+
+/* =========================================================
+   1. 옵션 정의
+   ========================================================= */
+const OPT = {
+  shape: [["round", "동글"], ["oval", "갸름"], ["square", "각진"], ["long", "긴 얼굴"]],
+  hairStyle: [["short", "짧은 머리"], ["sidepart", "가르마"], ["curtain", "가운데 가르마"], ["slick", "올백"], ["buzz", "반삭"],
+    ["bob", "단발"], ["long", "긴 머리"], ["ponytail", "포니테일"], ["buns", "양갈래 번"], ["curly", "곱슬"],
+    ["afro", "아프로"], ["spiky", "삐죽"], ["mohawk", "모히칸"], ["bald", "민머리"]],
+  eyes: [["round", "동그란 눈"], ["dot", "점 눈"], ["sparkle", "왕눈"], ["sharp", "날카로운 눈"], ["arc", "눈웃음"], ["sleepy", "졸린 눈"]],
+  brows: [["normal", "보통"], ["thick", "진한"], ["thin", "가는"], ["none", "없음"]],
+  glasses: [["none", "없음"], ["round", "동그란 안경"], ["square", "뿔테"], ["sunglasses", "선글라스"]],
+  facialHair: [["none", "없음"], ["mustache", "콧수염"], ["goatee", "턱수염"], ["beard", "덥수룩 수염"], ["stubble", "거뭇거뭇"]],
+  accessory: [["none", "없음"], ["cap", "야구모자"], ["beanie", "비니"], ["ribbon", "리본"], ["crown", "왕관"], ["headphones", "헤드폰"],
+    ["earrings", "귀걸이"], ["flower", "꽃핀"], ["hairband", "머리띠"]],
+};
+const SKINS = ["#fde3cf", "#f6d3b3", "#eebf98", "#d9a074", "#b9784d", "#8a5434"];
+const HAIRS = ["#1c1612", "#3b2618", "#7a4a2a", "#e8c14a", "#c0392b", "#f08bb0", "#8e5cc9", "#3d6fd8", "#cfd3d8"];
+const OUTFITS = ["#4a7bd0", "#e2475a", "#2f9e6e", "#f2b632", "#7b5cc9", "#2a2a2a", "#f4f1ea"];
+const ACCS = ["#e2475a", "#2a2a2a", "#3d6fd8", "#f2b632", "#2f9e6e", "#ffffff"];
+
+const MOTIONS = [
+  ["idle", "숨쉬기"], ["bounce", "통통 점프"], ["dance", "신나는 춤"], ["wave", "손 흔들기"], ["heart", "하트 뿅뿅"],
+  ["laugh", "깔깔"], ["nod", "끄덕끄덕"], ["shake", "도리도리"], ["bow", "꾸벅 인사"], ["surprise", "깜짝"],
+  ["cry", "엉엉"], ["angry", "부들부들"], ["sleepy", "꾸벅꾸벅 졸기"], ["spin", "빙글"],
+];
+const BGS = [["transparent", "투명"], ["solid", "단색"], ["gradient", "그라데이션"], ["burst", "집중선"]];
+const TEXTMODES = [["bubble", "말풍선"], ["caption", "아래 자막"], ["none", "글자 없음"]];
+const SOURCES = [["babble", "캐릭터 목소리"], ["record", "내 녹음/파일"], ["tts", "기계 음성(TTS)"], ["mute", "소리 없음"]];
+const PRESETS = {
+  cute: { label: "귀여운", base: 520, wave: "triangle", rate: 1.1, vib: 18 },
+  normal: { label: "보통", base: 330, wave: "triangle", rate: 1, vib: 10 },
+  deep: { label: "굵은", base: 150, wave: "sawtooth", rate: 0.9, vib: 6 },
+  robot: { label: "로봇", base: 240, wave: "square", rate: 1, vib: 0 },
+  squirrel: { label: "다람쥐", base: 820, wave: "sine", rate: 1.45, vib: 30 },
+};
+const VFX = [["none", "원본"], ["high", "다람쥐"], ["low", "굵게"], ["robot", "로봇"]];
+const SFX = [["none", "없음"], ["pop", "뿅"], ["boing", "띠용"], ["chime", "반짝"], ["drum", "두둥"]];
+
+const DEFAULT_FACE = {
+  shape: "round", skin: "#f6d3b3", hairStyle: "short", hairColor: "#3b2618", eyes: "round", brows: "normal",
+  glasses: "none", facialHair: "none", accessory: "none", accColor: "#e2475a", outfit: "#4a7bd0",
+  blush: true, mole: false, headScale: 1,
+};
+
+const S = {
+  face: { ...DEFAULT_FACE },
+  motion: { type: "bounce", speed: 1, loop: 2, fx: true },
+  bg: { type: "transparent", c1: "#ffe9a8", c2: "#ffb4c2" },
+  text: { line: "안녕하세요!", mode: "bubble" },
+  voice: { src: "babble", preset: "cute", pitch: 1, talk: 1, vfx: "none", sfx: "none", delay: 0.2, ttsVoice: "" },
+  gifFps: 15,
+};
+
+/* =========================================================
+   2. 캐릭터 그리기
+   ========================================================= */
+function faceDims(F) {
+  const r = 86 * F.headScale;
+  const k = { round: [1, 0.96], oval: [0.88, 1.02], square: [0.98, 0.95], long: [0.82, 1.1] }[F.shape] || [1, 1];
+  return { r, rx: r * k[0], ry: r * k[1] };
+}
+function facePath(g, F, d) {
+  const { rx, ry } = d;
+  g.beginPath();
+  if (F.shape === "square") {
+    g.roundRect(-rx, -ry, rx * 2, ry * 2, [rx * 0.75, rx * 0.75, rx * 0.42, rx * 0.42]);
+  } else if (F.shape === "oval" || F.shape === "long") {
+    // 위는 둥글고 턱은 살짝 좁게
+    g.moveTo(-rx, 0);
+    g.bezierCurveTo(-rx, -ry * 1.33, rx, -ry * 1.33, rx, 0);
+    g.bezierCurveTo(rx, ry * 0.7, rx * 0.45, ry, 0, ry);
+    g.bezierCurveTo(-rx * 0.45, ry, -rx, ry * 0.7, -rx, 0);
+  } else {
+    g.ellipse(0, 0, rx, ry, 0, 0, TAU);
+  }
+}
+function fillStroke(g, fill, lw = 3.2) {
+  g.fillStyle = fill; g.fill();
+  g.lineWidth = lw; g.strokeStyle = INK; g.lineJoin = "round"; g.stroke();
+}
+
+// 앞머리(머리 덮개) 경로: bang = straight | side | curtain | up | none
+function capPath(g, d, o) {
+  const { r, rx, ry } = d;
+  const ox = rx * (o.inset || 1.07), oy = ry * (o.insetY || 1.09);
+  const cyo = -r * 0.03;
+  const sideY = o.sideY ?? r * 0.02, inner = o.inner ?? rx * 0.97;
+  const bangY = o.bangY ?? -r * 0.3;
+  g.beginPath();
+  g.moveTo(-ox, cyo);
+  g.ellipse(0, cyo, ox, oy, 0, Math.PI, TAU);
+  g.lineTo(ox * 1.0, sideY);
+  g.lineTo(inner, sideY);
+  switch (o.bang) {
+    case "straight": {
+      g.lineTo(rx * 0.86, bangY);
+      const n = 6;
+      for (let i = 0; i < n; i++) {
+        const x0 = lerp(rx * 0.86, -rx * 0.86, i / n), x1 = lerp(rx * 0.86, -rx * 0.86, (i + 1) / n);
+        g.quadraticCurveTo((x0 + x1) / 2, bangY + r * 0.09, x1, bangY);
+      }
+      break;
+    }
+    case "side":
+      g.lineTo(rx * 0.86, bangY + r * 0.06);
+      g.quadraticCurveTo(rx * 0.25, bangY - r * 0.02, -rx * 0.25, bangY - r * 0.28);
+      g.quadraticCurveTo(-rx * 0.65, bangY - r * 0.12, -inner, bangY + r * 0.1);
+      break;
+    case "curtain":
+      g.lineTo(rx * 0.88, bangY + r * 0.12);
+      g.quadraticCurveTo(rx * 0.3, bangY - r * 0.04, 0, -r * 0.62);
+      g.quadraticCurveTo(-rx * 0.3, bangY - r * 0.04, -rx * 0.88, bangY + r * 0.12);
+      break;
+    case "up":
+    default:
+      g.lineTo(rx * 0.9, -r * 0.38);
+      g.quadraticCurveTo(0, -r * 0.82, -rx * 0.9, -r * 0.38);
+      break;
+  }
+  g.lineTo(-inner, sideY);
+  g.lineTo(-ox, sideY);
+  g.closePath();
+}
+
+function drawHairBack(g, F, d) {
+  const { r, rx, ry } = d; const c = F.hairColor;
+  g.save();
+  switch (F.hairStyle) {
+    case "bob":
+      g.beginPath(); g.roundRect(-rx * 1.18, -ry * 0.75, rx * 2.36, ry * 1.4, [r * 0.8, r * 0.8, r * 0.28, r * 0.28]);
+      fillStroke(g, c); break;
+    case "long":
+      g.beginPath();
+      g.moveTo(-rx * 1.12, -ry * 0.2);
+      g.bezierCurveTo(-rx * 1.3, ry * 0.8, -rx * 1.28, ry * 1.4, -rx * 1.05, ry * 1.7);
+      g.lineTo(rx * 1.05, ry * 1.7);
+      g.bezierCurveTo(rx * 1.28, ry * 1.4, rx * 1.3, ry * 0.8, rx * 1.12, -ry * 0.2);
+      g.closePath(); fillStroke(g, c); break;
+    case "ponytail":
+      g.save(); g.translate(rx * 1.0, -ry * 0.1); g.rotate(0.5);
+      g.beginPath(); g.ellipse(r * 0.18, r * 0.45, r * 0.24, r * 0.6, 0, 0, TAU); fillStroke(g, c); g.restore();
+      break;
+    case "buns":
+      for (const s of [-1, 1]) { g.beginPath(); g.arc(s * rx * 0.78, -ry * 0.88, r * 0.3, 0, TAU); fillStroke(g, c); }
+      break;
+    case "afro":
+      g.beginPath();
+      for (let i = 0; i < 16; i++) {
+        const a = i / 16 * TAU;
+        g.moveTo(Math.cos(a) * r * 1.22 + r * 0.32, -r * 0.2 + Math.sin(a) * r * 1.12);
+        g.arc(Math.cos(a) * r * 1.22, -r * 0.2 + Math.sin(a) * r * 1.12, r * 0.32, 0, TAU);
+      }
+      g.fillStyle = c; g.fill();
+      g.beginPath(); g.ellipse(0, -r * 0.2, r * 1.4, r * 1.3, 0, 0, TAU); g.fill();
+      break;
+  }
+  g.restore();
+}
+
+function drawHairFront(g, F, d) {
+  const { r, rx, ry } = d; const c = F.hairColor;
+  const cap = (o) => { capPath(g, d, o); fillStroke(g, c); };
+  switch (F.hairStyle) {
+    case "short": cap({ bang: "side" }); break;
+    case "sidepart": cap({ bang: "side", bangY: -r * 0.22 }); break;
+    case "curtain": cap({ bang: "curtain" }); break;
+    case "slick": cap({ bang: "up" }); break;
+    case "buzz": cap({ bang: "up", inset: 1.02, insetY: 1.03 }); break;
+    case "bob": cap({ bang: "straight", sideY: ry * 0.62, inner: rx * 0.84 }); break;
+    case "long": cap({ bang: "curtain", sideY: ry * 0.9, inner: rx * 0.86 }); break;
+    case "ponytail": cap({ bang: "side" });
+      g.beginPath(); g.arc(rx * 0.98, -ry * 0.12, r * 0.08, 0, TAU); fillStroke(g, F.accColor, 2.4); break;
+    case "buns": cap({ bang: "straight" }); break;
+    case "curly": {
+      cap({ bang: "straight", bangY: -r * 0.36 });
+      g.fillStyle = c; g.strokeStyle = INK; g.lineWidth = 2.6;
+      for (let i = 0; i <= 10; i++) {
+        const a = Math.PI * (0.98 + i / 10 * 1.04);
+        g.beginPath(); g.arc(Math.cos(a) * rx * 1.05, -r * 0.03 + Math.sin(a) * ry * 1.05, r * 0.2, 0, TAU); g.fill(); g.stroke();
+      }
+      for (let i = 0; i < 5; i++) {
+        g.beginPath(); g.arc(lerp(-rx * 0.62, rx * 0.62, i / 4), -r * 0.38, r * 0.17, 0, TAU); g.fill(); g.stroke();
+      }
+      break;
+    }
+    case "afro": {
+      g.fillStyle = c; g.strokeStyle = INK; g.lineWidth = 2.6;
+      for (let i = 0; i < 6; i++) { g.beginPath(); g.arc(lerp(-rx * 0.75, rx * 0.75, i / 5), -r * 0.5, r * 0.2, 0, TAU); g.fill(); g.stroke(); }
+      break;
+    }
+    case "spiky": {
+      g.beginPath();
+      const n = 7;
+      g.moveTo(-rx * 1.05, -r * 0.05);
+      for (let i = 0; i <= n; i++) {
+        const a = Math.PI * (1 + i / n);
+        const tipR = 1.38;
+        const am = Math.PI * (1 + (i + 0.5) / n);
+        g.lineTo(Math.cos(a) * rx * 1.04, -r * 0.05 + Math.sin(a) * ry * 1.04);
+        if (i < n) g.lineTo(Math.cos(am) * rx * tipR, -r * 0.05 + Math.sin(am) * ry * tipR);
+      }
+      g.lineTo(rx * 0.9, -r * 0.38);
+      g.quadraticCurveTo(0, -r * 0.7, -rx * 0.9, -r * 0.38);
+      g.closePath(); fillStroke(g, c);
+      break;
+    }
+    case "mohawk":
+      g.beginPath(); g.ellipse(0, -ry * 0.98, r * 0.17, r * 0.46, 0, 0, TAU); fillStroke(g, c); break;
+    case "bald":
+      g.beginPath(); g.ellipse(-rx * 0.35, -ry * 0.62, r * 0.18, r * 0.07, -0.5, 0, TAU);
+      g.fillStyle = "rgba(255,255,255,.55)"; g.fill(); break;
+  }
+}
+
+function heartPath(g, x, y, s) {
+  g.beginPath();
+  g.moveTo(x, y + s * 0.35);
+  g.bezierCurveTo(x - s * 1.1, y - s * 0.35, x - s * 0.45, y - s * 1.05, x, y - s * 0.4);
+  g.bezierCurveTo(x + s * 0.45, y - s * 1.05, x + s * 1.1, y - s * 0.35, x, y + s * 0.35);
+  g.closePath();
+}
+
+function drawEye(g, x, y, s, style, P, side) {
+  g.save();
+  g.lineCap = "round"; g.lineJoin = "round"; g.strokeStyle = INK; g.fillStyle = INK;
+  const blink = P.blink || 0;
+  let st = style;
+  if (P.expr === "laugh" || P.expr === "bow") st = "arc";
+  else if (P.expr === "closed") st = "line";
+  else if (P.expr === "love") st = "heart";
+  else if (P.expr === "cry") st = "cry";
+  else if (P.expr === "wide") st = "wide";
+  if (blink > 0.6 && !["arc", "line", "heart", "cry"].includes(st)) st = "line";
+
+  switch (st) {
+    case "dot":
+      g.beginPath(); g.ellipse(x, y, s * 0.5, s * 0.66, 0, 0, TAU); g.fill();
+      g.fillStyle = "#fff"; g.beginPath(); g.arc(x - s * 0.15, y - s * 0.25, s * 0.16, 0, TAU); g.fill();
+      break;
+    case "round": case "wide": {
+      const k = st === "wide" ? 1.3 : 1;
+      g.beginPath(); g.ellipse(x, y, s * 0.95 * k, s * 1.08 * k, 0, 0, TAU);
+      g.fillStyle = "#fff"; g.fill(); g.lineWidth = 2.6; g.stroke();
+      g.fillStyle = INK; g.beginPath(); g.arc(x + side * s * 0.1, y + s * 0.1, s * (st === "wide" ? 0.38 : 0.58), 0, TAU); g.fill();
+      g.fillStyle = "#fff"; g.beginPath(); g.arc(x + side * s * 0.1 - s * 0.2, y - s * 0.15, s * 0.18, 0, TAU); g.fill();
+      break;
+    }
+    case "sparkle":
+      g.beginPath(); g.ellipse(x, y, s * 1.12, s * 1.28, 0, 0, TAU);
+      g.fillStyle = "#fff"; g.fill(); g.lineWidth = 2.6; g.stroke();
+      g.fillStyle = INK; g.beginPath(); g.ellipse(x, y + s * 0.1, s * 0.9, s * 1.05, 0, 0, TAU); g.fill();
+      g.fillStyle = "#fff";
+      g.beginPath(); g.arc(x - s * 0.32, y - s * 0.32, s * 0.32, 0, TAU); g.fill();
+      g.beginPath(); g.arc(x + s * 0.35, y + s * 0.45, s * 0.15, 0, TAU); g.fill();
+      break;
+    case "sharp":
+      g.beginPath();
+      g.moveTo(x - s * 1.2, y + s * 0.15);
+      g.quadraticCurveTo(x - side * s * 0.1, y - s * 1.1, x + s * 1.2, y - s * 0.25 * side);
+      g.quadraticCurveTo(x, y + s * 0.9, x - s * 1.2, y + s * 0.15);
+      g.closePath(); g.fillStyle = "#fff"; g.fill(); g.lineWidth = 2.6; g.stroke();
+      g.save(); g.clip(); g.fillStyle = INK; g.beginPath(); g.arc(x, y, s * 0.55, 0, TAU); g.fill(); g.restore();
+      break;
+    case "sleepy":
+      g.beginPath(); g.ellipse(x, y, s * 0.95, s * 1.0, 0, 0, Math.PI); g.fillStyle = "#fff"; g.fill(); g.lineWidth = 2.6; g.stroke();
+      g.fillStyle = INK; g.beginPath(); g.arc(x, y + s * 0.2, s * 0.45, 0, Math.PI); g.fill();
+      g.beginPath(); g.moveTo(x - s * 1.05, y); g.lineTo(x + s * 1.05, y); g.lineWidth = 3.4; g.stroke();
+      break;
+    case "arc":
+      g.lineWidth = 4; g.beginPath(); g.arc(x, y + s * 0.45, s * 0.85, Math.PI * 1.15, Math.PI * 1.85); g.stroke(); break;
+    case "line":
+      g.lineWidth = 4; g.beginPath(); g.moveTo(x - s * 0.85, y + s * 0.1); g.lineTo(x + s * 0.85, y + s * 0.1); g.stroke(); break;
+    case "heart":
+      heartPath(g, x, y + s * 0.2, s * 1.25); g.fillStyle = "#ff4f6d"; g.fill(); g.lineWidth = 2.4; g.stroke(); break;
+    case "cry":
+      g.lineWidth = 4; g.beginPath();
+      g.moveTo(x - s * 0.9, y - s * 0.1 * side); g.lineTo(x + s * 0.1 * side, y + s * 0.25); g.lineTo(x + s * 0.9, y - s * 0.1 * -side);
+      g.moveTo(x - s * 0.8, y + s * 0.15); g.lineTo(x + s * 0.8, y + s * 0.15);
+      g.stroke(); break;
+  }
+  g.restore();
+}
+
+function drawBrows(g, F, d, P, ex, ey, s) {
+  if (F.brows === "none") return;
+  const lw = { normal: 3.6, thick: 6.5, thin: 2.4 }[F.brows] || 3.6;
+  g.save(); g.strokeStyle = F.hairStyle === "bald" ? INK : shade(F.hairColor, -0.35); g.lineWidth = lw; g.lineCap = "round";
+  const by = ey - s * 1.9 + (P.browLift || 0);
+  for (const side of [-1, 1]) {
+    const x = side * ex;
+    let inner = 0, outer = 0;
+    if (P.expr === "angry") { inner = s * 0.6; outer = -s * 0.25; }
+    else if (P.expr === "cry" || P.expr === "sad") { inner = -s * 0.5; outer = s * 0.2; }
+    else if (P.expr === "wide") { inner = -s * 0.5; outer = -s * 0.5; }
+    g.beginPath();
+    g.moveTo(x - side * s * 1.0, by + inner);
+    g.quadraticCurveTo(x, by - s * 0.35 + (inner + outer) / 2, x + side * s * 1.0, by + outer);
+    g.stroke();
+  }
+  g.restore();
+}
+
+function drawGlasses(g, F, ex, ey, s) {
+  if (F.glasses === "none") return;
+  g.save(); g.lineWidth = 3.4; g.strokeStyle = INK;
+  const R = s * 1.6;
+  for (const side of [-1, 1]) {
+    g.beginPath();
+    if (F.glasses === "round") g.arc(side * ex, ey, R, 0, TAU);
+    else g.roundRect(side * ex - R * 1.08, ey - R * 0.8, R * 2.16, R * 1.6, R * 0.35);
+    if (F.glasses === "sunglasses") { g.fillStyle = "rgba(20,20,26,.92)"; g.fill(); }
+    else { g.fillStyle = "rgba(200,230,255,.18)"; g.fill(); }
+    g.stroke();
+    if (F.glasses === "sunglasses") {
+      g.strokeStyle = "rgba(255,255,255,.6)"; g.lineWidth = 2.4;
+      g.beginPath(); g.moveTo(side * ex - R * 0.6, ey - R * 0.2); g.lineTo(side * ex - R * 0.2, ey - R * 0.55); g.stroke();
+      g.strokeStyle = INK; g.lineWidth = 3.4;
+    }
+  }
+  g.beginPath();
+  const gap = F.glasses === "round" ? R : R * 1.08;
+  g.moveTo(-ex + gap, ey - s * 0.2); g.quadraticCurveTo(0, ey - s * 0.8, ex - gap, ey - s * 0.2); g.stroke();
+  g.restore();
+}
+
+function drawMouth(g, d, P) {
+  const { r } = d;
+  const my = r * 0.5;
+  const m = clamp(P.mouth || 0, 0, 1);
+  g.save(); g.strokeStyle = INK; g.lineWidth = 3.2; g.lineCap = "round"; g.lineJoin = "round";
+  let shape = P.mouthShape || "smile";
+  if (m > 0.06) shape = "talk";
+  switch (shape) {
+    case "talk": case "open": case "o": {
+      const h = shape === "talk" ? r * (0.05 + m * 0.17) : shape === "o" ? r * 0.12 : r * 0.17;
+      const w = shape === "o" ? r * 0.1 : r * (0.15 + (shape === "talk" ? m * 0.04 : 0.06));
+      g.beginPath(); g.ellipse(0, my + h * 0.3, w, h, 0, 0, TAU);
+      g.fillStyle = "#7a2228"; g.fill();
+      g.save(); g.clip(); g.fillStyle = "#ef7f8f"; g.beginPath(); g.ellipse(0, my + h * 1.05, w * 0.85, h * 0.6, 0, 0, TAU); g.fill(); g.restore();
+      g.stroke(); break;
+    }
+    case "grin":
+      g.beginPath(); g.moveTo(-r * 0.22, my - r * 0.04); g.quadraticCurveTo(0, my + r * 0.3, r * 0.22, my - r * 0.04); g.closePath();
+      g.fillStyle = "#7a2228"; g.fill();
+      g.save(); g.clip(); g.fillStyle = "#fff"; g.fillRect(-r * 0.25, my - r * 0.06, r * 0.5, r * 0.07); g.restore();
+      g.stroke(); break;
+    case "frown":
+      g.beginPath(); g.arc(0, my + r * 0.13, r * 0.14, Math.PI * 1.2, Math.PI * 1.8); g.stroke(); break;
+    case "wavy":
+      g.beginPath(); g.moveTo(-r * 0.16, my);
+      for (let i = 1; i <= 4; i++) g.lineTo(-r * 0.16 + i * r * 0.08, my + (i % 2 ? -r * 0.04 : r * 0.02)); g.stroke(); break;
+    case "flat":
+      g.beginPath(); g.moveTo(-r * 0.08, my + r * 0.02); g.lineTo(r * 0.08, my + r * 0.02); g.stroke(); break;
+    default:
+      g.beginPath(); g.arc(0, my - r * 0.12, r * 0.17, Math.PI * 0.22, Math.PI * 0.78); g.stroke();
+  }
+  g.restore();
+}
+
+function drawFacialHair(g, F, d) {
+  const { r, rx } = d; if (F.facialHair === "none") return;
+  g.save();
+  const c = F.hairStyle === "bald" ? "#3b2618" : F.hairColor;
+  if (F.facialHair === "beard" || F.facialHair === "stubble") {
+    facePath(g, F, d); g.clip();
+    g.beginPath(); g.ellipse(0, r * 0.98, rx * 1.15, r * 0.68, 0, 0, TAU);
+    g.fillStyle = c; g.globalAlpha = F.facialHair === "stubble" ? 0.28 : 1; g.fill();
+    g.globalAlpha = 1;
+    g.fillStyle = shade(F.skin, 0); g.beginPath(); g.ellipse(0, r * 0.52, r * 0.27, r * 0.15, 0, 0, TAU); g.fill();
+  }
+  g.restore();
+  if (F.facialHair === "mustache" || F.facialHair === "beard") {
+    g.save(); g.fillStyle = c; g.strokeStyle = INK; g.lineWidth = 2.2;
+    g.beginPath();
+    g.moveTo(0, r * 0.35);
+    g.bezierCurveTo(-r * 0.12, r * 0.28, -r * 0.3, r * 0.34, -r * 0.32, r * 0.45);
+    g.bezierCurveTo(-r * 0.2, r * 0.42, -r * 0.08, r * 0.44, 0, r * 0.4);
+    g.bezierCurveTo(r * 0.08, r * 0.44, r * 0.2, r * 0.42, r * 0.32, r * 0.45);
+    g.bezierCurveTo(r * 0.3, r * 0.34, r * 0.12, r * 0.28, 0, r * 0.35);
+    g.fill(); g.stroke(); g.restore();
+  }
+  if (F.facialHair === "goatee") {
+    g.save(); g.beginPath(); g.ellipse(0, r * 0.8, r * 0.14, r * 0.12, 0, 0, TAU); fillStroke(g, c, 2.2); g.restore();
+  }
+}
+
+function drawAccessory(g, F, d) {
+  const { r, rx, ry } = d; const c = F.accColor;
+  g.save();
+  switch (F.accessory) {
+    case "cap":
+      g.beginPath(); g.ellipse(0, -ry * 0.38, rx * 1.1, ry * 0.78, 0, Math.PI, TAU); g.closePath(); fillStroke(g, c);
+      g.beginPath(); g.ellipse(rx * 0.38, -ry * 0.38, rx * 0.92, r * 0.13, 0.06, 0, TAU); fillStroke(g, shade(c, -0.15));
+      g.beginPath(); g.arc(0, -ry * 1.15, r * 0.07, 0, TAU); fillStroke(g, shade(c, -0.15), 2); break;
+    case "beanie":
+      g.beginPath(); g.ellipse(0, -ry * 0.42, rx * 1.1, ry * 0.85, 0, Math.PI, TAU); g.closePath(); fillStroke(g, c);
+      g.beginPath(); g.roundRect(-rx * 1.12, -ry * 0.55, rx * 2.24, r * 0.3, r * 0.12); fillStroke(g, shade(c, -0.15));
+      g.beginPath(); g.arc(0, -ry * 1.3, r * 0.14, 0, TAU); fillStroke(g, shade(c, 0.2)); break;
+    case "ribbon":
+      g.translate(rx * 0.62, -ry * 0.82); g.rotate(0.3);
+      for (const s of [-1, 1]) {
+        g.beginPath(); g.moveTo(0, 0); g.lineTo(s * r * 0.36, -r * 0.2); g.lineTo(s * r * 0.36, r * 0.2); g.closePath(); fillStroke(g, c, 2.6);
+      }
+      g.beginPath(); g.arc(0, 0, r * 0.08, 0, TAU); fillStroke(g, shade(c, -0.15), 2.4); break;
+    case "crown":
+      g.beginPath();
+      g.moveTo(-r * 0.42, -ry * 0.92); g.lineTo(-r * 0.48, -ry * 1.36); g.lineTo(-r * 0.22, -ry * 1.12);
+      g.lineTo(0, -ry * 1.44); g.lineTo(r * 0.22, -ry * 1.12); g.lineTo(r * 0.48, -ry * 1.36); g.lineTo(r * 0.42, -ry * 0.92);
+      g.closePath(); fillStroke(g, "#f2c230");
+      g.beginPath(); g.arc(0, -ry * 1.04, r * 0.06, 0, TAU); fillStroke(g, "#e2475a", 2); break;
+    case "headphones":
+      g.lineWidth = r * 0.12; g.strokeStyle = INK; g.beginPath(); g.ellipse(0, -r * 0.05, rx * 1.12, ry * 1.12, 0, Math.PI * 1.02, Math.PI * 1.98); g.stroke();
+      g.lineWidth = r * 0.07; g.strokeStyle = c; g.stroke();
+      for (const s of [-1, 1]) { g.beginPath(); g.roundRect(s * rx * 1.08 - r * 0.15, -r * 0.18, r * 0.3, r * 0.48, r * 0.12); fillStroke(g, c); }
+      break;
+    case "earrings":
+      for (const s of [-1, 1]) { g.beginPath(); g.arc(s * rx * 0.98, r * 0.3, r * 0.06, 0, TAU); fillStroke(g, "#f2c230", 2); }
+      break;
+    case "flower":
+      g.translate(-rx * 0.7, -ry * 0.7);
+      for (let i = 0; i < 5; i++) { const a = i / 5 * TAU; g.beginPath(); g.arc(Math.cos(a) * r * 0.13, Math.sin(a) * r * 0.13, r * 0.1, 0, TAU); fillStroke(g, c, 2); }
+      g.beginPath(); g.arc(0, 0, r * 0.08, 0, TAU); fillStroke(g, "#f2c230", 2); break;
+    case "hairband":
+      g.lineCap = "round"; g.strokeStyle = INK; g.lineWidth = r * 0.16;
+      g.beginPath(); g.ellipse(0, -r * 0.05, rx * 1.02, ry * 1.04, 0, Math.PI * 1.1, Math.PI * 1.9); g.stroke();
+      g.strokeStyle = c; g.lineWidth = r * 0.1; g.stroke(); break;
+  }
+  g.restore();
+}
+
+function drawEars(g, F, d) {
+  const { r, rx } = d;
+  for (const s of [-1, 1]) {
+    g.beginPath(); g.ellipse(s * rx * 0.97, r * 0.08, r * 0.16, r * 0.2, 0, 0, TAU); fillStroke(g, F.skin);
+  }
+}
+
+function drawBody(g, F, d, P) {
+  const { r } = d;
+  g.beginPath(); g.roundRect(-r * 0.2, r * 0.6, r * 0.4, r * 0.5, r * 0.1); fillStroke(g, F.skin);
+  g.beginPath();
+  g.moveTo(-r * 1.1, r * 2.4);
+  g.bezierCurveTo(-r * 1.1, r * 1.3, -r * 0.75, r * 0.98, 0, r * 0.98);
+  g.bezierCurveTo(r * 0.75, r * 0.98, r * 1.1, r * 1.3, r * 1.1, r * 2.4);
+  g.closePath(); fillStroke(g, F.outfit);
+  g.beginPath(); g.moveTo(-r * 0.3, r * 1.0); g.lineTo(0, r * 1.28); g.lineTo(r * 0.3, r * 1.0);
+  g.strokeStyle = shade(F.outfit, -0.35); g.lineWidth = 3; g.stroke();
+}
+
+function drawHand(g, F, d, P) {
+  if (P.hand == null) return;
+  const { r } = d;
+  const sx = r * 0.85, sy = r * 1.35;
+  const a = -1.15 + P.hand * 0.45;
+  const hx = sx + Math.cos(a) * r * 0.95, hy = sy + Math.sin(a) * r * 0.95;
+  g.save(); g.lineCap = "round";
+  g.strokeStyle = INK; g.lineWidth = r * 0.28; g.beginPath(); g.moveTo(sx, sy); g.lineTo(hx, hy); g.stroke();
+  g.strokeStyle = F.outfit; g.lineWidth = r * 0.22; g.stroke();
+  g.beginPath(); g.arc(hx, hy, r * 0.17, 0, TAU); fillStroke(g, F.skin);
+  g.restore();
+}
+
+function drawCharacter(g, F, P) {
+  const d = faceDims(F);
+  const { r, rx, ry } = d;
+  drawHairBack(g, F, d);
+  drawBody(g, F, d, P);
+  drawEars(g, F, d);
+  facePath(g, F, d); fillStroke(g, F.skin);
+  if (P.tint) {
+    g.save(); facePath(g, F, d); g.clip();
+    const gr = g.createLinearGradient(0, -ry, 0, ry * 0.4);
+    gr.addColorStop(0, `rgba(230,40,40,${0.5 * P.tint})`); gr.addColorStop(1, "rgba(230,40,40,0)");
+    g.fillStyle = gr; g.fillRect(-rx * 1.2, -ry * 1.2, rx * 2.4, ry * 2.4); g.restore();
+  }
+  if (P.expr === "bow") { // 인사할 때 얼굴이 살짝 아래를 봄
+    g.save(); g.translate(0, r * 0.12);
+  }
+  drawFacialHair(g, F, d);
+  const ex = rx * 0.4, ey = r * 0.08, s = r * 0.11;
+  if (F.blush || P.blush) {
+    g.fillStyle = `rgba(255,110,130,${P.blush ? 0.6 : 0.38})`;
+    for (const side of [-1, 1]) { g.beginPath(); g.ellipse(side * rx * 0.62, r * 0.34, r * 0.15, r * 0.08, 0, 0, TAU); g.fill(); }
+  }
+  for (const side of [-1, 1]) drawEye(g, side * ex, ey, s, F.eyes, P, side);
+  drawBrows(g, F, d, P, ex, ey, s);
+  // 코
+  g.save(); g.strokeStyle = shade(F.skin, -0.35); g.lineWidth = 2.6; g.lineCap = "round";
+  g.beginPath(); g.arc(0, r * 0.25, r * 0.05, Math.PI * 0.15, Math.PI * 0.85); g.stroke(); g.restore();
+  drawGlasses(g, F, ex, ey, s);
+  drawMouth(g, d, P);
+  if (F.mole) { g.fillStyle = INK; g.beginPath(); g.arc(rx * 0.36, r * 0.5, r * 0.025, 0, TAU); g.fill(); }
+  if (P.expr === "bow") g.restore();
+  drawHairFront(g, F, d);
+  drawAccessory(g, F, d);
+  drawHand(g, F, d, P);
+  return d;
+}
+
+function shade(hex, amt) {
+  const n = parseInt(hex.slice(1), 16);
+  let rr = n >> 16 & 255, gg = n >> 8 & 255, bb = n & 255;
+  const f = (c) => Math.round(amt < 0 ? c * (1 + amt) : c + (255 - c) * amt);
+  return "#" + [f(rr), f(gg), f(bb)].map(v => clamp(v, 0, 255).toString(16).padStart(2, "0")).join("");
+}
+
+/* =========================================================
+   3. 움직임
+   ========================================================= */
+const BASE_PERIOD = { idle: 2, bounce: 0.8, dance: 1, wave: 1, heart: 1.2, laugh: 0.9, nod: 0.8, shake: 0.8, bow: 2, surprise: 2, cry: 1, angry: 0.6, sleepy: 2, spin: 1.2 };
+
+function motionPose(type, p, t) {
+  const s = Math.sin(TAU * p);
+  const P = { x: 0, y: 0, rot: 0, sx: 1, sy: 1, expr: "normal", mouthShape: "smile", hand: null, fx: [] };
+  switch (type) {
+    case "idle":
+      P.y = s * 3; P.sy = 1 + s * 0.012; break;
+    case "bounce": {
+      const h = Math.abs(Math.sin(Math.PI * p));
+      P.y = -h * 38;
+      if (h < 0.2) { const q = 1 - h / 0.2; P.sx = 1 + 0.08 * q; P.sy = 1 - 0.08 * q; }
+      P.expr = "happy"; P.mouthShape = "grin"; break;
+    }
+    case "dance":
+      P.x = s * 16; P.rot = s * 0.18; P.y = -Math.abs(Math.sin(TAU * p)) * 14;
+      P.mouthShape = "grin"; P.fx.push("sparkle"); break;
+    case "wave":
+      P.rot = Math.sin(TAU * p) * 0.04; P.hand = Math.sin(TAU * p * 2); P.mouthShape = "grin"; break;
+    case "heart":
+      P.y = s * 4; P.expr = "love"; P.blush = true; P.mouthShape = "grin"; P.fx.push("hearts"); break;
+    case "laugh":
+      P.y = -Math.abs(Math.sin(TAU * p * 2)) * 8; P.rot = Math.sin(TAU * p * 2) * 0.05;
+      P.expr = "laugh"; P.mouthShape = "open"; P.fx.push("joytears"); break;
+    case "nod": {
+      const k = Math.max(0, s);
+      P.y = k * 10; P.sy = 1 - k * 0.04; P.rot = 0; P.expr = k > 0.6 ? "laugh" : "happy"; P.mouthShape = "grin"; break;
+    }
+    case "shake":
+      P.x = s * 14; P.rot = s * 0.1; P.mouthShape = "flat"; P.expr = "sad"; break;
+    case "bow": {
+      const k = Math.sin(Math.PI * clamp((p - 0.15) / 0.7, 0, 1)) ** 2;
+      P.y = k * 34; P.sy = 1 - k * 0.1; P.sx = 1 + k * 0.03;
+      P.expr = k > 0.3 ? "bow" : "happy"; P.mouthShape = "smile"; break;
+    }
+    case "surprise": {
+      const k = p < 0.2 ? Math.sin(Math.PI * p / 0.2) : 0;
+      P.y = -k * 34; P.sx = 1 + (p > 0.2 && p < 0.3 ? 0.05 : 0); P.expr = "wide"; P.mouthShape = "o"; P.browLift = -6;
+      P.fx.push("bang", "sweat"); break;
+    }
+    case "cry":
+      P.y = Math.sin(TAU * p * 4) * 1.5; P.expr = "cry"; P.mouthShape = "open"; P.fx.push("tears"); break;
+    case "angry":
+      P.x = Math.sin(TAU * p * 6) * 3; P.expr = "angry"; P.mouthShape = "wavy"; P.tint = 0.6 + 0.4 * Math.abs(s);
+      P.fx.push("anger", "steam"); break;
+    case "sleepy":
+      P.rot = s * 0.07; P.y = 4 + Math.max(0, s) * 6; P.expr = "closed"; P.mouthShape = "o"; P.fx.push("zzz"); break;
+    case "spin":
+      P.sx = Math.cos(TAU * p); if (Math.abs(P.sx) < 0.05) P.sx = 0.05 * Math.sign(P.sx || 1);
+      P.y = -Math.abs(Math.sin(Math.PI * p)) * 10; P.mouthShape = "grin"; P.fx.push("sparkle"); break;
+  }
+  // 자연스러운 깜빡임 (2.6초마다)
+  if (P.expr === "normal" || P.expr === "happy" || P.expr === "sad" || P.expr === "angry") {
+    const bt = (t % 2.6) / 2.6;
+    if (bt > 0.94) P.blink = 1;
+  }
+  if (P.expr === "happy" && P.mouthShape === "smile") P.mouthShape = "grin";
+  return P;
+}
+
+function drawEffects(g, P, d, p, t) {
+  const { r, rx, ry } = d;
+  for (const fx of P.fx) {
+    g.save();
+    switch (fx) {
+      case "hearts":
+        for (let i = 0; i < 4; i++) {
+          const q = (p + i / 4) % 1;
+          const side = i % 2 ? 1 : -1;
+          const x = side * (rx * 1.15 + Math.sin(q * TAU) * 8), y = -ry * 0.3 - q * r * 1.1;
+          g.globalAlpha = Math.min(1, (1 - q) * 1.6);
+          heartPath(g, x, y, 10 + q * 10); g.fillStyle = "#ff4f6d"; g.fill(); g.lineWidth = 2; g.strokeStyle = INK; g.stroke();
+        }
+        break;
+      case "tears":
+        for (const side of [-1, 1]) {
+          const x = side * rx * 0.4;
+          g.fillStyle = "rgba(90,170,255,.75)";
+          g.beginPath(); g.roundRect(x - 6, r * 0.18, 12, r * 0.85, 6); g.fill();
+          for (let i = 0; i < 2; i++) {
+            const q = (p * 2 + i / 2) % 1;
+            g.globalAlpha = 1 - q;
+            g.beginPath(); g.arc(x + side * q * 30, r * 1.0 + q * 40, 6, 0, TAU); g.fill();
+            g.globalAlpha = 1;
+          }
+        }
+        break;
+      case "joytears":
+        for (const side of [-1, 1]) {
+          const q = (p * 2) % 1;
+          g.globalAlpha = 1 - q; g.fillStyle = "rgba(90,170,255,.85)";
+          g.beginPath(); g.arc(side * (rx * 0.75 + q * 16), r * 0.05 - Math.sin(q * Math.PI) * 14, 5, 0, TAU); g.fill();
+        }
+        break;
+      case "sparkle":
+        for (let i = 0; i < 4; i++) {
+          const a = i / 4 * TAU + p * TAU * 0.5;
+          const x = Math.cos(a) * r * 1.45, y = -r * 0.25 + Math.sin(a) * r * 1.15;
+          const sc = 0.6 + 0.4 * Math.abs(Math.sin(TAU * (p * 2 + i / 4)));
+          star(g, x, y, 11 * sc, "#ffd23f");
+        }
+        break;
+      case "anger": {
+        const sc = 1 + 0.15 * Math.sin(TAU * p * 2);
+        g.translate(rx * 0.72, -ry * 0.72); g.scale(sc, sc);
+        g.strokeStyle = "#e0262f"; g.lineWidth = 4.5; g.lineCap = "round";
+        for (let i = 0; i < 4; i++) {
+          g.rotate(Math.PI / 2); g.beginPath(); g.arc(10, 10, 8, Math.PI, Math.PI * 1.5); g.stroke();
+        }
+        break;
+      }
+      case "steam":
+        for (let i = 0; i < 3; i++) {
+          const q = (p + i / 3) % 1;
+          g.globalAlpha = (1 - q) * 0.85; g.fillStyle = "#fff"; g.strokeStyle = INK; g.lineWidth = 2;
+          g.beginPath(); g.arc((i - 1) * r * 0.5, -ry * 1.15 - q * 40, 9 + q * 8, 0, TAU); g.fill(); g.stroke();
+        }
+        break;
+      case "zzz":
+        g.fillStyle = INK; g.font = "900 22px 'Gothic A1', sans-serif";
+        for (let i = 0; i < 3; i++) {
+          const q = (p + i / 3) % 1;
+          g.globalAlpha = Math.sin(Math.PI * q);
+          g.font = `900 ${16 + q * 14}px 'Gothic A1', sans-serif`;
+          g.fillText("Z", rx * 0.85 + q * 30, -ry * 0.8 - q * 45);
+        }
+        break;
+      case "bang": {
+        const k = p < 0.3 ? clamp(p / 0.08, 0, 1) : 1;
+        g.translate(rx * 1.1, -ry * 0.95); g.scale(k, k);
+        g.fillStyle = "#e0262f"; g.strokeStyle = INK; g.lineWidth = 3;
+        g.font = "900 46px 'Gothic A1', sans-serif"; g.textAlign = "center";
+        g.strokeText("!", 0, 0); g.fillText("!", 0, 0);
+        g.translate(-rx * 2.2, 0); g.lineWidth = 3.5; g.strokeStyle = INK; g.lineCap = "round";
+        for (let i = 0; i < 3; i++) { const a = -Math.PI * (0.55 + i * 0.18); g.beginPath(); g.moveTo(Math.cos(a) * 12, Math.sin(a) * 12 + 14); g.lineTo(Math.cos(a) * 26, Math.sin(a) * 26 + 14); g.stroke(); }
+        break;
+      }
+      case "sweat":
+        g.fillStyle = "rgba(90,170,255,.9)"; g.strokeStyle = INK; g.lineWidth = 2;
+        g.beginPath(); const x = -rx * 0.88, y = -ry * 0.3;
+        g.moveTo(x, y - 14); g.quadraticCurveTo(x + 10, y + 2, x, y + 6); g.quadraticCurveTo(x - 10, y + 2, x, y - 14); g.fill(); g.stroke();
+        break;
+    }
+    g.restore();
+  }
+}
+function star(g, x, y, s, c) {
+  g.beginPath();
+  for (let i = 0; i < 8; i++) {
+    const a = i / 8 * TAU - Math.PI / 2, rr = i % 2 ? s * 0.38 : s;
+    g.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr);
+  }
+  g.closePath(); g.fillStyle = c; g.fill(); g.strokeStyle = INK; g.lineWidth = 1.8; g.stroke();
+}
+
+/* =========================================================
+   4. 장면(배경 + 캐릭터 + 글자) 합성
+   ========================================================= */
+function motionPhase(t) {
+  const loop = S.motion.loop;
+  const base = (BASE_PERIOD[S.motion.type] || 1) / S.motion.speed;
+  const cycles = Math.max(1, Math.round(loop / base));
+  const period = loop / cycles; // 한 바퀴 길이 안에 딱 맞게 → GIF가 끊김 없이 반복
+  return (t % period) / period;
+}
+
+function drawBackground(g) {
+  const B = S.bg;
+  if (B.type === "transparent") return;
+  if (B.type === "solid") { g.fillStyle = B.c1; g.fillRect(0, 0, W, W); return; }
+  if (B.type === "gradient") {
+    const gr = g.createLinearGradient(0, 0, W, W); gr.addColorStop(0, B.c1); gr.addColorStop(1, B.c2);
+    g.fillStyle = gr; g.fillRect(0, 0, W, W); return;
+  }
+  g.fillStyle = B.c1; g.fillRect(0, 0, W, W);
+  g.fillStyle = B.c2;
+  for (let i = 0; i < 24; i++) {
+    const a0 = i / 24 * TAU, a1 = a0 + TAU / 48;
+    g.beginPath(); g.moveTo(W / 2, W / 2);
+    g.lineTo(W / 2 + Math.cos(a0) * W, W / 2 + Math.sin(a0) * W);
+    g.lineTo(W / 2 + Math.cos(a1) * W, W / 2 + Math.sin(a1) * W); g.closePath(); g.fill();
+  }
+}
+
+function wrapText(g, text, maxW, maxLines, sizes) {
+  const chars = Array.from(text);
+  for (const size of sizes) {
+    g.font = `900 ${size}px 'Gothic A1', sans-serif`;
+    const lines = []; let cur = "";
+    // 띄어쓰기 기준으로 자르되, 한 단어가 너무 길면 글자 단위로 자름
+    const words = text.split(/(\s+)/);
+    for (const w of words) {
+      if (g.measureText(cur + w).width <= maxW) { cur += w; continue; }
+      if (cur.trim()) { lines.push(cur.trim()); cur = ""; }
+      if (g.measureText(w).width <= maxW) { cur = w.trimStart(); continue; }
+      for (const ch of Array.from(w)) {
+        if (g.measureText(cur + ch).width > maxW) { lines.push(cur); cur = ch; } else cur += ch;
+      }
+    }
+    if (cur.trim()) lines.push(cur.trim());
+    if (lines.length <= maxLines || size === sizes[sizes.length - 1]) return { lines: lines.slice(0, maxLines), size };
+  }
+  return { lines: [chars.join("")], size: sizes[0] };
+}
+
+function drawText(g, shown, full) {
+  const mode = S.text.mode;
+  if (mode === "none" || !full.trim()) return;
+  // 레이아웃은 전체 문장으로 정해 두고, 보이는 글자만 채운다 (말하는 동안 말풍선 크기가 흔들리지 않게)
+  if (mode === "bubble") {
+    const L = wrapText(g, full, 290, 2, [28, 24, 20, 17]);
+    const lh = L.size * 1.22;
+    const bw = Math.min(330, Math.max(...L.lines.map(l => g.measureText(l).width)) + 36);
+    const bh = L.lines.length * lh + 22;
+    const bx = (W - bw) / 2, by = 10;
+    g.save();
+    g.beginPath(); g.roundRect(bx, by, bw, bh, 18);
+    g.moveTo(W / 2 - 14, by + bh - 1); g.lineTo(W / 2 - 2, by + bh + 16); g.lineTo(W / 2 + 10, by + bh - 1);
+    g.fillStyle = "#fff"; g.fill(); g.lineWidth = 3; g.strokeStyle = INK; g.lineJoin = "round"; g.stroke();
+    g.fillStyle = "#fff"; g.fillRect(W / 2 - 12, by + bh - 4, 20, 6);
+    g.fillStyle = INK; g.textAlign = "center"; g.textBaseline = "middle";
+    let remain = Array.from(shown).length;
+    L.lines.forEach((line, i) => {
+      const lc = Array.from(line);
+      const part = lc.slice(0, Math.max(0, remain)).join("");
+      remain -= lc.length + 1;
+      const lw = g.measureText(line).width;
+      g.textAlign = "left";
+      g.fillText(part, W / 2 - lw / 2, by + 11 + lh * (i + 0.5));
+    });
+    g.restore();
+  } else {
+    const L = wrapText(g, full, 320, 2, [36, 30, 24, 20]);
+    const lh = L.size * 1.15;
+    g.save(); g.textBaseline = "middle"; g.lineJoin = "round";
+    let remain = Array.from(shown).length;
+    L.lines.forEach((line, i) => {
+      const lc = Array.from(line);
+      const part = lc.slice(0, Math.max(0, remain)).join("");
+      remain -= lc.length + 1;
+      const lw = g.measureText(line).width;
+      const y = W - 14 - lh * (L.lines.length - i - 0.5);
+      g.lineWidth = 7; g.strokeStyle = INK; g.strokeText(part, W / 2 - lw / 2, y);
+      g.fillStyle = "#fff"; g.fillText(part, W / 2 - lw / 2, y);
+    });
+    g.restore();
+  }
+}
+
+// t: 초, opts.mouth: 0..1, opts.typed: 0..1
+function renderScene(g, t, opts = {}) {
+  g.clearRect(0, 0, W, W);
+  drawBackground(g);
+  const p = motionPhase(t);
+  const P = motionPose(S.motion.type, p, t);
+  if (opts.mouth != null) P.mouth = opts.mouth;
+  const mode = S.text.line.trim() ? S.text.mode : "none";
+  const k = mode === "bubble" ? 0.8 : mode === "caption" ? 0.84 : 1;
+  const headY = mode === "bubble" ? 212 : mode === "caption" ? 138 : 162;
+  const pivotY = W + 20;
+  g.save();
+  g.translate(W / 2 + P.x * k, pivotY + P.y * k);
+  g.rotate(P.rot);
+  g.translate(0, headY - pivotY);
+  g.scale(k * P.sx, k * P.sy);
+  const d = drawCharacter(g, S.face, P);
+  if (S.motion.fx) drawEffects(g, P, d, p, t);
+  g.restore();
+  const full = S.text.line;
+  const n = Array.from(full).length;
+  const typed = opts.typed == null ? 1 : opts.typed;
+  drawText(g, Array.from(full).slice(0, Math.round(n * typed)).join(""), full);
+}
+
+/* =========================================================
+   5. 소리 — 캐릭터 목소리 합성 / 녹음 / 효과음 / TTS
+   ========================================================= */
+let AC = null;
+function audioCtx() {
+  if (!AC) AC = new (window.AudioContext || window.webkitAudioContext)();
+  if (AC.state === "suspended") AC.resume();
+  return AC;
+}
+const SR = 44100;
+let recordedBuffer = null; // 녹음 또는 업로드된 원본 AudioBuffer
+let mixCache = { key: "", buffer: null, env: null, typing: null };
+
+// 한글 모음별 높낮이 변화(반음) — 'ㅣ'는 높게, 'ㅜ/ㅗ'는 낮게
+const VOWEL_SEMI = [2, 3, 0, 1, -1, 0, -2, -1, -3, -1, 0, 1, -3, -4, -3, -2, -1, -4, -3, 1, 4];
+function syllables(text) {
+  const out = [];
+  for (const ch of Array.from(text)) {
+    const c = ch.codePointAt(0);
+    if (/\s/.test(ch)) out.push({ ch, kind: "space" });
+    else if (/[.,…~]/.test(ch)) out.push({ ch, kind: "pause" });
+    else if (/[!?！？]/.test(ch)) out.push({ ch, kind: "mark" });
+    else if (c >= 0xAC00 && c <= 0xD7A3) out.push({ ch, kind: "syl", vowel: Math.floor((c - 0xAC00) / 28) % 21 });
+    else out.push({ ch, kind: "syl", vowel: c % 21 });
+  }
+  return out;
+}
+
+function planBabble(text, V) {
+  const pr = PRESETS[V.preset] || PRESETS.normal;
+  const rate = pr.rate * V.talk;
+  const syl = syllables(text);
+  const notes = []; const charTimes = [];
+  let t = 0;
+  const lastSyl = syl.map(s => s.kind).lastIndexOf("syl");
+  const question = /[?？]\s*$/.test(text), exclaim = /[!！]\s*$/.test(text);
+  syl.forEach((s, i) => {
+    charTimes.push(t);
+    if (s.kind === "space") { t += 0.07 / rate; return; }
+    if (s.kind === "pause") { t += 0.22 / rate; return; }
+    if (s.kind === "mark") { t += 0.04 / rate; return; }
+    const dur = 0.11 / rate;
+    let semi = VOWEL_SEMI[s.vowel] + (hashStr(s.ch) % 3 - 1);
+    let bend = 0;
+    if (i === lastSyl && question) bend = 5;
+    if (i === lastSyl && exclaim) semi += 2;
+    notes.push({ t, dur, semi, bend, gain: exclaim ? 1 : 0.85 });
+    t += dur + 0.025 / rate;
+  });
+  charTimes.push(t);
+  return { notes, charTimes, length: t + 0.1 };
+}
+
+async function renderBabble(text, V, offset, total) {
+  const pr = PRESETS[V.preset] || PRESETS.normal;
+  const plan = planBabble(text, V);
+  const ctx = new OfflineAudioContext(1, Math.ceil(SR * total), SR);
+  const master = ctx.createGain(); master.gain.value = 0.32; master.connect(ctx.destination);
+  const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = pr.wave === "sawtooth" ? 1800 : 5000; lp.connect(master);
+  for (const n of plan.notes) {
+    const t0 = offset + n.t;
+    const f0 = pr.base * V.pitch * Math.pow(2, n.semi / 12);
+    for (const [mult, lvl, type] of [[1, 1, pr.wave], [2.01, 0.25, "sine"]]) {
+      const o = ctx.createOscillator(); o.type = type;
+      o.frequency.setValueAtTime(f0 * mult, t0);
+      o.frequency.linearRampToValueAtTime(f0 * mult * Math.pow(2, n.bend / 12) * (pr.vib ? 0.97 : 1), t0 + n.dur);
+      if (pr.vib) {
+        const lfo = ctx.createOscillator(), lg = ctx.createGain();
+        lfo.frequency.value = 9; lg.gain.value = pr.vib * mult; lfo.connect(lg); lg.connect(o.frequency);
+        lfo.start(t0); lfo.stop(t0 + n.dur + 0.05);
+      }
+      const gn = ctx.createGain();
+      gn.gain.setValueAtTime(0, t0);
+      gn.gain.linearRampToValueAtTime(n.gain * lvl, t0 + 0.008);
+      gn.gain.setValueAtTime(n.gain * lvl * 0.8, t0 + n.dur * 0.6);
+      gn.gain.exponentialRampToValueAtTime(0.001, t0 + n.dur);
+      o.connect(gn); gn.connect(lp);
+      o.start(t0); o.stop(t0 + n.dur + 0.02);
+    }
+  }
+  return ctx.startRendering();
+}
+
+function addSfx(ctx, type, at) {
+  const out = ctx.createGain(); out.gain.value = 0.35; out.connect(ctx.destination);
+  const tone = (f0, f1, dur, wave = "sine", start = at, vol = 1) => {
+    const o = ctx.createOscillator(), g = ctx.createGain(); o.type = wave;
+    o.frequency.setValueAtTime(f0, start); o.frequency.exponentialRampToValueAtTime(f1, start + dur);
+    g.gain.setValueAtTime(vol, start); g.gain.exponentialRampToValueAtTime(0.001, start + dur);
+    o.connect(g); g.connect(out); o.start(start); o.stop(start + dur + 0.02);
+  };
+  switch (type) {
+    case "pop": tone(500, 1400, 0.12, "sine"); break;
+    case "boing": {
+      const o = ctx.createOscillator(), g = ctx.createGain(), l = ctx.createOscillator(), lg = ctx.createGain();
+      o.type = "triangle"; o.frequency.setValueAtTime(180, at); o.frequency.exponentialRampToValueAtTime(420, at + 0.5);
+      l.frequency.value = 14; lg.gain.value = 60; l.connect(lg); lg.connect(o.frequency);
+      g.gain.setValueAtTime(0.9, at); g.gain.exponentialRampToValueAtTime(0.001, at + 0.55);
+      o.connect(g); g.connect(out); o.start(at); l.start(at); o.stop(at + 0.6); l.stop(at + 0.6); break;
+    }
+    case "chime": [1318, 1760, 2637].forEach((f, i) => tone(f, f, 0.5, "sine", at + i * 0.08, 0.6)); break;
+    case "drum": tone(140, 45, 0.3, "sine", at, 1); tone(140, 45, 0.45, "sine", at + 0.28, 1); break;
+  }
+}
+
+async function processRecording(buf, vfx, offset, total) {
+  const ctx = new OfflineAudioContext(1, Math.ceil(SR * total), SR);
+  const src = ctx.createBufferSource(); src.buffer = buf;
+  const rate = vfx === "high" ? 1.45 : vfx === "low" ? 0.75 : 1;
+  src.playbackRate.value = rate;
+  let node = src;
+  if (vfx === "robot") {
+    const ring = ctx.createGain(); ring.gain.value = 0;
+    const mod = ctx.createOscillator(); mod.frequency.value = 55; mod.connect(ring.gain); mod.start(0);
+    src.connect(ring); node = ring;
+  }
+  const g = ctx.createGain(); g.gain.value = 0.95; node.connect(g); g.connect(ctx.destination);
+  src.start(offset);
+  return ctx.startRendering();
+}
+
+function recordedLength() {
+  if (!recordedBuffer) return 0;
+  const rate = S.voice.vfx === "high" ? 1.45 : S.voice.vfx === "low" ? 0.75 : 1;
+  return recordedBuffer.duration / rate;
+}
+
+// 소리 원본 길이(초) — 전체 길이 계산용
+function voiceLength() {
+  const V = S.voice;
+  if (V.src === "babble" && S.text.line.trim()) return planBabble(S.text.line, V).length;
+  if (V.src === "record") return recordedLength();
+  if (V.src === "tts" && S.text.line.trim()) return estimateTts(S.text.line);
+  return 0;
+}
+function estimateTts(text) { return Array.from(text.replace(/\s/g, "")).length * 0.2 + 0.4; }
+
+function totalDuration() {
+  const vl = voiceLength();
+  const need = vl ? S.voice.delay + vl + 0.4 : 0;
+  // 소리가 길면 '한 바퀴 길이'의 정수배로 늘려 움직임이 끊기지 않게
+  const loop = S.motion.loop;
+  return Math.max(loop, Math.ceil(need / loop) * loop);
+}
+
+function mixKey() {
+  return JSON.stringify([S.text.line, S.voice, S.motion.loop, S.motion.speed, !!recordedBuffer && recordedBuffer.length]);
+}
+
+// 전체 소리를 하나의 AudioBuffer로 합치고, 입 모양용 크기(envelope)를 계산
+async function buildMix() {
+  const key = mixKey();
+  if (mixCache.key === key) return mixCache;
+  const V = S.voice, total = totalDuration();
+  let voice = null, typing = null;
+  if (V.src === "babble" && S.text.line.trim()) {
+    voice = await renderBabble(S.text.line, V, V.delay, total);
+    const plan = planBabble(S.text.line, V);
+    typing = { start: V.delay, times: plan.charTimes };
+  } else if (V.src === "record" && recordedBuffer) {
+    voice = await processRecording(recordedBuffer, V.vfx, V.delay, total);
+    typing = { start: V.delay, dur: recordedLength() };
+  }
+  // 효과음 + 목소리 합치기
+  const ctx = new OfflineAudioContext(1, Math.ceil(SR * total), SR);
+  if (voice) { const s = ctx.createBufferSource(); s.buffer = voice; s.connect(ctx.destination); s.start(0); }
+  if (V.sfx !== "none") addSfx(ctx, V.sfx, 0.02);
+  const hasAudio = !!voice || V.sfx !== "none";
+  const buffer = hasAudio ? await ctx.startRendering() : null;
+  const env = voice ? envelope(voice) : null;
+  mixCache = { key, buffer, env, typing, total };
+  return mixCache;
+}
+
+function envelope(buf) {
+  const data = buf.getChannelData(0), hop = Math.floor(SR / 60);
+  const out = new Float32Array(Math.ceil(data.length / hop));
+  let max = 1e-6;
+  for (let i = 0; i < out.length; i++) {
+    let sum = 0; const s0 = i * hop, s1 = Math.min(data.length, s0 + hop);
+    for (let j = s0; j < s1; j++) sum += data[j] * data[j];
+    out[i] = Math.sqrt(sum / Math.max(1, s1 - s0)); if (out[i] > max) max = out[i];
+  }
+  for (let i = 0; i < out.length; i++) out[i] = clamp((out[i] / max - 0.08) * 1.5, 0, 1);
+  return out;
+}
+
+function mouthAt(mix, t) {
+  if (!mix || !mix.env) return 0;
+  const i = Math.floor(t * 60);
+  return i >= 0 && i < mix.env.length ? mix.env[i] : 0;
+}
+function typedAt(mix, t) {
+  const n = Array.from(S.text.line).length;
+  if (!n) return 1;
+  if (S.voice.src === "tts") {
+    if (!ttsState.speaking) return ttsState.done ? 1 : 0;
+    return clamp((performance.now() - ttsState.t0) / 1000 / estimateTts(S.text.line), 0, 1);
+  }
+  const T = mix && mix.typing;
+  if (!T) return 1;
+  const rel = t - T.start;
+  if (rel < 0) return 0;
+  if (T.times) {
+    let k = 0; while (k < T.times.length - 1 && T.times[k + 1] <= rel) k++;
+    return clamp(k / n, 0, 1);
+  }
+  return clamp(rel / T.dur, 0, 1);
+}
+
+/* TTS */
+const ttsState = { speaking: false, done: false, t0: 0 };
+function listVoices() {
+  if (!("speechSynthesis" in window)) return;
+  const sel = $("#inVoice");
+  const vs = speechSynthesis.getVoices();
+  const ko = vs.filter(v => v.lang && v.lang.toLowerCase().startsWith("ko"));
+  const list = ko.length ? ko.concat(vs.filter(v => !ko.includes(v))) : vs;
+  sel.innerHTML = list.map(v => `<option value="${v.name}">${v.name} (${v.lang})</option>`).join("") || "<option>사용 가능한 음성이 없어요</option>";
+  if (S.voice.ttsVoice) sel.value = S.voice.ttsVoice;
+}
+function speakTts() {
+  if (!("speechSynthesis" in window)) { setStatus("이 기기는 TTS를 지원하지 않아요.", "bad"); return; }
+  speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(S.text.line);
+  const v = speechSynthesis.getVoices().find(v => v.name === $("#inVoice").value);
+  if (v) { u.voice = v; u.lang = v.lang; } else u.lang = "ko-KR";
+  u.pitch = 1.1; u.rate = 1;
+  ttsState.done = false;
+  u.onstart = () => { ttsState.speaking = true; ttsState.t0 = performance.now(); };
+  u.onend = u.onerror = () => { ttsState.speaking = false; ttsState.done = true; };
+  speechSynthesis.speak(u);
+}
+
+/* 녹음 */
+let mediaRec = null;
+async function toggleRecord() {
+  const btn = $("#btnRec");
+  if (mediaRec && mediaRec.state === "recording") { mediaRec.stop(); return; }
+  if (!navigator.mediaDevices?.getUserMedia) { setStatus("이 환경에서는 마이크를 쓸 수 없어요. 소리 파일을 올려 주세요.", "bad"); return; }
+  let stream;
+  try { stream = await navigator.mediaDevices.getUserMedia({ audio: true }); }
+  catch (e) { setStatus("마이크 권한이 없어요. 설정에서 허용하거나 파일을 올려 주세요.", "bad"); return; }
+  const chunks = [];
+  mediaRec = new MediaRecorder(stream);
+  mediaRec.ondataavailable = (e) => e.data.size && chunks.push(e.data);
+  mediaRec.onstop = async () => {
+    stream.getTracks().forEach(t => t.stop());
+    btn.innerHTML = "🎙 다시 녹음";
+    clearTimeout(mediaRec._timer);
+    await loadAudioBlob(new Blob(chunks, { type: mediaRec.mimeType }), "녹음");
+  };
+  mediaRec.start();
+  mediaRec._timer = setTimeout(() => mediaRec.state === "recording" && mediaRec.stop(), 10000);
+  btn.innerHTML = '<span class="rec-dot"></span>녹음 중 · 누르면 멈춤';
+  setStatus("녹음 중이에요. 최대 10초까지 녹음돼요.");
+}
+async function loadAudioBlob(blob, label) {
+  try {
+    const arr = await blob.arrayBuffer();
+    const buf = await audioCtx().decodeAudioData(arr);
+    recordedBuffer = trimSilence(buf);
+    mixCache.key = "";
+    $("#recInfo").textContent = `${label} ${recordedBuffer.duration.toFixed(1)}초`;
+    setStatus(`${label} 소리를 불러왔어요.`, "good");
+    refreshDur();
+  } catch (e) {
+    setStatus("이 소리 파일은 읽을 수 없어요. mp3, wav, m4a 파일을 써 보세요.", "bad");
+  }
+}
+function trimSilence(buf) {
+  const d = buf.getChannelData(0), th = 0.02;
+  let a = 0, b = d.length - 1;
+  while (a < b && Math.abs(d[a]) < th) a++;
+  while (b > a && Math.abs(d[b]) < th) b--;
+  a = Math.max(0, a - Math.floor(buf.sampleRate * 0.05)); b = Math.min(d.length - 1, b + Math.floor(buf.sampleRate * 0.1));
+  const maxLen = buf.sampleRate * 10;
+  const len = Math.min(b - a + 1, maxLen);
+  const out = audioCtx().createBuffer(1, Math.max(1, len), buf.sampleRate);
+  const o = out.getChannelData(0);
+  for (let ch = 0; ch < buf.numberOfChannels; ch++) {
+    const src = buf.getChannelData(ch);
+    for (let i = 0; i < len; i++) o[i] += src[a + i] / buf.numberOfChannels;
+  }
+  return out;
+}
+
+/* =========================================================
+   6. 미리보기 / 재생
+   ========================================================= */
+const cv = $("#cv"), g = cv.getContext("2d");
+let playing = null; // { start, mix, src }
+let loopPreview = true;
+const t0 = performance.now();
+
+function frame() {
+  const now = performance.now();
+  if (playing) {
+    const t = audioCtx().currentTime - playing.start;
+    if (t >= playing.mix.total) { stopPlay(); }
+    else renderScene(g, t, { mouth: mouthAt(playing.mix, t), typed: typedAt(playing.mix, t) });
+  } else if (loopPreview) {
+    const t = (now - t0) / 1000;
+    let mouth = 0;
+    if (S.voice.src === "tts" && ttsState.speaking) mouth = 0.35 + 0.35 * Math.sin(now / 45);
+    renderScene(g, t, { mouth, typed: S.voice.src === "tts" && (ttsState.speaking || ttsState.done) ? typedAt(null, t) : 1 });
+  }
+  requestAnimationFrame(frame);
+}
+
+async function startPlay() {
+  if (playing) { stopPlay(); return; }
+  const ctx = audioCtx();
+  if (S.voice.src === "tts") {
+    speakTts();
+    return;
+  }
+  if (S.voice.src === "record" && !recordedBuffer) setStatus("아직 녹음된 소리가 없어서 움직임만 재생해요.");
+  setStatus("소리 만드는 중…");
+  const mix = await buildMix();
+  setStatus("");
+  let src = null;
+  const start = ctx.currentTime + 0.05;
+  if (mix.buffer) { src = ctx.createBufferSource(); src.buffer = mix.buffer; src.connect(ctx.destination); src.start(start); }
+  playing = { start, mix, src };
+  $("#btnPlay").textContent = "■ 멈춤";
+}
+function stopPlay() {
+  if (playing && playing.src) try { playing.src.stop(); } catch (e) { }
+  playing = null;
+  $("#btnPlay").textContent = "▶ 소리와 함께 재생";
+}
+
+function refreshDur() {
+  const T = totalDuration();
+  $("#durInfo").textContent = `길이 ${T.toFixed(1)}초`;
+}
+
+/* =========================================================
+   7. 내보내기 — GIF 인코더 / WebM 녹화 / WAV / PNG
+   ========================================================= */
+function buildPalette(frames, transparent) {
+  const counts = new Uint32Array(32768);
+  for (const f of frames) {
+    for (let i = 0; i < f.length; i += 4) {
+      if (transparent && f[i + 3] < 128) continue;
+      counts[(f[i] >> 3) << 10 | (f[i + 1] >> 3) << 5 | (f[i + 2] >> 3)]++;
+    }
+  }
+  const bins = [];
+  for (let i = 0; i < 32768; i++) if (counts[i]) bins.push(i);
+  bins.sort((a, b) => counts[b] - counts[a]);
+  const max = transparent ? 255 : 256;
+  const chosen = [];
+  const rgb = (b) => [(b >> 10 & 31) * 8 + 4, (b >> 5 & 31) * 8 + 4, (b & 31) * 8 + 4];
+  // 비슷한 색이 자리를 다 차지하지 않도록 거리 두고 뽑기 → 남은 자리는 많이 쓰인 순서로 채우기
+  for (const th of [600, 150, 0]) {
+    for (const b of bins) {
+      if (chosen.length >= max) break;
+      if (chosen.includes(b)) continue;
+      const c = rgb(b);
+      if (th && chosen.some(o => { const q = rgb(o); return (q[0] - c[0]) ** 2 + (q[1] - c[1]) ** 2 + (q[2] - c[2]) ** 2 < th; })) continue;
+      chosen.push(b);
+    }
+  }
+  const pal = new Uint8Array(256 * 3);
+  const offset = transparent ? 1 : 0;
+  const cols = chosen.map(rgb);
+  cols.forEach((c, i) => pal.set(c, (i + offset) * 3));
+  const cache = new Int16Array(32768).fill(-1);
+  const lookup = (r, gg, b) => {
+    const key = (r >> 3) << 10 | (gg >> 3) << 5 | (b >> 3);
+    let v = cache[key];
+    if (v < 0) {
+      let best = 0, bd = 1e9;
+      for (let i = 0; i < cols.length; i++) {
+        const c = cols[i], dd = (c[0] - r) ** 2 + (c[1] - gg) ** 2 + (c[2] - b) ** 2;
+        if (dd < bd) { bd = dd; best = i; }
+      }
+      v = cache[key] = best + offset;
+    }
+    return v;
+  };
+  return { pal, lookup };
+}
+
+function lzw(indices, minCode, out) {
+  const clear = 1 << minCode, eoi = clear + 1;
+  let codeSize = minCode + 1, next = eoi + 1;
+  let dict = new Map();
+  let cur = 0, bits = 0;
+  const block = [];
+  const flushByte = (b) => { block.push(b); if (block.length === 255) { out.push(255, ...block); block.length = 0; } };
+  const emit = (code) => {
+    cur |= code << bits; bits += codeSize;
+    while (bits >= 8) { flushByte(cur & 255); cur >>>= 8; bits -= 8; }
+  };
+  emit(clear);
+  let prefix = indices[0];
+  for (let i = 1; i < indices.length; i++) {
+    const k = indices[i];
+    const key = prefix << 8 | k;
+    const hit = dict.get(key);
+    if (hit !== undefined) { prefix = hit; continue; }
+    emit(prefix);
+    if (next === 4096) {
+      emit(clear); dict = new Map(); codeSize = minCode + 1; next = eoi + 1;
+    } else {
+      if (next >= (1 << codeSize)) codeSize++;
+      dict.set(key, next++);
+    }
+    prefix = k;
+  }
+  emit(prefix);
+  emit(eoi);
+  if (bits > 0) flushByte(cur & 255);
+  if (block.length) out.push(block.length, ...block);
+  out.push(0);
+}
+
+function encodeGif(frames, w, h, delayCs, transparent) {
+  const { pal, lookup } = buildPalette(frames, transparent);
+  const out = [];
+  const str = (s) => { for (const c of s) out.push(c.charCodeAt(0)); };
+  const u16 = (v) => out.push(v & 255, v >> 8 & 255);
+  str("GIF89a"); u16(w); u16(h); out.push(0x70, 0, 0);
+  out.push(0x21, 0xFF, 0x0B); str("NETSCAPE2.0"); out.push(3, 1, 0, 0, 0);
+  for (const f of frames) {
+    out.push(0x21, 0xF9, 4, transparent ? 0x09 : 0x04); u16(delayCs); out.push(0, 0);
+    out.push(0x2C); u16(0); u16(0); u16(w); u16(h); out.push(0x87);
+    for (let i = 0; i < pal.length; i++) out.push(pal[i]);
+    const idx = new Uint8Array(w * h);
+    for (let i = 0, p = 0; i < f.length; i += 4, p++) {
+      idx[p] = transparent && f[i + 3] < 128 ? 0 : lookup(f[i], f[i + 1], f[i + 2]);
+    }
+    out.push(8);
+    lzw(idx, 8, out);
+  }
+  out.push(0x3B);
+  return new Uint8Array(out);
+}
+
+async function exportGif() {
+  const st = $("#exportStatus");
+  setStatus("GIF 만드는 중…", "", st);
+  await new Promise(r => setTimeout(r, 30));
+  const fps = S.gifFps, T = totalDuration();
+  const n = Math.round(T * fps);
+  const delay = Math.round(100 / fps);
+  const off = document.createElement("canvas"); off.width = off.height = W;
+  const og = off.getContext("2d", { willReadFrequently: true });
+  const mix = (S.voice.src === "babble" || S.voice.src === "record") ? await buildMix() : null;
+  const frames = [];
+  for (let i = 0; i < n; i++) {
+    const t = i / fps;
+    renderScene(og, t, { mouth: mouthAt(mix, t), typed: mix ? typedAt(mix, t) : 1 });
+    frames.push(og.getImageData(0, 0, W, W).data);
+    if (i % 8 === 0) { setStatus(`GIF 장면 그리는 중… ${i + 1}/${n}`, "", st); await new Promise(r => setTimeout(r)); }
+  }
+  setStatus("GIF 압축 중…", "", st);
+  await new Promise(r => setTimeout(r, 30));
+  const bytes = encodeGif(frames, W, W, delay, S.bg.type === "transparent");
+  await saveBlob(new Blob([bytes], { type: "image/gif" }), fileBase() + ".gif");
+  setStatus(`GIF 저장 완료 (${(bytes.length / 1024).toFixed(0)}KB, ${n}장면)`, "good", st);
+}
+
+async function exportWebm() {
+  const st = $("#exportStatus");
+  if (!window.MediaRecorder || !cv.captureStream) { setStatus("이 환경은 영상 녹화를 지원하지 않아요. GIF + WAV를 써 주세요.", "bad", st); return; }
+  stopPlay();
+  const ctx = audioCtx();
+  const mix = await buildMix();
+  const dest = ctx.createMediaStreamDestination();
+  const vstream = cv.captureStream(30);
+  const tracks = [...vstream.getVideoTracks()];
+  if (mix.buffer) tracks.push(...dest.stream.getAudioTracks());
+  const types = ["video/webm;codecs=vp9,opus", "video/webm;codecs=vp8,opus", "video/webm", "video/mp4"];
+  const mime = types.find(t => MediaRecorder.isTypeSupported(t)) || "";
+  const rec = new MediaRecorder(new MediaStream(tracks), mime ? { mimeType: mime, videoBitsPerSecond: 2_500_000 } : undefined);
+  const chunks = [];
+  rec.ondataavailable = (e) => e.data.size && chunks.push(e.data);
+  const done = new Promise(r => rec.onstop = r);
+  // 투명 배경은 영상에서 검게 나오므로 녹화 중에는 흰 배경을 깔아 준다
+  const restoreBg = S.bg.type === "transparent" ? { ...S.bg } : null;
+  if (restoreBg) S.bg = { type: "solid", c1: "#ffffff", c2: restoreBg.c2 };
+  rec.start(100);
+  const start = ctx.currentTime + 0.15;
+  if (mix.buffer) {
+    const src = ctx.createBufferSource(); src.buffer = mix.buffer; src.connect(dest); src.connect(ctx.destination); src.start(start);
+  }
+  playing = { start, mix, src: null };
+  loopPreview = false;
+  setStatus(`영상 녹화 중… (${mix.total.toFixed(1)}초)`, "", st);
+  await new Promise(r => setTimeout(r, (mix.total + 0.3) * 1000));
+  playing = null;
+  rec.stop(); await done;
+  if (restoreBg) S.bg = restoreBg;
+  loopPreview = $("#btnLoop").getAttribute("aria-pressed") === "true";
+  const ext = (rec.mimeType || mime).includes("mp4") ? "mp4" : "webm";
+  const blob = new Blob(chunks, { type: rec.mimeType || "video/webm" });
+  await saveBlob(blob, fileBase() + "." + ext);
+  setStatus(`영상 저장 완료 (${(blob.size / 1024).toFixed(0)}KB)`, "good", st);
+}
+
+function encodeWav(buf) {
+  const d = buf.getChannelData(0), n = d.length;
+  const ab = new ArrayBuffer(44 + n * 2), v = new DataView(ab);
+  const w = (o, s) => { for (let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)); };
+  w(0, "RIFF"); v.setUint32(4, 36 + n * 2, true); w(8, "WAVE"); w(12, "fmt ");
+  v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+  v.setUint32(24, buf.sampleRate, true); v.setUint32(28, buf.sampleRate * 2, true);
+  v.setUint16(32, 2, true); v.setUint16(34, 16, true); w(36, "data"); v.setUint32(40, n * 2, true);
+  for (let i = 0; i < n; i++) v.setInt16(44 + i * 2, clamp(d[i], -1, 1) * 0x7FFF, true);
+  return new Blob([ab], { type: "audio/wav" });
+}
+async function exportWav() {
+  const st = $("#exportStatus");
+  if (S.voice.src === "tts") { setStatus("TTS 소리는 파일로 저장할 수 없어요. '캐릭터 목소리'나 '내 녹음'을 골라 주세요.", "bad", st); return; }
+  const mix = await buildMix();
+  if (!mix.buffer) { setStatus("저장할 소리가 없어요. 대사·소리 탭에서 목소리나 효과음을 골라 주세요.", "bad", st); return; }
+  await saveBlob(encodeWav(mix.buffer), fileBase() + ".wav");
+  setStatus("WAV 저장 완료", "good", st);
+}
+async function exportPng() {
+  const off = document.createElement("canvas"); off.width = off.height = W;
+  const t = motionPhase(0.25) * S.motion.loop;
+  renderScene(off.getContext("2d"), t, { typed: 1 });
+  const blob = await new Promise(r => off.toBlob(r, "image/png"));
+  await saveBlob(blob, fileBase() + ".png");
+  setStatus("PNG 저장 완료", "good", $("#exportStatus"));
+}
+function fileBase() {
+  const nm = ($("#inName").value.trim() || "emoticon").replace(/[\\/:*?"<>|\s]+/g, "_").slice(0, 20);
+  return `${nm}_${S.motion.type}`;
+}
+async function saveBlob(blob, name) {
+  // 앱(WebView)에서는 다운로드 링크가 막힐 수 있어 공유 시트를 먼저 시도
+  const file = new File([blob], name, { type: blob.type });
+  const isApp = !!window.Capacitor?.isNativePlatform?.();
+  if (isApp && navigator.canShare?.({ files: [file] })) {
+    try { await navigator.share({ files: [file], title: name }); return; } catch (e) { if (e.name === "AbortError") return; }
+  }
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a"); a.href = url; a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
+}
+
+/* =========================================================
+   8. 이름 → 특징 (키워드 / 이름 씨앗 / AI)
+   ========================================================= */
+// 넓은 표현을 먼저, 구체적인 표현을 뒤에 둔다 (뒤에 맞은 규칙이 앞의 값을 덮어씀: "콧수염" → 수염 → 콧수염)
+const KEYWORDS = [
+  [/안경/, { glasses: "round" }], [/수염/, { facialHair: "beard" }], [/가르마/, { hairStyle: "sidepart" }], [/모자/, { accessory: "cap" }],
+  [/선글라스/, { glasses: "sunglasses" }], [/뿔테|사각\s*안경/, { glasses: "square" }],
+  [/단발|보브/, { hairStyle: "bob" }], [/장발|긴\s*머리|롱\s*헤어|생머리/, { hairStyle: "long" }], [/포니|묶은|묶음/, { hairStyle: "ponytail" }],
+  [/똥머리|양갈래|번\s*헤어|만두/, { hairStyle: "buns" }], [/곱슬|펌|파마|웨이브/, { hairStyle: "curly" }], [/아프로/, { hairStyle: "afro" }],
+  [/민머리|대머리|삭발/, { hairStyle: "bald" }], [/반삭|버즈|스포츠\s*머리/, { hairStyle: "buzz" }], [/올백|포마드|넘긴\s*머리/, { hairStyle: "slick" }],
+  [/가운데\s*가르마|커튼/, { hairStyle: "curtain" }], [/모히칸/, { hairStyle: "mohawk" }],
+  [/삐죽|뾰족|스파이크/, { hairStyle: "spiky" }], [/짧은\s*머리|숏컷|숏\s*헤어/, { hairStyle: "short" }],
+  [/금발|노란\s*머리|블론드/, { hairColor: "#e8c14a" }], [/갈색\s*머리|브라운/, { hairColor: "#7a4a2a" }], [/빨간\s*머리|레드\s*헤어/, { hairColor: "#c0392b" }],
+  [/핑크\s*머리|분홍\s*머리/, { hairColor: "#f08bb0" }], [/파란\s*머리|블루\s*헤어/, { hairColor: "#3d6fd8" }], [/보라\s*머리/, { hairColor: "#8e5cc9" }],
+  [/은발|백발|흰\s*머리|회색\s*머리|실버/, { hairColor: "#cfd3d8" }], [/검은\s*머리|흑발/, { hairColor: "#1c1612" }],
+  [/콧수염/, { facialHair: "mustache" }], [/턱수염|염소/, { facialHair: "goatee" }], [/거뭇|면도/, { facialHair: "stubble" }],
+  [/야구\s*모자|캡/, { accessory: "cap" }], [/비니/, { accessory: "beanie" }], [/리본/, { accessory: "ribbon" }], [/왕관/, { accessory: "crown" }],
+  [/헤드폰|헤드셋/, { accessory: "headphones" }], [/귀걸이/, { accessory: "earrings" }], [/꽃/, { accessory: "flower" }], [/머리띠/, { accessory: "hairband" }],
+  [/애교점|점이\s*있|점\s*있/, { mole: true }], [/볼터치|홍조|발그레/, { blush: true }],
+  [/각진|사각\s*턱/, { shape: "square" }], [/갸름|브이\s*라인|v\s*라인/i, { shape: "oval" }], [/긴\s*얼굴/, { shape: "long" }], [/동그란\s*얼굴|둥근\s*얼굴/, { shape: "round" }],
+  [/왕눈|눈이?\s*큰|큰\s*눈/, { eyes: "sparkle" }], [/날카로운|째진|고양이\s*눈|매서운/, { eyes: "sharp" }], [/눈웃음/, { eyes: "arc" }],
+  [/작은\s*눈|실눈|점\s*눈/, { eyes: "dot" }], [/졸린\s*눈|무쌍/, { eyes: "sleepy" }],
+  [/진한\s*눈썹|짙은\s*눈썹|굵은\s*눈썹/, { brows: "thick" }], [/가는\s*눈썹|얇은\s*눈썹/, { brows: "thin" }],
+  [/까무잡|구릿빛|태닝|어두운\s*피부/, { skin: "#b9784d" }], [/하얀\s*피부|창백|뽀얀/, { skin: "#fde3cf" }],
+];
+const COLORWORDS = [[/빨간|빨강|레드/, "#e2475a"], [/파란|파랑|블루/, "#4a7bd0"], [/초록|녹색|그린/, "#2f9e6e"], [/노란|노랑|옐로/, "#f2b632"],
+  [/보라|퍼플/, "#7b5cc9"], [/검은|검정|블랙/, "#2a2a2a"], [/흰|하얀|화이트/, "#f4f1ea"], [/분홍|핑크/, "#f08bb0"]];
+
+function parseKeywords(text) {
+  const patch = {};
+  const parts = text.split(/[,，\n]/);
+  for (const part of parts) {
+    const p = part.trim(); if (!p) continue;
+    // "빨간 옷/셔츠/티" 는 옷 색깔
+    const outfit = /(옷|셔츠|티|자켓|재킷|후드|정장|니트)/.test(p);
+    if (outfit) { const c = COLORWORDS.find(([re]) => re.test(p)); if (c) { patch.outfit = c[1]; continue; } }
+    for (const [re, v] of KEYWORDS) if (re.test(p)) { Object.assign(patch, v); }
+  }
+  return patch;
+}
+
+function seedFromName(name) {
+  const R = rng(hashStr(name.trim()));
+  const pick = (arr) => arr[Math.floor(R() * arr.length)];
+  const hs = OPT.hairStyle.map(o => o[0]).filter(h => !["bald", "mohawk", "afro"].includes(h));
+  return {
+    shape: pick(OPT.shape)[0], skin: pick(SKINS.slice(0, 4)), hairStyle: pick(hs), hairColor: pick(HAIRS.slice(0, 4)),
+    eyes: pick(["round", "dot", "sparkle", "sharp"]), brows: pick(["normal", "thick", "thin"]),
+    glasses: R() < 0.25 ? pick(["round", "square"]) : "none", facialHair: "none", accessory: R() < 0.3 ? pick(["cap", "ribbon", "headphones", "earrings"]) : "none",
+    outfit: pick(OUTFITS), accColor: pick(ACCS), blush: R() < 0.6, mole: R() < 0.15,
+  };
+}
+
+const AI_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["known", "summary", "shape", "skin", "hairStyle", "hairColor", "eyes", "brows", "glasses", "facialHair", "accessory", "outfit"],
+  properties: {
+    known: { type: "boolean", description: "널리 알려진 공인이라 대표 이미지가 분명하면 true" },
+    summary: { type: "string", description: "반영한 특징을 한국어 한두 문장으로" },
+    shape: { type: "string", enum: OPT.shape.map(o => o[0]) },
+    skin: { type: "string", enum: ["fair", "light", "medium", "tan", "brown", "deep"] },
+    hairStyle: { type: "string", enum: OPT.hairStyle.map(o => o[0]) },
+    hairColor: { type: "string", enum: ["black", "darkbrown", "brown", "blond", "red", "pink", "purple", "blue", "silver"] },
+    eyes: { type: "string", enum: OPT.eyes.map(o => o[0]) },
+    brows: { type: "string", enum: OPT.brows.map(o => o[0]) },
+    glasses: { type: "string", enum: OPT.glasses.map(o => o[0]) },
+    facialHair: { type: "string", enum: OPT.facialHair.map(o => o[0]) },
+    accessory: { type: "string", enum: OPT.accessory.map(o => o[0]) },
+    outfit: { type: "string", enum: ["blue", "red", "green", "yellow", "purple", "black", "white"] },
+  },
+};
+const SKIN_MAP = { fair: SKINS[0], light: SKINS[1], medium: SKINS[2], tan: SKINS[3], brown: SKINS[4], deep: SKINS[5] };
+const HAIR_MAP = { black: HAIRS[0], darkbrown: HAIRS[1], brown: HAIRS[2], blond: HAIRS[3], red: HAIRS[4], pink: HAIRS[5], purple: HAIRS[6], blue: HAIRS[7], silver: HAIRS[8] };
+const OUTFIT_MAP = { blue: OUTFITS[0], red: OUTFITS[1], green: OUTFITS[2], yellow: OUTFITS[3], purple: OUTFITS[4], black: OUTFITS[5], white: OUTFITS[6] };
+
+async function aiTraits(name, desc, apiKey) {
+  const { default: Anthropic } = await import("https://esm.sh/@anthropic-ai/sdk@0.131.0");
+  const client = new Anthropic({ apiKey, dangerouslyAllowBrowser: true });
+  const response = await client.beta.messages.create({
+    model: "claude-opus-5-5",
+    max_tokens: 4000,
+    betas: ["server-side-fallback-2026-07-01"],
+    fallbacks: "default",
+    output_config: { effort: "low", format: { type: "json_schema", schema: AI_SCHEMA } },
+    system:
+      "너는 귀여운 2D 이모티콘 캐릭터 디자이너야. 사용자가 준 공인 이름을 보고, 사람들이 바로 알아볼 만한 대표적인 겉모습 특징" +
+      "(헤어스타일·머리색·안경·수염·자주 쓰는 소품·자주 입는 옷 색)을 정해진 선택지 안에서 골라 줘. " +
+      "사진처럼 똑같이 만드는 게 아니라 만화 캐릭터용 특징만 고르는 거야. 인종·외모를 깎아내리거나 과장해 조롱하는 선택은 하지 마. " +
+      "이름이 일반인이거나 잘 모르는 사람이면 known=false로 두고 무난한 기본값을 골라. 사용자 키워드가 있으면 그게 우선이야.",
+    messages: [{ role: "user", content: `이름: ${name}\n사용자 키워드: ${desc || "(없음)"}` }],
+  });
+  if (response.stop_reason === "refusal") throw new Error("AI가 이 요청을 처리하지 않았어요. 키워드로 직접 꾸며 주세요.");
+  const textBlock = response.content.find(b => b.type === "text");
+  if (!textBlock) throw new Error("AI 응답이 비어 있어요.");
+  const j = JSON.parse(textBlock.text);
+  return {
+    known: j.known, summary: j.summary,
+    patch: {
+      shape: j.shape, skin: SKIN_MAP[j.skin], hairStyle: j.hairStyle, hairColor: HAIR_MAP[j.hairColor], eyes: j.eyes, brows: j.brows,
+      glasses: j.glasses, facialHair: j.facialHair, accessory: j.accessory, outfit: OUTFIT_MAP[j.outfit],
+    },
+  };
+}
+
+async function applyFromName() {
+  const name = $("#inName").value.trim(), desc = $("#inDesc").value.trim();
+  if (!name && !desc) { setStatus("이름이나 외모 키워드를 넣어 주세요.", "bad"); return; }
+  const key = $("#inKey").value.trim();
+  const kw = parseKeywords(desc);
+  if ($("#inSaveKey").checked && key) store("emo.key", key); else store("emo.key", null);
+  if (key && name) {
+    const btn = $("#btnFromName"); btn.disabled = true; btn.textContent = "분석 중…";
+    try {
+      const r = await aiTraits(name, desc, key);
+      S.face = { ...S.face, ...r.patch, ...kw };
+      setStatus((r.known ? "AI가 반영한 특징: " : "잘 알려진 인물이 아니라 기본 특징으로 만들었어요. ") + r.summary, r.known ? "good" : "");
+    } catch (e) {
+      S.face = { ...S.face, ...(name ? seedFromName(name) : {}), ...kw };
+      setStatus("AI 분석에 실패해서 키워드로만 만들었어요: " + (e.message || e), "bad");
+    } finally { btn.disabled = false; btn.textContent = "특징 반영"; }
+  } else {
+    S.face = { ...S.face, ...(name ? seedFromName(name) : {}), ...kw };
+    const n = Object.keys(kw).length;
+    setStatus(n ? `키워드 ${n}개를 반영했어요. 아래에서 더 다듬을 수 있어요.` : "이름으로 기본 특징을 정했어요. 외모 키워드를 넣으면 더 비슷해져요.", "good");
+  }
+  buildCharControls();
+  mixCache.key = "";
+}
+
+/* =========================================================
+   9. UI 연결
+   ========================================================= */
+function chips(el, options, get, set) {
+  el.innerHTML = "";
+  for (const [v, label] of options) {
+    const b = document.createElement("button"); b.type = "button"; b.textContent = label; b.dataset.v = v;
+    b.setAttribute("aria-pressed", String(get() === v));
+    b.onclick = () => { set(v); $$("button", el).forEach(x => x.setAttribute("aria-pressed", String(x.dataset.v === v))); };
+    el.appendChild(b);
+  }
+}
+function swatches(el, colors, get, set) {
+  el.innerHTML = "";
+  for (const c of colors) {
+    const b = document.createElement("button"); b.type = "button"; b.style.background = c; b.title = c; b.dataset.v = c;
+    b.setAttribute("aria-pressed", String(get() === c));
+    b.onclick = () => { set(c); sync(); };
+    el.appendChild(b);
+  }
+  const inp = document.createElement("input"); inp.type = "color"; inp.value = get(); inp.title = "직접 고르기";
+  inp.oninput = () => { set(inp.value); sync(); };
+  el.appendChild(inp);
+  function sync() { $$("button", el).forEach(x => x.setAttribute("aria-pressed", String(x.dataset.v === get()))); inp.value = get(); }
+}
+
+function buildCharControls() {
+  const box = $("#charControls"); box.innerHTML = "";
+  const F = S.face;
+  const addChips = (label, key) => {
+    const f = document.createElement("div"); f.className = "field";
+    f.innerHTML = `<span class="lbl">${label}</span><div class="chips"></div>`;
+    chips($(".chips", f), OPT[key], () => F[key], (v) => F[key] = v);
+    box.appendChild(f);
+  };
+  const addSw = (label, key, list) => {
+    const f = document.createElement("div"); f.className = "field";
+    f.innerHTML = `<span class="lbl">${label}</span><div class="swatches"></div>`;
+    swatches($(".swatches", f), list, () => F[key], (v) => F[key] = v);
+    box.appendChild(f);
+  };
+  addChips("헤어스타일", "hairStyle");
+  addSw("머리색", "hairColor", HAIRS);
+  addChips("얼굴형", "shape");
+  addSw("피부색", "skin", SKINS);
+  addChips("눈", "eyes");
+  addChips("눈썹", "brows");
+  addChips("안경", "glasses");
+  addChips("수염", "facialHair");
+  addChips("소품", "accessory");
+  addSw("소품 색", "accColor", ACCS);
+  addSw("옷 색", "outfit", OUTFITS);
+  const f = document.createElement("div"); f.className = "grid2";
+  f.innerHTML = `
+    <div class="field"><label>머리 크기 <span class="sub" id="hsVal"></span></label><input type="range" min="0.85" max="1.15" step="0.01" id="inHead"></div>
+    <div class="field"><span class="lbl">그 밖에</span>
+      <label class="row" style="font-size:12.5px"><input type="checkbox" id="inBlush"> 볼터치</label>
+      <label class="row" style="font-size:12.5px"><input type="checkbox" id="inMole"> 점</label></div>`;
+  box.appendChild(f);
+  const ih = $("#inHead"); ih.value = F.headScale; $("#hsVal").textContent = Math.round(F.headScale * 100) + "%";
+  ih.oninput = () => { F.headScale = +ih.value; $("#hsVal").textContent = Math.round(F.headScale * 100) + "%"; };
+  $("#inBlush").checked = F.blush; $("#inBlush").onchange = (e) => F.blush = e.target.checked;
+  $("#inMole").checked = F.mole; $("#inMole").onchange = (e) => F.mole = e.target.checked;
+}
+
+function bindRange(id, valId, get, set, fmt) {
+  const el = $(id), out = $(valId);
+  el.value = get(); out.textContent = fmt(get());
+  el.oninput = () => { set(+el.value); out.textContent = fmt(+el.value); mixCache.key = ""; refreshDur(); };
+}
+
+function showSrc() {
+  $("#srcBabble").hidden = S.voice.src !== "babble";
+  $("#srcTts").hidden = S.voice.src !== "tts";
+  $("#srcRec").hidden = S.voice.src !== "record";
+  refreshDur();
+}
+
+function init() {
+  // 탭
+  $$(".tabs button").forEach(b => b.onclick = () => {
+    $$(".tabs button").forEach(x => x.setAttribute("aria-selected", String(x === b)));
+    $$(".tabpane").forEach(p => p.classList.toggle("on", p.dataset.pane === b.dataset.tab));
+  });
+  // 테마
+  const th = store("emo.theme"); if (th) document.documentElement.dataset.theme = th;
+  $("#btnTheme").onclick = () => {
+    const cur = document.documentElement.dataset.theme || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+    const next = cur === "dark" ? "light" : "dark";
+    document.documentElement.dataset.theme = next; store("emo.theme", next);
+  };
+  const savedKey = store("emo.key");
+  if (savedKey) { $("#inKey").value = savedKey; $("#inSaveKey").checked = true; }
+
+  buildCharControls();
+  $("#btnFromName").onclick = applyFromName;
+  $("#inName").onkeydown = (e) => { if (e.key === "Enter") applyFromName(); };
+  $("#btnRandom").onclick = () => { S.face = { ...S.face, ...seedFromName(String(Math.random())) }; buildCharControls(); };
+  $("#btnResetChar").onclick = () => { S.face = { ...DEFAULT_FACE }; buildCharControls(); };
+
+  chips($("#motionChips"), MOTIONS, () => S.motion.type, (v) => { S.motion.type = v; });
+  bindRange("#inSpeed", "#speedVal", () => S.motion.speed, (v) => S.motion.speed = v, (v) => v.toFixed(1) + "배");
+  bindRange("#inLoop", "#loopVal", () => S.motion.loop, (v) => S.motion.loop = v, (v) => v.toFixed(1) + "초");
+  $("#inFx").onchange = (e) => S.motion.fx = e.target.checked;
+  chips($("#bgChips"), BGS, () => S.bg.type, (v) => S.bg.type = v);
+  $("#inBg1").oninput = (e) => S.bg.c1 = e.target.value;
+  $("#inBg2").oninput = (e) => S.bg.c2 = e.target.value;
+
+  $("#inLine").oninput = (e) => { S.text.line = e.target.value; mixCache.key = ""; refreshDur(); };
+  chips($("#textChips"), TEXTMODES, () => S.text.mode, (v) => S.text.mode = v);
+  chips($("#srcChips"), SOURCES, () => S.voice.src, (v) => { S.voice.src = v; mixCache.key = ""; showSrc(); });
+  chips($("#presetChips"), Object.entries(PRESETS).map(([k, p]) => [k, p.label]), () => S.voice.preset, (v) => { S.voice.preset = v; mixCache.key = ""; });
+  bindRange("#inPitch", "#pitchVal", () => S.voice.pitch, (v) => S.voice.pitch = v, (v) => v.toFixed(2) + "배");
+  bindRange("#inTalk", "#talkVal", () => S.voice.talk, (v) => S.voice.talk = v, (v) => v.toFixed(2) + "배");
+  bindRange("#inDelay", "#delayVal", () => S.voice.delay, (v) => S.voice.delay = v, (v) => v.toFixed(1) + "초 뒤");
+  chips($("#fxChips"), VFX, () => S.voice.vfx, (v) => { S.voice.vfx = v; mixCache.key = ""; refreshDur(); });
+  chips($("#sfxChips"), SFX, () => S.voice.sfx, (v) => { S.voice.sfx = v; mixCache.key = ""; });
+  $("#btnRec").onclick = toggleRecord;
+  $("#inFile").onchange = (e) => { const f = e.target.files[0]; if (f) loadAudioBlob(f, "파일"); };
+  if ("speechSynthesis" in window) { listVoices(); speechSynthesis.onvoiceschanged = listVoices; }
+  $("#inVoice").onchange = (e) => S.voice.ttsVoice = e.target.value;
+
+  bindRange("#inFps", "#fpsVal", () => S.gifFps, (v) => S.gifFps = v, (v) => v + "장/초");
+  const guard = (fn) => async () => {
+    $$(".exports .btn").forEach(b => b.disabled = true);
+    try { await fn(); } catch (e) { setStatus("저장 중 문제가 생겼어요: " + (e.message || e), "bad", $("#exportStatus")); }
+    finally { $$(".exports .btn").forEach(b => b.disabled = false); }
+  };
+  $("#btnGif").onclick = guard(exportGif);
+  $("#btnWebm").onclick = guard(exportWebm);
+  $("#btnWav").onclick = guard(exportWav);
+  $("#btnPng").onclick = guard(exportPng);
+
+  $("#btnPlay").onclick = startPlay;
+  $("#btnLoop").onclick = (e) => {
+    loopPreview = !loopPreview; e.currentTarget.setAttribute("aria-pressed", String(loopPreview));
+  };
+  showSrc();
+  refreshDur();
+  requestAnimationFrame(frame);
+}
+
+// 테스트용 노출
+window.EMO = { S, renderScene, encodeGif, buildMix, planBabble, parseKeywords, seedFromName, totalDuration, encodeWav, OPT, MOTIONS };
+init();
+</script>
+</body>
+</html>
