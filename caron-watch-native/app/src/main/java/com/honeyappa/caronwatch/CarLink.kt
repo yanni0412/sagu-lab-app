@@ -1,6 +1,7 @@
 package com.honeyappa.caronwatch
 
 import android.annotation.SuppressLint
+import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothGatt
 import android.bluetooth.BluetoothGattCallback
 import android.bluetooth.BluetoothGattCharacteristic
@@ -95,7 +96,7 @@ class CarLink(private val ctx: Context) {
         busy = true
         try {
             val dev = btm.adapter.getRemoteDevice(m)
-            gatt = dev.connectGatt(ctx, false, gattCb, BluetoothGatt.TRANSPORT_LE)
+            gatt = dev.connectGatt(ctx, false, gattCb, BluetoothDevice.TRANSPORT_LE)
         } catch (e: Exception) { busy = false; toast("연결 실패: ${e.message}") }
     }
 
