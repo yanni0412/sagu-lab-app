@@ -198,8 +198,8 @@ private fun ProxScreen(link: CarLink, onDone: () -> Unit) {
                 fontSize = 13.sp, color = InkDim, textAlign = TextAlign.Center
             )
         }
-        item { ToggleRow("가까워지면 열림", link.autoUnlock) { link.setAutoUnlock(!link.autoUnlock) } }
-        item { ToggleRow("멀어지면 잠금", link.walkAwayLock) { link.setWalkAway(!link.walkAwayLock) } }
+        item { ToggleRow("가까워지면 열림", link.autoUnlock) { link.applyAutoUnlock(!link.autoUnlock) } }
+        item { ToggleRow("멀어지면 잠금", link.walkAwayLock) { link.applyWalkAway(!link.walkAwayLock) } }
         item {
             SecondaryChip("현재 위치로 보정", enabled = link.online) {
                 if (!link.calibrate()) link.message = "신호를 아직 못 읽었어요"

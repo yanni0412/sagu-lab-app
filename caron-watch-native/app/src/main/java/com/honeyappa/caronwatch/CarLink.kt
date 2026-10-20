@@ -116,8 +116,8 @@ class CarLink(private val ctx: Context) {
     fun rescan() { if (mode == "mp686") startScan() }
 
     // ---- 근접(거리) ----
-    fun setAutoUnlock(v: Boolean) { autoUnlock = v; saveCfg(); proxZone = null; if (v) startRssiPoll() }
-    fun setWalkAway(v: Boolean) { walkAwayLock = v; saveCfg(); proxZone = null; if (v) startRssiPoll() }
+    fun applyAutoUnlock(v: Boolean) { autoUnlock = v; saveCfg(); proxZone = null; if (v) startRssiPoll() }
+    fun applyWalkAway(v: Boolean) { walkAwayLock = v; saveCfg(); proxZone = null; if (v) startRssiPoll() }
     fun calibrate(): Boolean {
         val a = rssi ?: return false
         proxNear = a; proxFar = a - 12; saveCfg(); proxZone = null
