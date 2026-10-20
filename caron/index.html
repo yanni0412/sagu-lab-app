@@ -463,7 +463,7 @@ const Link = {
   /* ---- MP686 (크라운 호환) ---- */
   async mpWrite(bytes){ await this.connect(); await this.t().write(this.id(), bytes); },
   async mpLogin(){
-    const w = this.expect(b => b[0] === 0xCD && b[1] === 0x0A, 5000);
+    const w = this.expect(b => b[0] === 0xCD && b[1] === 0x0A, 8000);
     await this.t().write(this.id(), mpLoginPkt(C().pwd || "000000", S.settings.autoUnlock));
     const r = await w;
     if (r[2] !== 0) throw new Error("비밀번호가 맞지 않아요");
@@ -774,7 +774,7 @@ function toast(text, bad = false){
   const el = document.createElement("div");
   el.className = "toast" + (bad ? " bad" : ""); el.textContent = text;
   $("#toasts").append(el);
-  setTimeout(() => el.remove(), 2800);
+  setTimeout(() => el.remove(), bad ? 5000 : 2800);
 }
 function sheet(html, onMount){
   const scrim = document.createElement("div");
@@ -898,18 +898,25 @@ function scanMp686(){
       if (pwd.length < 1 || pwd.length > 6) return toast("비밀번호는 숫자 1~6자리여야 해요", true);
       go.disabled = true; go.textContent = "검색 중…";
       const prev = {...C()};
+      const errText = e => e && (e.message || e.errorMessage || e.code || e.name) || String(e);
       try {
         await Link.disconnect();
         Object.assign(C(), {kind:"mp686", pwd, keyHex:null, online:false});
-        const picked = await t.pick();
+        let picked;
+        try { picked = await t.pick(); }
+        catch (e) {
+          if (e && e.name === "NotFoundError") throw new Error("__cancel__");
+          throw new Error("기기 검색 실패: " + errText(e));
+        }
         C().bleId = picked.id; C().bleName = picked.name || "크라운 기기";
-        go.textContent = "로그인 중…";
-        await Link.connect();   // 로그인까지 수행, 비번 틀리면 예외
-        save(); close(); tab = "control"; render(); toast("기기를 연결했어요");
+        go.textContent = "연결 중…";
+        try { await Link.connect(); }   // 연결 + 로그인
+        catch (e) { throw new Error("연결/로그인 실패: " + errText(e)); }
+        save(); close(); tab = "control"; render(); toast(`${C().bleName}에 연결했어요`);
       } catch (e) {
         await Link.disconnect().catch(() => {});
         S.car = prev; S.car.online = false; save(); render();
-        toast(e.name === "NotFoundError" ? "기기 선택을 취소했어요" : `연결 실패: ${e.message || e}`, true);
+        toast(e.message === "__cancel__" ? "기기 선택을 취소했어요" : (e.message || String(e)), true);
         go.disabled = false; go.textContent = "검색 시작";
       }
     };
