@@ -89,12 +89,6 @@ main{flex:1; display:flex; flex-direction:column}
 .bt.on::after{background:var(--good); box-shadow:0 0 6px var(--good)}
 .bt.busy{animation:pulse 1s ease-in-out infinite}
 @keyframes pulse{50%{opacity:.5}}
-.mic{position:absolute; left:16px; top:18%; width:54px; height:54px; border-radius:50%; border:2px solid #4a3a12;
-  background:radial-gradient(circle at 35% 30%, #3c4046, #23262b); color:var(--ink-2); display:grid; place-items:center;
-  box-shadow:0 4px 12px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.15)}
-.mic svg{width:26px; height:26px}
-.mic.on{color:#1d1406; background:radial-gradient(circle at 35% 30%, #ffd9a0, #f2a33a); border-color:#8a5e18; animation:micpulse 1s ease-in-out infinite}
-@keyframes micpulse{0%,100%{box-shadow:0 4px 12px rgba(0,0,0,.5), 0 0 0 0 rgba(242,163,58,.5)} 50%{box-shadow:0 4px 12px rgba(0,0,0,.5), 0 0 0 10px rgba(242,163,58,0)}}
 
 .chips{position:absolute; left:0; right:0; bottom:10px; display:flex; justify-content:center; gap:6px; flex-wrap:wrap; padding:0 12px}
 .chip{font-size:12.5px; font-weight:700; padding:3px 10px; border-radius:999px; background:rgba(0,0,0,.45); color:var(--ink-2); border:1px solid rgba(255,255,255,.08)}
@@ -270,7 +264,6 @@ const ICON = {
   trunk:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9h3l2.5 5H21v4H5.5L3 14"/><path d="M8.5 14 15 6.5l4.5 1.5"/><path d="M9 18v2h4v-2"/></svg>',
   horn:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9.5h3l5-4v13l-5-4H4z" fill="currentColor"/><path d="M15.5 9a4 4 0 0 1 0 6M18 7a7 7 0 0 1 0 10"/></svg>',
   bt:     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 7 10 10-5 4V3l5 4L7 17"/></svg>',
-  mic:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>',
   engine: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v8"/><path d="M6.3 6.8a8 8 0 1 0 11.4 0"/></svg>',
   alert:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></svg>',
 };
@@ -285,11 +278,7 @@ function seed(){
   return {
     car:{kind:"demo", name:"내 차", plate:"12가 3456", bleId:null, keyHex:DEMO_KEY,
       locked:true, engine:false, engineUntil:0, trunk:false, voltage:126, runMin:10, walkAway:true, online:false},
-    settings:{autoUnlock:false, walkAwayLock:false, proxLevel:"medium", shake:false, confirmUnlock:false, pinHash:null,
-      voice:{enabled:false, continuous:false, phrases:{
-        unlock:["열어","열기","문 열어","오픈"], lock:["잠가","잠금","닫아","잠궈"],
-        trunk:["트렁크","트렁크 열어"], find:["차 찾아","찾기","어디야"],
-        start:["시동 켜","시동","출발","시동 걸어"], stop:["시동 꺼","시동 정지","엔진 꺼"]}}},
+    settings:{autoUnlock:false, walkAwayLock:false, proxLevel:"medium", shake:false, confirmUnlock:false, pinHash:null},
     logs:[
       {id:uid(), t:now - 42*6e4, type:"lock", src:"앱"},
       {id:uid(), t:now - 47*6e4, type:"stop", src:"시간 종료"},
@@ -607,7 +596,7 @@ async function act(cmd, src = "앱"){
 async function connectNow(manual = true){
   if (busy) return;
   busy = "connect"; render();
-  try { await Link.connect(); if (manual) toast(`${C().name}에 연결했어요`); Voice.kickContinuous(); return true; }
+  try { await Link.connect(); if (manual) toast(`${C().name}에 연결했어요`); return true; }
   catch (e) { if (manual) toast(e.name === "NotFoundError" ? "기기 선택을 취소했어요" : `연결 실패: ${e.message || e}`, true); return false; }
   finally { busy = ""; render(); }
 }
@@ -658,10 +647,9 @@ const VIEWS = {
       on && c.engine ? (engineLeft() > 0 ? `<span class="chip warn num" id="engChip">시동 중 · ${mmss(engineLeft())}</span>` : `<span class="chip warn">시동 중</span>`) : "",
       on && c.trunk ? `<span class="chip warn">트렁크 열림</span>` : "",
       on && c.voltage && c.kind !== "mp686" ? `<span class="chip ${c.voltage < 118 ? "bad" : ""} num">배터리 ${(c.voltage / 10).toFixed(1)}V</span>` : "",
+      on && isNative && (S.settings.autoUnlock || S.settings.walkAwayLock) ? `<span class="chip num" id="rssiChip">신호 ${rssiAvg == null ? "—" : rssiAvg + " dBm"}</span>` : "",
     ].join("");
-    const voiceOn = S.settings.voice.enabled && Speech.supported;
-    const hint = Voice.listening ? `🎙️ 듣는 중… ${esc(Voice.heard) || "명령을 말하세요"}` :
-      busy ? (busy === "connect" ? "연결하는 중…" : `${LABEL[busy]} 신호 보내는 중…`) :
+    const hint = busy ? (busy === "connect" ? "연결하는 중…" : `${LABEL[busy]} 신호 보내는 중…`) :
       !on ? "오른쪽 블루투스 버튼을 눌러 차량과 연결하세요" :
       c.engine ? "가운데 버튼을 누르면 시동이 꺼져요" : "트렁크·시동 버튼은 길게 누르세요";
     return `
@@ -669,7 +657,6 @@ const VIEWS = {
         ${CAR_SVG}
         <div class="waves" id="waves"><i></i><i></i></div>
         <button class="bt ${on ? "on" : ""} ${conn ? "busy" : ""}" id="btBtn" aria-label="블루투스 ${on ? "연결됨 — 눌러서 끊기" : "연결 안 됨 — 눌러서 연결"}">${ICON.bt}</button>
-        ${voiceOn ? `<button class="mic ${Voice.listening ? "on" : ""}" id="micBtn" aria-label="음성 명령 ${Voice.listening ? "듣는 중 — 눌러서 멈춤" : "눌러서 말하기"}">${ICON.mic}</button>` : ""}
         <div class="chips">${chips}</div>
       </section>
       <section class="pad">
@@ -690,12 +677,12 @@ const VIEWS = {
       <div class="list">
         <div class="row"><div class="body"><div class="t1">가까워지면 자동 열림</div><div class="t2">차에 다가가 블루투스가 연결되면 문 열림${isNative ? "" : " · APK 전용"}</div></div>${ck("autoUnlock", s.autoUnlock, !isNative)}</div>
         <div class="row"><div class="body"><div class="t1">멀어지면 자동 잠금</div><div class="t2">차에서 멀어져 신호가 약해지면 잠금${isNative ? "" : " · APK 전용"}</div></div>${ck("walkAwayLock", s.walkAwayLock, !isNative)}</div>
-        <div class="row"><div class="body"><div class="t1">근접 민감도</div><div class="t2">자동 열림·잠금이 동작하는 거리</div></div>
-          <select data-set="proxLevel" ${isNative ? "" : "disabled"}>${Object.entries({close:"가까이", medium:"보통", far:"멀리"}).map(([k, n]) => `<option value="${k}" ${(s.proxLevel || "medium") === k ? "selected" : ""}>${n}</option>`).join("")}</select></div>
+        ${isNative ? `<div class="row"><div class="body"><div class="t1">현재 신호세기</div><div class="t2">값이 클수록(0에 가까울수록) 가까워요${(typeof c.proxNear === "number") ? ` · 보정됨: 열림 ${c.proxNear} / 잠금 ${c.proxFar}` : ""}</div></div>
+          <span class="side num" id="rssiVal">${c.online ? (rssiAvg == null ? "측정 중…" : rssiAvg + " dBm") : "연결 안 됨"}</span></div>
+        <button class="row" data-act="prox-calib"><div class="body"><div class="t1">현재 위치로 보정</div><div class="t2">차 바로 앞(원하는 열림 지점)에서 누르세요</div></div></button>
+        ${(typeof c.proxNear === "number") ? `<button class="row" data-act="prox-reset"><div class="body"><div class="t1">보정 초기화</div><div class="t2">기본 민감도로 되돌려요</div></div></button>` : `<div class="row"><div class="body"><div class="t1">근접 민감도 (보정 전)</div><div class="t2">보정하면 이 값 대신 실측값을 써요</div></div>
+          <select data-set="proxLevel" ${isNative ? "" : "disabled"}>${Object.entries({close:"가까이", medium:"보통", far:"멀리"}).map(([k, n]) => `<option value="${k}" ${(s.proxLevel || "medium") === k ? "selected" : ""}>${n}</option>`).join("")}</select></div>`}` : ""}
         <div class="row"><div class="body"><div class="t1">흔들어서 잠금/열림</div><div class="t2">연결된 상태에서 휴대폰을 세게 두 번 흔들기</div></div>${ck("shake", s.shake)}</div>
-        <div class="row"><div class="body"><div class="t1">음성 명령</div><div class="t2">마이크 버튼 또는 연속 듣기로 음성 제어${isNative ? "" : " · APK 전용"}</div></div>${ck("v.enabled", s.voice.enabled, !isNative)}</div>
-        ${s.voice.enabled ? `<div class="row"><div class="body"><div class="t1">연속 듣기</div><div class="t2">앱이 켜져 있을 때 계속 듣기 (배터리 더 씀)</div></div>${ck("v.continuous", s.voice.continuous)}</div>
-        <button class="row" data-act="voice-words"><div class="body"><div class="t1">핵심 단어 설정</div><div class="t2">명령마다 인식할 단어를 바꿔요</div></div></button>` : ""}
         <button class="row" data-act="scan"><div class="body"><div class="t1">기기 검색</div><div class="t2">${ble || mp ? `등록됨: ${esc(c.bleName || "기기")}${mp ? " · 크라운 호환" : ""}` : "차량에 설치한 기기 연결"}</div></div></button>
         <button class="row" data-act="name"><div class="body"><div class="t1">이름 변경</div><div class="t2">${esc(c.name)}</div></div></button>
         <button class="row" data-act="plate"><div class="body"><div class="t1">차량 번호</div><div class="t2">${esc(c.plate || "설정 안 됨")}</div></div></button>
@@ -747,7 +734,6 @@ const VIEWS = {
         <li><b>흔들어서 잠금/열림</b>: 연결된 상태에서 휴대폰을 세게 두 번 흔들면 잠금↔열림 (설정에서 켜기)</li>
         <li><b>가까워지면 열림</b>: 차에 다가가 블루투스가 연결되면 자동으로 문 열림 (APK 전용)</li>
         <li><b>멀어지면 잠금</b>: 차에서 멀어져 신호가 약해지면 자동으로 잠금 (APK 전용 · 신호세기 기준)</li>
-        <li><b>음성 명령</b>: 마이크 버튼을 눌러 말하거나(연속 듣기 가능) 핵심 단어로 잠금·열림·시동 등을 실행 (APK 전용 · 마이크 권한)</li>
       </ul>
       <h3>보안</h3>
       <ul>
@@ -952,20 +938,6 @@ async function setPin(){
   S.settings.pinHash = await sha256(a); save(); render(); toast("앱 잠금 비밀번호를 설정했어요");
 }
 
-function voiceWordsSheet(){
-  const ph = S.settings.voice.phrases;
-  const order = ["unlock", "lock", "trunk", "find", "start", "stop"];
-  sheet(`<h4>핵심 단어 설정</h4><p class="sub">명령마다 인식할 단어를 쉼표(,)로 구분해 적어요</p>
-    ${order.map(cmd => `<label class="field"><span>${VLABEL[cmd]}</span><input data-vc="${cmd}" value="${esc((ph[cmd] || []).join(", "))}"></label>`).join("")}
-    <p class="note">예: "열어, 열기, 오픈" 중 하나라도 들리면 실행돼요. 짧고 또렷한 단어가 잘 인식돼요.</p>
-    <div class="btn-row"><button class="btn" data-close>취소</button><button class="btn primary" id="vwSave">저장</button></div>`,
-  (el, close) => {
-    el.querySelector("#vwSave").onclick = () => {
-      order.forEach(cmd => { ph[cmd] = el.querySelector(`[data-vc="${cmd}"]`).value.split(",").map(s => s.trim()).filter(Boolean); });
-      save(); close(); toast("핵심 단어를 저장했어요");
-    };
-  });
-}
 
 /* ══════════════════════════════════════════════════════════
    7. 입력 처리
@@ -1012,7 +984,6 @@ main.addEventListener("click", e => {
     if (C().online) { Link.disconnect(); return; }
     return connectNow(true);
   }
-  if (t.closest("#micBtn")) return Voice.toggle();
   const a = t.closest("[data-act]"); if (!a) return;
   ({
     scan: scanSheet,
@@ -1042,7 +1013,8 @@ main.addEventListener("click", e => {
       S = seed(); save(); tab = "control"; render(); connectNow(false);
     }),
     "clear-log": () => confirmSheet("기록 지우기", "모든 사용 기록을 지워요.", "지우기", () => { S.logs = []; save(); render(); }),
-    "voice-words": voiceWordsSheet,
+    "prox-calib": calibrateProx,
+    "prox-reset": clearCalib,
   })[a.dataset.act]?.();
 });
 
@@ -1062,8 +1034,6 @@ main.addEventListener("change", e => {
     return;
   }
   if (k === "proxLevel") { S.settings.proxLevel = el.value; resetProx(); save(); render(); return; }
-  if (k === "v.enabled") { S.settings.voice.enabled = v; save(); render(); if (v) Voice.kickContinuous(); else Voice.stop(); return; }
-  if (k === "v.continuous") { S.settings.voice.continuous = v; save(); render(); if (v) Voice.kickContinuous(); else Voice.stop(); return; }
   S.settings[k] = v;
   if (k === "shake" && v) enableShake();
   save(); render();
@@ -1102,13 +1072,20 @@ function onMotion(e){
    가까워지면 열림: 멀리 있다가 near를 '넘어 들어올' 때 1번만 열기
    멀어지면 잠금: 가까이 있다가 far 밖으로 '나갈' 때 1번만 잠그기
    (RSSI는 APK에서만 읽을 수 있어요. 데모는 가상값)                                   */
+/* 기본 문턱(보정 안 했을 때). 신호세기는 기기·설치마다 크게 달라서, 설정에서 "현재 위치로 보정"하는 걸 권장해요. */
 const PROX = {
-  close:  {near:-58, far:-74, label:"가까이"},   // 차 바로 앞에서 열림
-  medium: {near:-66, far:-82, label:"보통"},
-  far:    {near:-74, far:-90, label:"멀리"},
+  close:  {near:-62, far:-78, label:"가까이"},
+  medium: {near:-72, far:-88, label:"보통"},
+  far:    {near:-82, far:-96, label:"멀리"},
 };
-let rssiAvg = null, proxZone = null, proxBusy = false;
-function resetProx(){ rssiAvg = null; proxZone = null; }
+const GAP = 12;   // 보정 시 near-far 간격(히스테리시스)
+let rssiAvg = null, rssiNow = null, proxZone = null, proxBusy = false;
+function resetProx(){ rssiAvg = null; rssiNow = null; proxZone = null; }
+function proxThresh(){
+  const c = C();
+  if (typeof c.proxNear === "number" && typeof c.proxFar === "number") return {near:c.proxNear, far:c.proxFar};
+  return PROX[S.settings.proxLevel] || PROX.medium;
+}
 async function proximityTick(){
   const c = C();
   if (proxBusy || busy || document.hidden) return;
@@ -1122,83 +1099,43 @@ async function proximityTick(){
       if (canReconnect && wantProx) await connectNow(false);   // 연결만 유지 — 연결됐다고 열지 않음
       return;
     }
-    if (!wantProx) return;
     const r = await Link.rssi().catch(() => null);
-    if (r == null || r === 0) return;                          // RSSI 못 읽으면 대기
+    if (r == null || r === 0) { rssiNow = null; return; }      // RSSI 못 읽으면 대기
+    rssiNow = r;
     rssiAvg = rssiAvg == null ? r : Math.round(rssiAvg * 0.5 + r * 0.5);   // 평활화(노이즈 완화)
-    const P = PROX[S.settings.proxLevel] || PROX.medium;
+    updateRssiUI();
+    if (!wantProx) { proxZone = null; return; }                // 표시는 하되 동작은 안 함
+    const P = proxThresh();
     const zone = rssiAvg >= P.near ? "near" : rssiAvg <= P.far ? "far" : proxZone;  // 완충구간은 이전 상태 유지
-    if (proxZone == null) { proxZone = zone; return; }         // 첫 측정은 기준만 잡고 동작 안 함(연결 직후 오작동 방지)
-    if (zone !== proxZone) {
+    if (proxZone == null) { proxZone = zone; return; }         // 첫 측정은 기준만 (연결 직후 오작동 방지)
+    if (zone && zone !== proxZone) {
       if (zone === "near" && S.settings.autoUnlock && c.locked) await act("unlock", "근접 자동");
       else if (zone === "far" && S.settings.walkAwayLock && !c.locked && !c.engine) await act("lock", "근접 자동");
       proxZone = zone;
     }
   } finally { proxBusy = false; }
 }
+function updateRssiUI(){
+  const txt = rssiAvg == null ? "—" : `${rssiAvg} dBm`;
+  const chip = $("#rssiChip"); if (chip) chip.textContent = `신호 ${txt}`;
+  const sv = $("#rssiVal"); if (sv) sv.textContent = txt;
+}
 setInterval(proximityTick, 1800);
 window.__proximityTick = proximityTick;   // 테스트 훅
+window.__rssiAvg = () => rssiAvg;
 
-/* ---------- 음성 명령 ----------
-   핵심 단어를 등록해 두고, 마이크 버튼(눌러 말하기) 또는 연속 듣기로 음성으로 제어해요.
-   안드로이드 WebView는 브라우저 음성인식이 안 돼서 네이티브 플러그인(SpeechRecognition)을 써요 → APK 전용. */
-const VLABEL = {unlock:"문 열기", lock:"잠그기", trunk:"트렁크", find:"차량 찾기", start:"시동", stop:"시동 끄기"};
-const VORDER = ["stop","start","trunk","find","unlock","lock"];   // 더 구체적인 것 먼저 ("시동 꺼">"시동", "트렁크 열어">"열어")
-function voiceMatch(text){
-  const t = (text || "").replace(/\s+/g, "").toLowerCase();
-  if (!t) return null;
-  const ph = (S.settings.voice && S.settings.voice.phrases) || {};
-  for (const cmd of VORDER) {
-    for (const w of (ph[cmd] || [])) {
-      const k = String(w).replace(/\s+/g, "").toLowerCase();
-      if (k && t.includes(k)) return cmd;
-    }
-  }
-  return null;
+/* 설정에서 "현재 위치로 보정": 지금 신호세기를 '가까움' 기준으로 잡아요 */
+function calibrateProx(){
+  if (!C().online) return toast("먼저 차량에 연결하세요", true);
+  if (rssiAvg == null) return toast("신호세기를 아직 못 읽었어요. 잠시 후 다시 시도하세요", true);
+  const near = rssiAvg;
+  C().proxNear = near; C().proxFar = near - GAP;
+  resetProx(); save(); render();
+  toast(`보정 완료 · 기준 ${near}dBm (여기서 멀어지면 잠금, 다가오면 열림)`);
 }
-window.__voiceMatch = voiceMatch;   // 테스트 훅
+function clearCalib(){ delete C().proxNear; delete C().proxFar; resetProx(); save(); render(); toast("보정을 초기화했어요"); }
 
-const Speech = {
-  _p:null,
-  get p(){ if (!this._p) { const C = window.Capacitor; this._p = C && C.registerPlugin ? C.registerPlugin("SpeechRecognition") : (C && C.Plugins && C.Plugins.SpeechRecognition); } return this._p; },
-  get supported(){ return isNative && !!this.p; },
-  async ensurePerm(){ try { const st = await this.p.requestPermissions(); return st && st.speechRecognition === "granted"; } catch { return false; } },
-};
-const Voice = {
-  listening:false, heard:"", lastAct:0, _setup:false,
-  async setup(){
-    if (this._setup || !Speech.supported) return;
-    this._setup = true;
-    await Speech.p.addListener("partialResults", d => this.onHeard((d && d.matches) || []));
-    await Speech.p.addListener("listeningState", d => { this.listening = (d && d.status) === "started"; if (d && d.status === "stopped") this.onStopped(); render(); });
-  },
-  onHeard(matches){
-    const now = Date.now();
-    for (const m of matches) {
-      const cmd = voiceMatch(m);
-      if (cmd) { if (now - this.lastAct < 2500) return; this.lastAct = now; this.heard = m; toast(`음성: ${VLABEL[cmd]}`); act(cmd, "음성"); return; }
-    }
-    if (matches[0]) { this.heard = matches[0]; render(); }
-  },
-  onStopped(){
-    if (S.settings.voice.continuous && S.settings.voice.enabled && !document.hidden && C().online && !busy)
-      setTimeout(() => this.start(true), 500);
-  },
-  async start(silent){
-    if (!Speech.supported) { if (!silent) toast("음성 인식은 APK에서만 돼요", true); return; }
-    try {
-      if (!(await Speech.ensurePerm())) { if (!silent) toast("마이크 권한이 필요해요", true); return; }
-      await this.setup();
-      this.heard = "";
-      await Speech.p.start({language:"ko-KR", partialResults:true, popup:false, maxResults:3});
-      this.listening = true; render();
-    } catch (e) { if (!silent) toast("음성 인식 시작 실패: " + (e.message || e), true); this.listening = false; render(); }
-  },
-  async stop(){ try { await Speech.p.stop(); } catch {} this.listening = false; render(); },
-  toggle(){ this.listening ? this.stop() : this.start(false); },
-  kickContinuous(){ if (S.settings.voice.enabled && S.settings.voice.continuous && Speech.supported && !this.listening && C().online && !document.hidden) this.start(true); },
-};
-document.addEventListener("visibilitychange", () => { if (document.hidden) Voice.stop(); else Voice.kickContinuous(); });
+
 
 /* 시동 남은 시간 표시 */
 setInterval(() => {
