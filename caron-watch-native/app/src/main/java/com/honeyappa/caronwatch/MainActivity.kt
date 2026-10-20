@@ -70,10 +70,11 @@ private val CaronColors = Colors(
 
 class MainActivity : ComponentActivity() {
     private lateinit var link: CarLink
+    private var permsReady = false
 
     private val permLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
-    ) { link.connectSaved() }
+    ) { permsReady = true; link.connectSaved() }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -82,8 +83,14 @@ class MainActivity : ComponentActivity() {
         ensurePerms()
     }
 
-    override fun onDestroy() {
-        super.onDestroy()
+    // 저전력: 앱이 보일 때만 연결을 유지하고, 백그라운드로 가면 바로 끊어요.
+    override fun onStart() {
+        super.onStart()
+        if (permsReady) link.connectSaved()
+    }
+
+    override fun onStop() {
+        super.onStop()
         link.disconnect()
     }
 
@@ -92,7 +99,7 @@ class MainActivity : ComponentActivity() {
             arrayOf(Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_CONNECT)
         else arrayOf(Manifest.permission.ACCESS_FINE_LOCATION)
         val missing = perms.any { checkSelfPermission(it) != PackageManager.PERMISSION_GRANTED }
-        if (missing) permLauncher.launch(perms) else link.connectSaved()
+        if (missing) permLauncher.launch(perms) else { permsReady = true; link.connectSaved() }
     }
 }
 
@@ -110,7 +117,8 @@ fun WearApp(link: CarLink) {
                 "setup" -> SetupScreen(link, onPwd = { screen = "pwd" }, onDone = { screen = "main" })
                 "pwd" -> PwdScreen(link, onScan = { screen = "scan" }, onCancel = { screen = "main" })
                 "scan" -> ScanScreen(link, onDone = { screen = "main" })
-                else -> MainScreen(link, listState, onSetup = { screen = "setup" })
+                "prox" -> ProxScreen(link, onDone = { screen = "main" })
+                else -> MainScreen(link, listState, onSetup = { screen = "setup" }, onProx = { screen = "prox" })
             }
             Toast(link)
         }
@@ -118,7 +126,7 @@ fun WearApp(link: CarLink) {
 }
 
 @Composable
-private fun MainScreen(link: CarLink, listState: ScalingLazyListState, onSetup: () -> Unit) {
+private fun MainScreen(link: CarLink, listState: ScalingLazyListState, onSetup: () -> Unit, onProx: () -> Unit) {
     var armStart by remember { mutableStateOf(false) }
     LaunchedEffect(armStart) { if (armStart) { delay(3000); armStart = false } }
 
@@ -171,9 +179,48 @@ private fun MainScreen(link: CarLink, listState: ScalingLazyListState, onSetup: 
                 }
             }
             item { SecondaryChip("차량 찾기", enabled = !link.busy) { link.send(CarLink.FIND) } }
+            item { MiniChip("근접 설정", onClick = onProx) }
         }
         item { MiniChip("기기 설정", enabled = !link.scanning, onClick = onSetup) }
     }
+}
+
+@Composable
+private fun ProxScreen(link: CarLink, onDone: () -> Unit) {
+    ScalingLazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        item { Text("근접 (거리)", fontSize = 18.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 2.dp)) }
+        item {
+            Text(
+                if (link.online) "신호 ${link.rssi?.toString() ?: "측정 중…"}${if (link.rssi != null) " dBm" else ""}" else "연결 안 됨",
+                fontSize = 13.sp, color = InkDim, textAlign = TextAlign.Center
+            )
+        }
+        item { ToggleRow("가까워지면 열림", link.autoUnlock) { link.setAutoUnlock(!link.autoUnlock) } }
+        item { ToggleRow("멀어지면 잠금", link.walkAwayLock) { link.setWalkAway(!link.walkAwayLock) } }
+        item {
+            SecondaryChip("현재 위치로 보정", enabled = link.online) {
+                if (!link.calibrate()) link.message = "신호를 아직 못 읽었어요"
+            }
+        }
+        if (link.isCalibrated) item { MiniChip("보정 초기화") { link.clearCalib() } }
+        item { Text("앱이 켜져 있을 때 동작해요 (저전력)", fontSize = 10.sp, color = InkDim, textAlign = TextAlign.Center) }
+        item { MiniChip("닫기", onClick = onDone) }
+    }
+}
+
+@Composable
+private fun ToggleRow(label: String, on: Boolean, onClick: () -> Unit) {
+    val haptic = LocalHapticFeedback.current
+    Chip(
+        onClick = { haptic.performHapticFeedback(HapticFeedbackType.LongPress); onClick() },
+        label = { Text(label, fontSize = 15.sp) },
+        secondaryLabel = { Text(if (on) "켜짐" else "꺼짐", fontSize = 12.sp) },
+        colors = if (on) ChipDefaults.primaryChipColors() else ChipDefaults.secondaryChipColors(),
+        modifier = Modifier.fillMaxWidth().padding(vertical = 1.dp)
+    )
 }
 
 @Composable

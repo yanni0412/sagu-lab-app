@@ -47,8 +47,18 @@ class CarLink(private val ctx: Context) {
     var message by mutableStateOf("")
     val found = mutableStateListOf<Pair<String, String>>()   // (이름, MAC)
 
+    // 근접(거리) 기능
+    var autoUnlock by mutableStateOf(false)
+    var walkAwayLock by mutableStateOf(false)
+    var rssi by mutableStateOf<Int?>(null)     // 평활화된 신호세기(표시용)
+    val isCalibrated: Boolean get() = proxNear != null
+
     private var pwd = "000000"
     private var mac: String? = null
+    private var proxNear: Int? = null
+    private var proxFar: Int? = null
+    private var rssiAvg: Double? = null
+    private var proxZone: String? = null
 
     private val main = Handler(Looper.getMainLooper())
     private val btm by lazy { ctx.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager }
@@ -67,10 +77,16 @@ class CarLink(private val ctx: Context) {
         name = prefs.getString("name", "내 차") ?: "내 차"
         pwd = prefs.getString("pwd", "000000") ?: "000000"
         mac = prefs.getString("mac", null)
+        autoUnlock = prefs.getBoolean("autoUnlock", false)
+        walkAwayLock = prefs.getBoolean("walkAway", false)
+        proxNear = prefs.getInt("pnear", 1).takeIf { it != 1 }
+        proxFar = prefs.getInt("pfar", 1).takeIf { it != 1 }
     }
     private fun saveCfg() {
         prefs.edit().putString("mode", mode).putString("name", name)
-            .putString("pwd", pwd).putString("mac", mac).apply()
+            .putString("pwd", pwd).putString("mac", mac)
+            .putBoolean("autoUnlock", autoUnlock).putBoolean("walkAway", walkAwayLock)
+            .putInt("pnear", proxNear ?: 1).putInt("pfar", proxFar ?: 1).apply()
     }
     private fun ui(block: () -> Unit) = main.post(block)
     private fun toast(m: String) = ui { message = m }
@@ -99,6 +115,42 @@ class CarLink(private val ctx: Context) {
 
     fun rescan() { if (mode == "mp686") startScan() }
 
+    // ---- 근접(거리) ----
+    fun setAutoUnlock(v: Boolean) { autoUnlock = v; saveCfg(); proxZone = null; if (v) startRssiPoll() }
+    fun setWalkAway(v: Boolean) { walkAwayLock = v; saveCfg(); proxZone = null; if (v) startRssiPoll() }
+    fun calibrate(): Boolean {
+        val a = rssi ?: return false
+        proxNear = a; proxFar = a - 12; saveCfg(); proxZone = null
+        toast("보정 완료 · 기준 ${a}dBm")
+        return true
+    }
+    fun clearCalib() { proxNear = null; proxFar = null; saveCfg(); proxZone = null; toast("보정을 초기화했어요") }
+
+    private val rssiPoll = object : Runnable {
+        override fun run() {
+            val g = gatt
+            if (g != null && online) {
+                if (!writing) try { g.readRemoteRssi() } catch (_: Exception) {}   // 쓰는 중엔 건너뜀(충돌 방지)
+                main.postDelayed(this, 2000)
+            }
+        }
+    }
+    private fun startRssiPoll() { main.removeCallbacks(rssiPoll); if (gatt != null && online) main.post(rssiPoll) }
+    private fun stopRssiPoll() { main.removeCallbacks(rssiPoll); rssiAvg = null; rssi = null; proxZone = null }
+    private fun evalProximity() {
+        if (!autoUnlock && !walkAwayLock) { proxZone = null; return }
+        val avg = rssi ?: return
+        val near = proxNear ?: -72
+        val far = proxFar ?: -88
+        val zone = if (avg >= near) "near" else if (avg <= far) "far" else proxZone
+        if (proxZone == null) { proxZone = zone; return }   // 첫 측정은 기준만
+        if (zone != null && zone != proxZone) {
+            if (zone == "near" && autoUnlock && locked) send(UNLOCK)
+            else if (zone == "far" && walkAwayLock && !locked && !engine) send(LOCK)
+            proxZone = zone
+        }
+    }
+
     fun connectSaved() {
         if (mode == "demo") { online = true; return }
         val m = mac ?: return
@@ -110,6 +162,7 @@ class CarLink(private val ctx: Context) {
     }
 
     fun disconnect() {
+        stopRssiPoll()
         try { gatt?.disconnect(); gatt?.close() } catch (_: Exception) {}
         gatt = null; evtChar = null; cmdChar = null; writeQ.clear(); writing = false
         if (mode != "demo") online = false
@@ -173,6 +226,14 @@ class CarLink(private val ctx: Context) {
         override fun onCharacteristicWrite(g: BluetoothGatt, c: BluetoothGattCharacteristic, status: Int) {
             writing = false; drain()
         }
+        override fun onReadRemoteRssi(g: BluetoothGatt, rssiVal: Int, status: Int) {
+            if (status != BluetoothGatt.GATT_SUCCESS) return
+            ui {
+                rssiAvg = if (rssiAvg == null) rssiVal.toDouble() else rssiAvg!! * 0.5 + rssiVal * 0.5
+                rssi = Math.round(rssiAvg!!).toInt()
+                evalProximity()
+            }
+        }
         @Deprecated("Deprecated in Java")
         override fun onCharacteristicChanged(g: BluetoothGatt, c: BluetoothGattCharacteristic) {
             handleRx(c.value ?: return)
@@ -195,6 +256,7 @@ class CarLink(private val ctx: Context) {
                     if (b[2] == 0) {
                         online = true; busy = false
                         if (b.size >= 4) locked = when (b[3]) { 0xA1 -> true; 0xA2 -> false; else -> locked }
+                        if (autoUnlock || walkAwayLock) startRssiPoll()
                     } else { toast("비밀번호가 맞지 않아요"); busy = false; disconnect() }
                 }
                 0x0D -> if (b.size >= 4 && b[3] == 0) when (b[2]) {

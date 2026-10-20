@@ -488,6 +488,16 @@ const Link = {
     if (r[2] !== 0) throw new Error("기기가 비밀번호 변경을 거부했어요");
     C().pwd = newP; save();
   },
+  async mpChangeName(name){
+    await this.connect();
+    const bytes = new TextEncoder().encode(name).slice(0, 16);   // UTF-8 최대 16바이트
+    const d = [0xCD, 0x0C]; for (let i = 0; i < 16; i++) d.push(i < bytes.length ? bytes[i] : 0);
+    const w = this.expect(b => b[0] === 0xCD && b[1] === 0x0C, 5000);
+    await this.t().write(this.id(), mpFrame(d));
+    const r = await w;
+    if (r[2] !== 0) throw new Error("기기가 이름 변경을 거부했어요");
+    C().bleName = name; save();
+  },
   async auth(op, arg, keyHex, extra = []){
     await this.connect();
     const nP = this.expect(b => b[0] === 0x81);
@@ -689,7 +699,8 @@ const VIEWS = {
         ${mp ? "" : `<div class="row"><div class="body"><div class="t1">원격 시동 시간</div><div class="t2">시간이 지나면 자동으로 꺼짐</div></div>
           <select data-set="runMin" ${c.online ? "" : "disabled"}>${[5,10,15,20,30].map(m => `<option value="${m}" ${c.runMin === m ? "selected" : ""}>${m}분</option>`).join("")}</select></div>`}
         <button class="row" data-act="rekey" ${ble ? "" : "hidden"}><div class="body"><div class="t1">기기 비밀번호 변경</div><div class="t2">보안 키를 새로 발급해 이전 키를 무효화</div></div></button>
-        ${mp ? `<button class="row" data-act="mppwd"><div class="body"><div class="t1">기기 비밀번호 변경</div><div class="t2">크라운 모듈의 숫자 비밀번호(기본 000000)</div></div></button>` : ""}
+        ${mp ? `<button class="row" data-act="mpname"><div class="body"><div class="t1">모듈 이름 변경</div><div class="t2">스캔 목록에 뜨는 이름(현재: ${esc(c.bleName || "8250")})</div></div></button>
+        <button class="row" data-act="mppwd"><div class="body"><div class="t1">기기 비밀번호 변경</div><div class="t2">크라운 모듈의 숫자 비밀번호(기본 000000)</div></div></button>` : ""}
         <button class="row" data-act="pin"><div class="body"><div class="t1">앱 잠금 비밀번호</div><div class="t2">${s.pinHash ? "설정됨 · 눌러서 변경" : "앱 실행 시 6자리 비밀번호 확인"}</div></div></button>
         <div class="row"><div class="body"><div class="t1">문 열기 전 비밀번호 확인</div><div class="t2">앱 잠금 비밀번호가 있어야 켤 수 있어요</div></div>${ck("confirmUnlock", s.confirmUnlock, !s.pinHash)}</div>
         ${s.pinHash ? `<button class="row danger" data-act="pin-off"><div class="body"><div class="t1">앱 잠금 비밀번호 해제</div></div></button>` : ""}
@@ -1015,6 +1026,11 @@ main.addEventListener("click", e => {
     "clear-log": () => confirmSheet("기록 지우기", "모든 사용 기록을 지워요.", "지우기", () => { S.logs = []; save(); render(); }),
     "prox-calib": calibrateProx,
     "prox-reset": clearCalib,
+    mpname: () => { if (!C().online) return toast("먼저 차량에 연결하세요", true);
+      textSheet("모듈 이름 변경", "새 이름 (영문·숫자 권장, 최대 16자)", C().bleName || "", v => {
+        if (!v) return false;
+        Link.mpChangeName(v).then(() => { render(); toast("이름을 바꿨어요 · 다음 검색부터 새 이름으로 보여요"); }).catch(e => toast(e.message || e, true));
+      }); },
   })[a.dataset.act]?.();
 });
 
