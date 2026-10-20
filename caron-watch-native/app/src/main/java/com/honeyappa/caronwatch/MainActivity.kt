@@ -108,7 +108,8 @@ fun WearApp(link: CarLink) {
         ) {
             when (screen) {
                 "setup" -> SetupScreen(link, onPwd = { screen = "pwd" }, onDone = { screen = "main" })
-                "pwd" -> PwdScreen(link, onDone = { screen = "main" })
+                "pwd" -> PwdScreen(link, onScan = { screen = "scan" }, onCancel = { screen = "main" })
+                "scan" -> ScanScreen(link, onDone = { screen = "main" })
                 else -> MainScreen(link, listState, onSetup = { screen = "setup" })
             }
             Toast(link)
@@ -189,7 +190,7 @@ private fun SetupScreen(link: CarLink, onPwd: () -> Unit, onDone: () -> Unit) {
 }
 
 @Composable
-private fun PwdScreen(link: CarLink, onDone: () -> Unit) {
+private fun PwdScreen(link: CarLink, onScan: () -> Unit, onCancel: () -> Unit) {
     val haptic = LocalHapticFeedback.current
     var digits by remember { mutableStateOf(intArrayOf(0, 0, 0, 0, 0, 0)) }
     ScalingLazyColumn(
@@ -212,7 +213,24 @@ private fun PwdScreen(link: CarLink, onDone: () -> Unit) {
             }
         }
         item { Text("숫자를 눌러 올리기 · 기본 000000", fontSize = 11.sp, color = InkDim, textAlign = TextAlign.Center) }
-        item { PrimaryChip("연결") { link.registerMp(digits.joinToString("")); onDone() } }
+        item { PrimaryChip("기기 검색") { link.registerMp(digits.joinToString("")); onScan() } }
+        item { MiniChip("취소", onClick = onCancel) }
+    }
+}
+
+@Composable
+private fun ScanScreen(link: CarLink, onDone: () -> Unit) {
+    ScalingLazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        item { Text("기기 선택", fontSize = 16.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 2.dp)) }
+        if (link.scanning) item { Text("검색 중… 차 가까이에서 기다리세요", fontSize = 11.sp, color = InkDim, textAlign = TextAlign.Center) }
+        else if (link.found.isEmpty()) item { Text("기기를 못 찾았어요", fontSize = 12.sp, color = InkDim, textAlign = TextAlign.Center) }
+        link.found.forEach { (nm, mac) ->
+            item { SecondaryChip(nm) { link.pickFound(nm, mac); onDone() } }
+        }
+        item { MiniChip(if (link.scanning) "검색 중…" else "다시 검색", enabled = !link.scanning) { link.rescan() } }
         item { MiniChip("취소", onClick = onDone) }
     }
 }

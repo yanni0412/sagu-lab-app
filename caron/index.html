@@ -343,7 +343,7 @@ const NativeBle = {
   get p(){ return this._p || (this._p = window.Capacitor.registerPlugin("BluetoothLe")); },
   supported:true,
   init(){ return this._ready || (this._ready = this.p.initialize({}).catch(e => { this._ready = null; throw e; })); },
-  async pick(){ await this.init(); const d = await this.p.requestDevice({services:[curU().SVC]}); return {id:d.deviceId, name:d.name}; },
+  async pick(){ await this.init(); const d = await this.p.requestDevice(C().kind === "mp686" ? {optionalServices:[MP_UUID.SVC]} : {services:[curU().SVC]}); return {id:d.deviceId, name:d.name}; },
   async connect(id, onDisc){
     await this.init();
     if (this.subs.d) await this.subs.d.remove();
@@ -363,11 +363,12 @@ const NativeBle = {
 const WebBle = {
   devs:new Map(), ch:null,
   get supported(){ return !!navigator.bluetooth; },
-  async pick(){ const d = await navigator.bluetooth.requestDevice({filters:[{services:[curU().SVC]}]}); this.devs.set(d.id, d); return {id:d.id, name:d.name}; },
+  reqOpts(){ return C().kind === "mp686" ? {acceptAllDevices:true, optionalServices:[MP_UUID.SVC]} : {filters:[{services:[curU().SVC]}]}; },
+  async pick(){ const d = await navigator.bluetooth.requestDevice(this.reqOpts()); this.devs.set(d.id, d); return {id:d.id, name:d.name}; },
   async connect(id, onDisc){
     let d = this.devs.get(id);
     if (!d && navigator.bluetooth.getDevices) d = (await navigator.bluetooth.getDevices()).find(x => x.id === id);
-    if (!d) { d = await navigator.bluetooth.requestDevice({filters:[{services:[curU().SVC]}]}); this.devs.set(id, d); }
+    if (!d) { d = await navigator.bluetooth.requestDevice(this.reqOpts()); this.devs.set(id, d); }
     d.ongattserverdisconnected = onDisc;
     const svc = await (await d.gatt.connect()).getPrimaryService(curU().SVC);
     this.ch = {d, cmd:await svc.getCharacteristic(curU().CMD), evt:await svc.getCharacteristic(curU().EVT)};
@@ -892,7 +893,7 @@ function scanEsp32(){
 function scanMp686(){
   const t = isNative ? NativeBle : WebBle;
   sheet(`<h4>크라운 호환 기기 연결</h4>
-    <p class="sub">차량 ACC 전원만 켜고 휴대폰을 가까이 두세요.</p>
+    <p class="sub">차량 ACC 전원만 켜고 휴대폰을 가까이 두세요. 기기 목록에서 모듈 이름(예: 8250, 825040 등)을 고르세요.</p>
     <label class="field"><span>기기 비밀번호 (숫자 6자리)</span><input id="mPwd" inputmode="numeric" maxlength="6" value="000000"></label>
     <p class="note">크라운 앱에서 쓰던 비밀번호예요. 바꾼 적 없으면 기본값 000000.</p>
     <div class="btn-row"><button class="btn" data-close>취소</button><button class="btn primary" id="mGo">검색 시작</button></div>`,

@@ -9,15 +9,14 @@ import android.bluetooth.BluetoothGattDescriptor
 import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothProfile
 import android.bluetooth.le.ScanCallback
-import android.bluetooth.le.ScanFilter
 import android.bluetooth.le.ScanResult
 import android.bluetooth.le.ScanSettings
 import android.content.Context
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
-import android.os.ParcelUuid
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import java.util.ArrayDeque
@@ -46,6 +45,7 @@ class CarLink(private val ctx: Context) {
     var busy by mutableStateOf(false)
     var scanning by mutableStateOf(false)
     var message by mutableStateOf("")
+    val found = mutableStateListOf<Pair<String, String>>()   // (이름, MAC)
 
     private var pwd = "000000"
     private var mac: String? = null
@@ -82,13 +82,22 @@ class CarLink(private val ctx: Context) {
         online = true
     }
 
-    /** MP686 등록: 서비스 광고를 스캔해 가장 먼저 발견한 기기에 연결 */
+    /** MP686 등록 1단계: 비밀번호를 정하고 주변 기기를 스캔 (크라운처럼 서비스 필터 없이 전체) */
     fun registerMp(password: String) {
         pwd = password.ifEmpty { "000000" }
         mode = "mp686"
         disconnect()
         startScan()
     }
+
+    /** MP686 등록 2단계: 목록에서 고른 기기로 연결 */
+    fun pickFound(nm: String, addr: String) {
+        stopScan()
+        name = nm; mac = addr; mode = "mp686"; saveCfg()
+        connectSaved()
+    }
+
+    fun rescan() { if (mode == "mp686") startScan() }
 
     fun connectSaved() {
         if (mode == "demo") { online = true; return }
@@ -117,21 +126,19 @@ class CarLink(private val ctx: Context) {
     private val scanner get() = btm.adapter.bluetoothLeScanner
     private val scanCb = object : ScanCallback() {
         override fun onScanResult(callbackType: Int, result: ScanResult) {
-            stopScan()
-            mac = result.device.address
-            name = result.device.name ?: name
-            saveCfg()
-            connectSaved()
+            val nm = (result.device.name ?: result.scanRecord?.deviceName)?.trim()
+            if (nm.isNullOrEmpty()) return                 // 이름 있는 기기만 (크라운과 동일)
+            val addr = result.device.address
+            ui { if (found.none { it.second == addr }) found.add(nm to addr) }
         }
         override fun onScanFailed(errorCode: Int) { ui { scanning = false; toast("스캔 실패 ($errorCode)") } }
     }
     private fun startScan() {
         val s = scanner ?: run { toast("블루투스를 켜주세요"); return }
-        scanning = true
-        val filter = ScanFilter.Builder().setServiceUuid(ParcelUuid(MP_SVC)).build()
+        found.clear(); scanning = true
         val settings = ScanSettings.Builder().setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY).build()
-        try { s.startScan(listOf(filter), settings, scanCb) } catch (e: Exception) { scanning = false; toast("스캔 불가: ${e.message}") }
-        main.postDelayed({ if (scanning) { stopScan(); toast("기기를 못 찾았어요") } }, 8000)
+        try { s.startScan(null, settings, scanCb) } catch (e: Exception) { scanning = false; toast("스캔 불가: ${e.message}") }
+        main.postDelayed({ stopScan() }, 8000)
     }
     private fun stopScan() {
         if (!scanning) return
