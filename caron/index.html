@@ -847,15 +847,7 @@ function scanSheet(){
   if (!t.supported) return sheet(`<h4>블루투스를 쓸 수 없어요</h4>
     <p class="sub" style="margin-top:6px">이 브라우저는 블루투스를 지원하지 않아요. <b>카온 APK</b>를 설치하거나 안드로이드·PC의
     <b>Chrome</b>에서 https 주소로 열어 주세요.</p><button class="btn block" style="margin-top:16px" data-close>확인</button>`);
-  sheet(`<h4>기기 종류</h4><p class="sub">어떤 기기에 연결할까요?</p>
-    <div class="list" style="margin-top:12px; border:1px solid var(--line); border-radius:12px; overflow:hidden">
-      <button class="row" id="pickMp"><div class="body"><div class="t1">크라운 호환 (MP686)</div><div class="t2">지오르돈/크라운 계열 · FFE0 모듈</div></div></button>
-      <button class="row" id="pickEsp"><div class="body"><div class="t1">카온 기기 (ESP32)</div><div class="t2">직접 만든 기기 · 보안 키 32자리</div></div></button>
-    </div>`,
-  (el, close) => {
-    el.querySelector("#pickMp").onclick = () => { close(); scanMp686(); };
-    el.querySelector("#pickEsp").onclick = () => { close(); scanEsp32(); };
-  });
+  scanMp686();   // 크라운(MP686)이 일반적인 기기 → 바로 크라운 검색으로. ESP32는 그 안의 링크로.
 }
 
 function scanEsp32(){
@@ -896,8 +888,10 @@ function scanMp686(){
     <p class="sub">차량 ACC 전원만 켜고 휴대폰을 가까이 두세요. 기기 목록에서 모듈 이름(예: 8250, 825040 등)을 고르세요.</p>
     <label class="field"><span>기기 비밀번호 (숫자 6자리)</span><input id="mPwd" inputmode="numeric" maxlength="6" value="000000"></label>
     <p class="note">크라운 앱에서 쓰던 비밀번호예요. 바꾼 적 없으면 기본값 000000.</p>
+    <p class="note" style="text-align:center; margin-top:14px"><a href="#" id="toEsp" style="color:var(--ink-3)">직접 만든 ESP32 기기 연결 →</a></p>
     <div class="btn-row"><button class="btn" data-close>취소</button><button class="btn primary" id="mGo">검색 시작</button></div>`,
   (el, close) => {
+    el.querySelector("#toEsp").onclick = e => { e.preventDefault(); close(); scanEsp32(); };
     const go = el.querySelector("#mGo");
     go.onclick = async () => {
       const pwd = el.querySelector("#mPwd").value.replace(/\D/g, "");
