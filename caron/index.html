@@ -278,7 +278,7 @@ function seed(){
   return {
     car:{kind:"demo", name:"내 차", plate:"12가 3456", bleId:null, keyHex:DEMO_KEY,
       locked:true, engine:false, engineUntil:0, trunk:false, voltage:126, runMin:10, walkAway:true, online:false},
-    settings:{autoUnlock:false, walkAwayLock:false, shake:false, confirmUnlock:false, pinHash:null},
+    settings:{autoUnlock:false, walkAwayLock:false, proxLevel:"medium", shake:false, confirmUnlock:false, pinHash:null},
     logs:[
       {id:uid(), t:now - 42*6e4, type:"lock", src:"앱"},
       {id:uid(), t:now - 47*6e4, type:"stop", src:"시간 종료"},
@@ -676,6 +676,8 @@ const VIEWS = {
       <div class="list">
         <div class="row"><div class="body"><div class="t1">가까워지면 자동 열림</div><div class="t2">차에 다가가 블루투스가 연결되면 문 열림${isNative ? "" : " · APK 전용"}</div></div>${ck("autoUnlock", s.autoUnlock, !isNative)}</div>
         <div class="row"><div class="body"><div class="t1">멀어지면 자동 잠금</div><div class="t2">차에서 멀어져 신호가 약해지면 잠금${isNative ? "" : " · APK 전용"}</div></div>${ck("walkAwayLock", s.walkAwayLock, !isNative)}</div>
+        <div class="row"><div class="body"><div class="t1">근접 민감도</div><div class="t2">자동 열림·잠금이 동작하는 거리</div></div>
+          <select data-set="proxLevel" ${isNative ? "" : "disabled"}>${Object.entries({close:"가까이", medium:"보통", far:"멀리"}).map(([k, n]) => `<option value="${k}" ${(s.proxLevel || "medium") === k ? "selected" : ""}>${n}</option>`).join("")}</select></div>
         <div class="row"><div class="body"><div class="t1">흔들어서 잠금/열림</div><div class="t2">연결된 상태에서 휴대폰을 세게 두 번 흔들기</div></div>${ck("shake", s.shake)}</div>
         <button class="row" data-act="scan"><div class="body"><div class="t1">기기 검색</div><div class="t2">${ble || mp ? `등록됨: ${esc(c.bleName || "기기")}${mp ? " · 크라운 호환" : ""}` : "차량에 설치한 기기 연결"}</div></div></button>
         <button class="row" data-act="name"><div class="body"><div class="t1">이름 변경</div><div class="t2">${esc(c.name)}</div></div></button>
@@ -1024,6 +1026,7 @@ main.addEventListener("change", e => {
     if (C().kind === "mp686" && C().online) Link.mpLogin().catch(() => {});
     return;
   }
+  if (k === "proxLevel") { S.settings.proxLevel = el.value; resetProx(); save(); render(); return; }
   S.settings[k] = v;
   if (k === "shake" && v) enableShake();
   save(); render();
@@ -1056,39 +1059,47 @@ function onMotion(e){
   if (now - lastPeak > 120) lastPeak = now;
 }
 
-/* ---------- 근접 엔진 ----------
-   가까워지면 열림: 끊겨 있으면 주기적으로 재연결 → 붙는 순간 잠겨 있으면 열기
-   멀어지면 잠금: 연결된 동안 신호세기(RSSI)를 재서, 약해진 상태가 이어지면 잠그고 끊기
-   (RSSI는 APK 네이티브에서만 읽을 수 있어요. 데모는 테스트용 가상값)          */
-const FAR_DBM = -88;        // 이보다 약하면 "멀어짐"으로 간주
-const FAR_HOLD = 4000;      // 멀어진 상태가 이만큼 이어지면 잠금
-let proxFarSince = 0, proxBusy = false;
+/* ---------- 근접 엔진 (신호세기 RSSI 기준) ----------
+   블루투스는 멀리서도 연결되므로, "연결/끊김"이 아니라 신호세기로 거리를 가늠해요.
+   near(가까움)·far(멀어짐) 두 문턱 사이에 넓은 완충구간(히스테리시스)을 둬서 경계에서 출렁이지 않아요.
+   가까워지면 열림: 멀리 있다가 near를 '넘어 들어올' 때 1번만 열기
+   멀어지면 잠금: 가까이 있다가 far 밖으로 '나갈' 때 1번만 잠그기
+   (RSSI는 APK에서만 읽을 수 있어요. 데모는 가상값)                                   */
+const PROX = {
+  close:  {near:-58, far:-74, label:"가까이"},   // 차 바로 앞에서 열림
+  medium: {near:-66, far:-82, label:"보통"},
+  far:    {near:-74, far:-90, label:"멀리"},
+};
+let rssiAvg = null, proxZone = null, proxBusy = false;
+function resetProx(){ rssiAvg = null; proxZone = null; }
 async function proximityTick(){
   const c = C();
   if (proxBusy || busy || document.hidden) return;
   if (c.kind !== "demo" && c.kind !== "ble" && c.kind !== "mp686") return;
   const canReconnect = isNative || c.kind === "demo";
+  const wantProx = S.settings.autoUnlock || S.settings.walkAwayLock;
   proxBusy = true;
   try {
     if (!c.online) {
-      proxFarSince = 0;
-      if (!canReconnect) return;
-      if (!S.settings.autoUnlock && !S.settings.walkAwayLock) return;   // 할 일 없으면 연결 유지 안 함
-      const ok = await connectNow(false);
-      if (ok && S.settings.autoUnlock && C().locked) { await sleep(300); await act("unlock", "근접 자동"); }
+      resetProx();
+      if (canReconnect && wantProx) await connectNow(false);   // 연결만 유지 — 연결됐다고 열지 않음
       return;
     }
-    if (S.settings.walkAwayLock && !c.locked && !c.engine) {
-      const rssi = await Link.rssi().catch(() => null);
-      if (rssi == null) return;                 // RSSI 못 읽음(웹 등) → 멀어지면잠금 불가
-      if (rssi < FAR_DBM) {
-        if (!proxFarSince) proxFarSince = Date.now();
-        else if (Date.now() - proxFarSince > FAR_HOLD) { proxFarSince = 0; await act("lock", "근접 자동"); }
-      } else proxFarSince = 0;
-    } else proxFarSince = 0;
+    if (!wantProx) return;
+    const r = await Link.rssi().catch(() => null);
+    if (r == null || r === 0) return;                          // RSSI 못 읽으면 대기
+    rssiAvg = rssiAvg == null ? r : Math.round(rssiAvg * 0.5 + r * 0.5);   // 평활화(노이즈 완화)
+    const P = PROX[S.settings.proxLevel] || PROX.medium;
+    const zone = rssiAvg >= P.near ? "near" : rssiAvg <= P.far ? "far" : proxZone;  // 완충구간은 이전 상태 유지
+    if (proxZone == null) { proxZone = zone; return; }         // 첫 측정은 기준만 잡고 동작 안 함(연결 직후 오작동 방지)
+    if (zone !== proxZone) {
+      if (zone === "near" && S.settings.autoUnlock && c.locked) await act("unlock", "근접 자동");
+      else if (zone === "far" && S.settings.walkAwayLock && !c.locked && !c.engine) await act("lock", "근접 자동");
+      proxZone = zone;
+    }
   } finally { proxBusy = false; }
 }
-setInterval(proximityTick, 3500);
+setInterval(proximityTick, 1800);
 window.__proximityTick = proximityTick;   // 테스트 훅
 
 /* 시동 남은 시간 표시 */
