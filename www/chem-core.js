@@ -705,9 +705,145 @@ function lookupName(input) {
 
 function lookupFormula(key) { return DICT.filter(e => e.key === key); }
 
+/* ---------- 3D 좌표: 결합 길이·결합각 목표 + 스트레스 최소화 ----------
+   2D 배치(layout)를 마친 분자(수소 펼친 것)를 받아 Å 단위 [x,y,z] 배열을 돌려준다.
+   입체 정보(@, /, \)는 쓰지 않으므로 거울상 중 어느 쪽이 나올지는 정해져 있지 않다. */
+const COV_R = { H: .31, B: .84, C: .76, N: .71, O: .66, F: .57, Si: 1.11, P: 1.07, S: 1.05, Cl: 1.02, Br: 1.20, I: 1.39, Se: 1.20, As: 1.19 };
+
+function bondLength(mol, b) {
+  const r = (COV_R[mol.atoms[b.a].el] || 1.3) + (COV_R[mol.atoms[b.b].el] || 1.3);
+  return r * (b.arom || b.wasArom ? .91 : b.order >= 3 ? .78 : b.order >= 2 ? .87 : 1);
+}
+
+function embed3D(mol) {
+  const n = mol.atoms.length;
+  const adj = adjacency(mol);
+  const rings = mol.rings || findRings(mol, adj);
+  const bmap = new Map();
+  mol.bonds.forEach(b => { bmap.set(b.a * n + b.b, b); bmap.set(b.b * n + b.a, b); });
+  const bond = (i, j) => bmap.get(i * n + j);
+  const blen = mol.bonds.map(b => bondLength(mol, b));
+  const lenOf = (i, j) => blen[mol.bonds.indexOf(bond(i, j))];
+
+  // 혼성: 삼중 또는 이중 2개 → sp(180°), 이중·방향족 → sp2(120°), 나머지 sp3(109.5°)
+  const hyb = mol.atoms.map((a, i) => {
+    let dbl = 0, tri = 0, ar = false;
+    adj[i].forEach(j => { const b = bond(i, j); if (b.arom || b.wasArom) ar = true; else if (b.order >= 3) tri++; else if (b.order >= 2) dbl++; });
+    if (tri || dbl >= 2) return 1;
+    return dbl || ar ? 2 : 3;
+  });
+  // 원자가 모두 sp2인 고리는 평평한 정다각형으로 둔다
+  const planar = rings.filter(r => r.every(g => hyb[g] <= 2) || r.length <= 4);
+  const ringOf = new Map();
+  planar.slice().sort((a, b) => a.length - b.length).forEach(r => r.forEach(g => { if (!ringOf.has(g)) ringOf.set(g, r); }));
+
+  const T = new Map();  // key → [목표 거리, 가중치, 한쪽 방향(밀어내기만)?]
+  const key = (i, j) => i < j ? i * n + j : j * n + i;
+  const set = (i, j, d, w, rep) => { const k = key(i, j); if (!T.has(k) || T.get(k)[1] < w) T.set(k, [d, w, !!rep]); };
+
+  mol.bonds.forEach((b, t) => set(b.a, b.b, blen[t], 8));
+  planar.forEach(r => {
+    const s = r.length;
+    let avg = 0;
+    r.forEach((g, t) => { avg += lenOf(g, r[(t + 1) % s]); });
+    avg /= s;
+    for (let p = 0; p < s; p++) for (let q = p + 1; q < s; q++) {
+      const k = Math.min(q - p, s - (q - p));
+      if (k > 1) set(r[p], r[q], avg * Math.sin(Math.PI * k / s) / Math.sin(Math.PI / s), 4);
+    }
+  });
+  // 결합각 (1-3 거리)
+  for (let c = 0; c < n; c++) {
+    const nb = adj[c];
+    for (let p = 0; p < nb.length; p++) for (let q = p + 1; q < nb.length; q++) {
+      const i = nb[p], j = nb[q];
+      if (bond(i, j)) continue;
+      let ang = hyb[c] === 1 ? Math.PI : hyb[c] === 2 ? Math.PI * 2 / 3 : 1.9106;
+      const r = ringOf.get(c);
+      if (r && r.includes(i) !== r.includes(j)) ang = Math.PI - Math.PI * (r.length - 2) / r.length / 2;
+      else if (r && r.includes(i) && r.includes(j)) continue;  // 고리 다각형이 이미 정함
+      const a = lenOf(c, i), b = lenOf(c, j);
+      set(i, j, Math.sqrt(a * a + b * b - 2 * a * b * Math.cos(ang)), 4);
+    }
+  }
+  // 이중 결합 양쪽 치환기: 2D 그림의 시스/트랜스를 그대로 평면으로
+  mol.bonds.forEach(b => {
+    if (!(b.order >= 2 && b.order < 3 && !b.arom)) return;
+    const A = mol.atoms[b.a], B = mol.atoms[b.b];
+    const ux = B.x - A.x, uy = B.y - A.y;
+    const L = lenOf(b.a, b.b);
+    adj[b.a].forEach(i => adj[b.b].forEach(j => {
+      if (i === b.b || j === b.a || i === j) return;
+      const si = Math.sign(ux * (mol.atoms[i].y - A.y) - uy * (mol.atoms[i].x - A.x));
+      const sj = Math.sign(ux * (mol.atoms[j].y - B.y) - uy * (mol.atoms[j].x - B.x));
+      const li = lenOf(b.a, i), lj = lenOf(b.b, j), th = Math.PI / 3;
+      const pi = [-li * Math.cos(th), li * Math.sin(th)];
+      const pj = [L + lj * Math.cos(th), (si === sj ? 1 : -1) * lj * Math.sin(th)];
+      set(i, j, Math.hypot(pi[0] - pj[0], pi[1] - pj[1]), 2);
+    }));
+  });
+  // 나머지 쌍은 너무 가까울 때만 밀어낸다
+  const comp = new Array(n).fill(-1);
+  for (let s = 0, c = 0; s < n; s++) {
+    if (comp[s] >= 0) continue;
+    const q = [s]; comp[s] = c;
+    for (let k = 0; k < q.length; k++) for (const v of adj[q[k]]) if (comp[v] < 0) { comp[v] = c; q.push(v); }
+    c++;
+  }
+  for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
+    if (T.has(key(i, j))) continue;
+    const hi = mol.atoms[i].el === "H", hj = mol.atoms[j].el === "H";
+    const d = comp[i] !== comp[j] ? 3.4 : hi && hj ? 2.1 : hi || hj ? 2.5 : 2.9;
+    set(i, j, d, 1, true);
+  }
+
+  // sp2 원자 + 이웃 셋은 한 평면 위에 있어야 한다. 평면에서 살짝 벗어난 방향으로는 스트레스가
+  // 거의 변하지 않아 수렴이 느리므로, 매 반복마다 원자를 이웃 셋의 평면 쪽으로 직접 당긴다.
+  const flat = mol.atoms.map((a, i) => i).filter(i => hyb[i] === 2 && adj[i].length === 3);
+  // 평평해야 할 부분(sp2와 거기 붙은 원자)은 z=0에서 시작해야 휘어진 채로 갇히지 않는다
+  const pucker = mol.atoms.map((a, i) => hyb[i] === 3 && !(a.el === "H" && adj[i].some(j => hyb[j] <= 2)));
+  const X = mol.atoms.map((a, i) => [a.x * 1.45, a.y * 1.45, pucker[i] ? 0.9 * Math.sin(i * 2.39 + 0.7) : 0]);
+  const pairs = [...T.entries()].map(([k, v]) => [Math.floor(k / n), k % n, v[0], v[1] / (v[0] * v[0]), v[2]]);
+  const per = mol.atoms.map(() => []);
+  pairs.forEach(p => { per[p[0]].push([p[1], p[2], p[3], p[4]]); per[p[1]].push([p[0], p[2], p[3], p[4]]); });
+  // 계산량을 대략 일정하게: 작은 분자는 반복을 많이, 큰 분자는 적게
+  const iters = Math.max(300, Math.min(4000, Math.round(4e6 / (pairs.length * 2 || 1))));
+  const OMEGA = 1.5;  // 과완화(SOR)로 수렴을 앞당긴다
+  for (let it = 0; it < iters; it++) {
+    for (let i = 0; i < n; i++) {
+      const xi = X[i];
+      let sx = 0, sy = 0, sz = 0, den = 0;
+      for (const [j, d, w, rep] of per[i]) {
+        const xj = X[j], dx = xi[0] - xj[0], dy = xi[1] - xj[1], dz = xi[2] - xj[2];
+        const dist = Math.sqrt(dx * dx + dy * dy + dz * dz) || 1e-6;
+        if (rep && dist >= d) continue;
+        sx += w * (xj[0] + d * dx / dist); sy += w * (xj[1] + d * dy / dist); sz += w * (xj[2] + d * dz / dist);
+        den += w;
+      }
+      if (den) {
+        xi[0] += OMEGA * (sx / den - xi[0]); xi[1] += OMEGA * (sy / den - xi[1]); xi[2] += OMEGA * (sz / den - xi[2]);
+      }
+    }
+    for (const c of flat) {
+      const [p, q, r] = adj[c].map(j => X[j]);
+      const u = [q[0] - p[0], q[1] - p[1], q[2] - p[2]], v = [r[0] - p[0], r[1] - p[1], r[2] - p[2]];
+      const nx = u[1] * v[2] - u[2] * v[1], ny = u[2] * v[0] - u[0] * v[2], nz = u[0] * v[1] - u[1] * v[0];
+      const nl = Math.sqrt(nx * nx + ny * ny + nz * nz);
+      if (nl < 1e-6) continue;
+      const xc = X[c], h = ((xc[0] - p[0]) * nx + (xc[1] - p[1]) * ny + (xc[2] - p[2]) * nz) / nl;
+      // 가운데 원자는 3/4, 이웃들은 반대 방향으로 1/4씩 나눠 움직여 무게중심을 지킨다
+      xc[0] -= 0.75 * h * nx / nl; xc[1] -= 0.75 * h * ny / nl; xc[2] -= 0.75 * h * nz / nl;
+      for (const j of adj[c]) { const xj = X[j]; xj[0] += 0.25 * h * nx / nl; xj[1] += 0.25 * h * ny / nl; xj[2] += 0.25 * h * nz / nl; }
+    }
+  }
+  let cx = 0, cy = 0, cz = 0;
+  X.forEach(p => { cx += p[0]; cy += p[1]; cz += p[2]; });
+  return X.map(p => [p[0] - cx / n, p[1] - cy / n, p[2] - cz / n]);
+}
+
 const api = {
   ChemError, ELEMENTS, normFormula, parseFormula, hillOrder, hillKey, composition, unsaturation,
-  parseSmiles, molCounts, expandH, layout, adjacency, findRings, DICT, lookupName, lookupFormula,
+  parseSmiles, molCounts, expandH, layout, adjacency, findRings, embed3D, DICT, lookupName, lookupFormula,
 };
 if (typeof module !== "undefined" && module.exports) module.exports = api;
 else root.Chem = api;
