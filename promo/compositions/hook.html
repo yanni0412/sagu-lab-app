@@ -1,0 +1,36 @@
+<template>
+  <style>
+    @font-face { font-family: "Gothic A1"; src: url("assets/fonts/GothicA1-Black.woff2") format("woff2"); font-weight: 900; }
+    @font-face { font-family: "Plex KR"; src: url("assets/fonts/IBMPlexSansKR-Medium.woff2") format("woff2"); font-weight: 500; }
+    #root { position: absolute; inset: 0; }
+    #hook-copy { position: absolute; left: 0; right: 0; top: 118px; text-align: center; }
+    #hook-kicker {
+      font-family: "Plex KR"; font-weight: 500; font-size: 30px; letter-spacing: 0.08em;
+      color: #c8a24a;
+    }
+    #hook-title {
+      margin-top: 10px; font-family: "Gothic A1"; font-weight: 900; font-size: 92px;
+      letter-spacing: -0.02em; color: #f3efe4; line-height: 1.1;
+    }
+    #hook-table {
+      position: absolute; left: 280px; top: 304px; width: 1360px; height: 716px;
+      border-radius: 18px; box-shadow: 0 30px 80px rgba(0, 0, 0, 0.45);
+    }
+  </style>
+  <div id="root" data-composition-id="hook" data-width="1920" data-height="1080">
+    <div id="hook-copy" class="clip" data-start="0" data-duration="3.5">
+      <div id="hook-kicker">사구 궤적 실험실</div>
+      <h1 id="hook-title">치기 전에, 궤적부터 본다.</h1>
+    </div>
+    <img id="hook-table" class="clip" src="assets/shots/aim.png" data-start="0" data-duration="3.5" alt="" />
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    tl.fromTo("#hook-table", { scale: 0.95 }, { scale: 0.98, duration: 0.7, ease: "power3.out" }, 0);
+    tl.to("#hook-table", { scale: 1.03, duration: 2.8, ease: "none" }, 0.7);
+    tl.fromTo("#hook-kicker", { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: 0.4, ease: "power3.out" }, 0.2);
+    tl.fromTo("#hook-title", { opacity: 0, y: 28, filter: "blur(8px)" }, { opacity: 1, y: 0, filter: "blur(0px)", duration: 0.5, ease: "power4.out" }, 0.35);
+    tl.to("#hook-copy", { opacity: 0, y: -20, duration: 0.3, ease: "power2.in" }, 3.15);
+    window.__timelines["hook"] = tl;
+  </script>
+</template>

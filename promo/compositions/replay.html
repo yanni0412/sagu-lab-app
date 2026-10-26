@@ -1,0 +1,44 @@
+<template>
+  <style>
+    @font-face { font-family: "Gothic A1"; src: url("assets/fonts/GothicA1-Black.woff2") format("woff2"); font-weight: 900; }
+    @font-face { font-family: "Plex KR"; src: url("assets/fonts/IBMPlexSansKR-Medium.woff2") format("woff2"); font-weight: 500; }
+    #root { position: absolute; inset: 0; }
+    #rp-frame {
+      position: absolute; left: 280px; top: 304px; width: 1360px; height: 718px;
+      border-radius: 18px; box-shadow: 0 30px 80px rgba(0, 0, 0, 0.45);
+      background: url("assets/shots/replay-end.png") center / contain no-repeat;
+    }
+    #rp-video {
+      position: absolute; left: 280px; top: 304px; width: 1360px; height: 718px;
+      border-radius: 18px; object-fit: contain;
+    }
+    #rp-copy { position: absolute; left: 0; right: 0; top: 118px; text-align: center; }
+    #rp-kicker { font-family: "Plex KR"; font-weight: 500; font-size: 30px; letter-spacing: 0.08em; color: #c8a24a; }
+    #rp-title {
+      margin-top: 10px; font-family: "Gothic A1"; font-weight: 900; font-size: 80px;
+      letter-spacing: -0.02em; color: #f3efe4; line-height: 1.1;
+    }
+    #rp-badge {
+      position: absolute; right: 330px; top: 344px; padding: 18px 34px; border-radius: 999px;
+      background: #f3efe4; color: #0b6b52; font-family: "Gothic A1"; font-weight: 900; font-size: 52px;
+      box-shadow: 0 12px 36px rgba(0, 0, 0, 0.35);
+    }
+  </style>
+  <div id="root" data-composition-id="replay" data-width="1920" data-height="1080">
+    <div id="rp-copy" class="clip" data-start="0" data-duration="8">
+      <div id="rp-kicker">실제 물리 엔진 · 회전 · 쿠션 · 마찰</div>
+      <h2 id="rp-title">공 네 개의 길을 그대로 계산</h2>
+    </div>
+    <div id="rp-frame" class="clip" data-start="0" data-duration="8"></div>
+    <video id="rp-video" class="clip" src="assets/shots/replay.mp4" data-start="0" data-duration="7.4" muted playsinline></video>
+    <div id="rp-badge" class="clip" data-start="2.5" data-duration="5.5">득점 1점</div>
+  </div>
+  <script>
+    const tl = gsap.timeline({ paused: true });
+    tl.fromTo("#rp-kicker", { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: 0.4, ease: "power3.out" }, 0.05);
+    tl.fromTo("#rp-title", { opacity: 0, y: 28, filter: "blur(8px)" }, { opacity: 1, y: 0, filter: "blur(0px)", duration: 0.5, ease: "power4.out" }, 0.15);
+    tl.fromTo("#rp-badge", { opacity: 0, scale: 0.6, y: 20 }, { opacity: 1, scale: 1, y: 0, duration: 0.45, ease: "back.out(2.2)" }, 2.5);
+    tl.to("#rp-copy", { opacity: 0, duration: 0.3, ease: "power2.in" }, 7.65);
+    window.__timelines["replay"] = tl;
+  </script>
+</template>
