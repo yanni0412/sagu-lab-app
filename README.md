@@ -4,6 +4,13 @@
 [Capacitor](https://capacitorjs.com/)로 감싼 Android 프로젝트입니다.
 웹 화면은 `www/index.html`에, 실제 Android Studio 프로젝트는 `android/`에 있습니다.
 
+### 분자 뷰어 (`www/chem.html`)
+
+상단 바의 **⚗ 분자 뷰어** 버튼으로 여는 별도 화면입니다. 화학식(`H2O`, `CuSO4·5H2O`),
+물질 이름(`카페인`), SMILES(`c1ccccc1`)를 입력하면 구조식(전체·축약·골격·공-막대)과
+몰 질량·원소별 질량 %·불포화도를 보여 줍니다. 외부 라이브러리 없이 동작하며,
+파싱·배치 로직은 `www/chem-core.js`에 있습니다.
+
 ---
 
 ## 0. 전체 흐름 한눈에 보기

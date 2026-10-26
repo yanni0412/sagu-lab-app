@@ -66,6 +66,7 @@ button,select,input[type=text]{font-family:inherit;font-size:13px;color:inherit}
   padding:8px 14px;border-radius:var(--r);cursor:pointer;font-weight:600;
   transition:background .15s,border-color .15s,transform .06s;
 }
+a.btn{text-decoration:none;display:inline-block}
 .btn:hover{background:var(--accent-soft);border-color:var(--accent)}
 .btn:active{transform:translateY(1px)}
 .btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
@@ -312,6 +313,7 @@ table.data td.n{font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabul
   <div class="tb-actions">
     <button class="btn" id="btnSound" title="소리 켜기/끄기" aria-pressed="true">🔊 소리</button>
     <button class="btn" id="btnTheme" title="테마 전환">◐ 테마</button>
+    <a class="btn" href="chem.html" title="화학식·분자 구조 보기">⚗ 분자 뷰어</a>
     <button class="btn" id="btnRestore">원위치</button>
     <button class="btn primary" id="btnShoot">샷 &nbsp;<span class="mono" style="opacity:.75">Space</span></button>
   </div>

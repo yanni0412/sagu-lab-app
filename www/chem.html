@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>분자 뷰어</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Gothic+A1:wght@500;700;900&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+KR:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#e8ece9; --surface:#ffffff; --surface-2:#f2f5f3; --line:#ccd5d1;
+  --ink:#0f1e1a; --ink-2:#3d514b; --ink-3:#71857e;
+  --accent:#0b6b52; --accent-ink:#ffffff; --accent-soft:#d6ece4;
+  --good:#1f7a4d; --warn:#b07310; --bad:#bd3a2e;
+  --shadow:0 1px 2px rgba(15,30,26,.07),0 8px 24px rgba(15,30,26,.07);
+  --r:10px;
+  --el-N:#2747d6; --el-O:#d0281e; --el-S:#a68a00; --el-P:#d26a00; --el-hal:#1f8a2a; --el-metal:#7a46c2;
+  --stick:#8a9692;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0b100e; --surface:#141b18; --surface-2:#1b2420; --line:#2a3833;
+    --ink:#e6ede9; --ink-2:#a9bdb5; --ink-3:#7a8f88;
+    --accent:#4bc79c; --accent-ink:#07231a; --accent-soft:#123329;
+    --good:#4bc79c; --warn:#e0a844; --bad:#ef7d6f;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px rgba(0,0,0,.35);
+    --el-N:#7f97ff; --el-O:#ff7a6e; --el-S:#e8cc4a; --el-P:#ffa04a; --el-hal:#6fd27a; --el-metal:#b58cf0;
+    --stick:#6d7a76;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0b100e; --surface:#141b18; --surface-2:#1b2420; --line:#2a3833;
+  --ink:#e6ede9; --ink-2:#a9bdb5; --ink-3:#7a8f88;
+  --accent:#4bc79c; --accent-ink:#07231a; --accent-soft:#123329;
+  --good:#4bc79c; --warn:#e0a844; --bad:#ef7d6f;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px rgba(0,0,0,.35);
+  --el-N:#7f97ff; --el-O:#ff7a6e; --el-S:#e8cc4a; --el-P:#ffa04a; --el-hal:#6fd27a; --el-metal:#b58cf0;
+  --stick:#6d7a76;
+}
+
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{
+  margin:0; background:var(--bg); color:var(--ink);
+  font-family:"IBM Plex Sans KR",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:14px; line-height:1.6; -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3{font-family:"Gothic A1",sans-serif; text-wrap:balance; margin:0}
+.mono{font-family:"IBM Plex Mono",ui-monospace,monospace; font-variant-numeric:tabular-nums}
+
+.topbar{
+  display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;
+  padding:14px 16px; border-bottom:1px solid var(--line); background:var(--surface);
+  position:sticky; top:0; z-index:20; padding-top:max(14px, env(safe-area-inset-top));
+}
+.brand{display:flex; align-items:center; gap:12px}
+.mark{
+  width:38px;height:38px;border-radius:50%;flex:none;position:relative;
+  background:radial-gradient(circle at 32% 30%, #fff 0%, #ffb3ab 30%, #d0281e 100%);
+  box-shadow:inset 0 0 0 1px rgba(0,0,0,.12), 0 2px 6px rgba(0,0,0,.25);
+}
+.mark::before,.mark::after{
+  content:"";position:absolute;width:15px;height:15px;border-radius:50%;
+  background:radial-gradient(circle at 32% 30%, #fff 0%, #e8ecea 60%, #b9c1be 100%);
+  box-shadow:inset 0 0 0 1px rgba(0,0,0,.15);
+}
+.mark::before{left:-5px;bottom:-2px}
+.mark::after{right:-5px;bottom:-2px}
+.brand h1{font-size:19px;font-weight:900;letter-spacing:-.01em}
+.brand p{margin:0;font-size:11.5px;color:var(--ink-3);letter-spacing:.02em}
+.tb-actions{display:flex;gap:8px;align-items:center}
+
+button,input{font-family:inherit;font-size:13px;color:inherit}
+.btn{
+  border:1px solid var(--line); background:var(--surface-2); color:var(--ink);
+  padding:8px 14px;border-radius:var(--r);cursor:pointer;font-weight:600;text-decoration:none;
+  display:inline-flex;align-items:center;gap:6px;
+  transition:background .15s,border-color .15s,transform .06s;
+}
+.btn:hover{background:var(--accent-soft);border-color:var(--accent)}
+.btn:active{transform:translateY(1px)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.primary:hover{filter:brightness(1.07)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.wrap{max-width:1180px;margin:0 auto;padding:16px 16px 48px;display:flex;flex-direction:column;gap:14px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:14px;min-width:0}
+.card h2{font-size:13px;font-weight:700;letter-spacing:.04em;color:var(--ink-3);margin-bottom:10px}
+
+/* 입력 */
+.inrow{display:flex;gap:8px}
+.inrow input{
+  flex:1;min-width:0;padding:11px 13px;border-radius:var(--r);border:1px solid var(--line);
+  background:var(--surface-2);font-size:17px;font-family:"IBM Plex Mono",ui-monospace,monospace;
+}
+.inrow input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.opts{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;margin-top:10px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:9px;overflow:hidden;background:var(--surface-2)}
+.seg button{border:0;background:none;padding:6px 11px;cursor:pointer;font-weight:600;font-size:12.5px;color:var(--ink-2)}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+.lbl{font-size:12px;color:var(--ink-3);font-weight:600}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.chip{
+  border:1px solid var(--line);background:var(--surface-2);border-radius:999px;padding:4px 11px;
+  cursor:pointer;font-size:12.5px;color:var(--ink-2);
+}
+.chip:hover{border-color:var(--accent);color:var(--ink)}
+.chip[aria-pressed="true"]{background:var(--accent-soft);border-color:var(--accent);color:var(--ink);font-weight:600}
+details.help{margin-top:10px;font-size:13px;color:var(--ink-2)}
+details.help summary{cursor:pointer;font-weight:600;color:var(--ink-3)}
+details.help ul{margin:6px 0 0;padding-left:18px}
+details.help code{font-family:"IBM Plex Mono",monospace;background:var(--surface-2);padding:1px 5px;border-radius:5px;border:1px solid var(--line)}
+
+.msg{padding:10px 12px;border-radius:var(--r);font-size:13.5px;margin-top:10px}
+.msg.err{background:color-mix(in srgb,var(--bad) 12%,transparent);color:var(--bad);border:1px solid color-mix(in srgb,var(--bad) 35%,transparent)}
+.msg.warn{background:color-mix(in srgb,var(--warn) 12%,transparent);color:var(--warn);border:1px solid color-mix(in srgb,var(--warn) 35%,transparent)}
+.msg.info{background:var(--surface-2);color:var(--ink-2);border:1px solid var(--line)}
+.linkbtn{background:none;border:0;padding:0;color:var(--accent);font-weight:600;cursor:pointer;text-decoration:underline;text-underline-offset:2px}
+
+/* 결과 */
+.grid{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:14px;align-items:start}
+@media (max-width:860px){.grid{grid-template-columns:minmax(0,1fr)}}
+.molhead{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap}
+.molname{font-family:"Gothic A1",sans-serif;font-size:21px;font-weight:900;line-height:1.25}
+.molname small{font-family:"IBM Plex Sans KR",sans-serif;font-size:13px;font-weight:500;color:var(--ink-3);margin-left:6px}
+.moldesc{color:var(--ink-2);font-size:13.5px;margin-top:4px}
+.stage{
+  margin-top:12px;border:1px solid var(--line);border-radius:12px;background:var(--surface);
+  min-height:220px;display:flex;align-items:center;justify-content:center;padding:10px;overflow:hidden;
+}
+.stage svg{max-width:100%;height:auto;max-height:440px;display:block}
+.stage .empty{color:var(--ink-3);font-size:13.5px;text-align:center;max-width:420px;padding:20px 8px}
+.smiles{margin-top:8px;font-size:12px;color:var(--ink-3);word-break:break-all}
+.legend{display:flex;flex-wrap:wrap;gap:10px;margin-top:8px;font-size:12px;color:var(--ink-2)}
+.legend span{display:inline-flex;align-items:center;gap:5px}
+.legend i{width:12px;height:12px;border-radius:50%;display:inline-block;box-shadow:inset 0 0 0 1px rgba(0,0,0,.25)}
+
+.bigs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.big{background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.big .k{font-size:11.5px;color:var(--ink-3);font-weight:600}
+.big .v{font-size:20px;font-weight:600;line-height:1.3;margin-top:2px}
+.big .v small{font-size:12px;color:var(--ink-3);font-weight:500}
+.big .note{font-size:11.5px;color:var(--ink-3);margin-top:2px}
+.fml sub{font-size:.7em}
+.fml sup{font-size:.68em}
+
+.bar{display:flex;height:22px;border-radius:7px;overflow:hidden;margin:14px 0 6px;border:1px solid var(--line)}
+.bar div{height:100%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;min-width:2px}
+.bar div+div{border-left:1px solid var(--surface)}
+table.comp{width:100%;border-collapse:collapse;font-size:13px;margin-top:8px}
+table.comp th{font-size:11.5px;color:var(--ink-3);font-weight:600;text-align:right;padding:5px 6px;border-bottom:1px solid var(--line)}
+table.comp td{padding:6px;border-bottom:1px solid var(--line);text-align:right}
+table.comp th:first-child,table.comp td:first-child{text-align:left}
+table.comp td.el{white-space:nowrap}
+table.comp td.el>span{display:inline-flex;align-items:center;gap:7px}
+table.comp td.el i{width:11px;height:11px;border-radius:50%;flex:none;box-shadow:inset 0 0 0 1px rgba(0,0,0,.25)}
+table.comp td.el b{font-family:"IBM Plex Mono",monospace;font-weight:600}
+table.comp td.el span span{color:var(--ink-3);font-size:12px}
+table.comp tfoot td{font-weight:600;border-bottom:0}
+.segs{font-size:12.5px;color:var(--ink-2);margin-top:8px}
+
+/* SVG 구조식 */
+.bnd{stroke:var(--ink);stroke-width:1.7;stroke-linecap:round;fill:none}
+.bnd.dash{stroke-dasharray:3 3}
+.alab{font-family:"IBM Plex Sans KR",sans-serif;font-weight:600;fill:var(--ink);paint-order:stroke;stroke:var(--surface);stroke-width:4px;stroke-linejoin:round}
+.alab.el-N{fill:var(--el-N)} .alab.el-O{fill:var(--el-O)} .alab.el-S{fill:var(--el-S)} .alab.el-P{fill:var(--el-P)}
+.alab.el-F,.alab.el-Cl,.alab.el-Br,.alab.el-I{fill:var(--el-hal)} .alab.metal{fill:var(--el-metal)}
+.stk{stroke:var(--stick);stroke-linecap:round}
+.ball{stroke:rgba(0,0,0,.28);stroke-width:.8}
+.btxt{font-family:"IBM Plex Sans KR",sans-serif;font-weight:600;pointer-events:none}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <div class="mark" aria-hidden="true"></div>
+    <div>
+      <h1>분자 뷰어</h1>
+      <p>화학식·이름·SMILES → 구조식과 조성</p>
+    </div>
+  </div>
+  <div class="tb-actions">
+    <button class="btn" id="btnTheme" title="테마 전환">◐ 테마</button>
+    <a class="btn" href="index.html">← 실험실</a>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="card">
+    <form class="inrow" id="form" autocomplete="off">
+      <input id="q" type="text" inputmode="text" spellcheck="false" autocapitalize="off"
+             placeholder="예: H2O, C6H12O6, 에탄올, c1ccccc1" aria-label="화학식, 이름 또는 SMILES">
+      <button class="btn primary" type="submit">보기</button>
+    </form>
+    <div class="opts">
+      <span class="lbl">입력 방식</span>
+      <div class="seg" id="modeSeg" role="group" aria-label="입력 방식">
+        <button type="button" data-mode="auto" aria-pressed="true">자동</button>
+        <button type="button" data-mode="formula" aria-pressed="false">화학식</button>
+        <button type="button" data-mode="smiles" aria-pressed="false">SMILES</button>
+      </div>
+    </div>
+    <div class="chips" id="examples"></div>
+    <details class="help">
+      <summary>어떻게 입력하나요?</summary>
+      <ul>
+        <li><b>화학식</b>: <code>H2O</code>, <code>Ca(OH)2</code>, <code>CuSO4·5H2O</code>(수화물), <code>SO4^2-</code>(이온). 원소 기호는 대소문자를 구분해요(<code>Co</code>는 코발트, <code>CO</code>는 일산화 탄소).</li>
+        <li><b>이름</b>: <code>물</code>, <code>카페인</code>, <code>aspirin</code> 처럼 내장 사전에 있는 이름.</li>
+        <li><b>SMILES</b>: 원자가 어떻게 이어졌는지 적는 방법. <code>CCO</code>=에탄올, <code>C=C</code>=이중 결합, <code>C#N</code>=삼중 결합, <code>C1CCCCC1</code>=고리(같은 숫자끼리 연결), <code>c1ccccc1</code>=벤젠(소문자는 방향족), 가지는 괄호 <code>CC(C)C</code>.</li>
+        <li>분자식(C₂H₆O 같은)은 원자 <i>개수</i>만 알려 줘서, 같은 분자식에 구조가 여러 개(이성질체)일 수 있어요. 사전에 있으면 후보를 모두 보여 줘요.</li>
+      </ul>
+    </details>
+    <div id="msgs"></div>
+  </section>
+
+  <div class="grid" id="results" hidden>
+    <section class="card">
+      <div class="molhead">
+        <div>
+          <div class="molname" id="molName"></div>
+          <div class="moldesc" id="molDesc"></div>
+        </div>
+        <div class="seg" id="styleSeg" role="group" aria-label="그림 방식">
+          <button type="button" data-style="all">전체</button>
+          <button type="button" data-style="condensed">축약</button>
+          <button type="button" data-style="skeletal">골격</button>
+          <button type="button" data-style="ball">공-막대</button>
+        </div>
+      </div>
+      <div class="chips" id="isomers"></div>
+      <div class="stage" id="stage"></div>
+      <div class="legend" id="legend"></div>
+      <div class="smiles mono" id="smiles"></div>
+    </section>
+
+    <section class="card">
+      <h2>조성</h2>
+      <div class="bigs" id="bigs"></div>
+      <div class="bar" id="bar" role="img"></div>
+      <table class="comp">
+        <thead><tr><th>원소</th><th>개수</th><th>원자량</th><th>질량</th><th>질량 %</th></tr></thead>
+        <tbody id="compBody"></tbody>
+        <tfoot id="compFoot"></tfoot>
+      </table>
+      <div class="segs" id="segs"></div>
+    </section>
+  </div>
+</main>
+
+<script src="chem-core.js"></script>
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const ESC = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+/* 원소 색 (공-막대 모형, 조성 막대) */
+const ELC = {
+  H: "#f2f2f2", C: "#4a4a4a", N: "#3355ee", O: "#e5332a", F: "#7ccf52", Cl: "#2fb52f", Br: "#a62929", I: "#8a1a9b",
+  S: "#e3c21a", P: "#ef7f1a", B: "#f0a0a0", Si: "#d9b98c", Na: "#9b5de5", K: "#8040c8", Li: "#c070ff", Mg: "#5fbf1a",
+  Ca: "#3a9f2a", Fe: "#d0662f", Cu: "#c37b3a", Zn: "#7d80b0", Al: "#a0a6b0", Ag: "#c0c0c0", Au: "#e0b020",
+};
+const elColor = el => ELC[el] || "#9aa0b4";
+const barColor = el => el === "H" ? "#cfd6d3" : elColor(el);
+const NONMETAL = new Set(["H", "He", "B", "C", "N", "O", "F", "Ne", "Si", "P", "S", "Cl", "Ar", "As", "Se", "Br", "Kr", "Te", "I", "Xe", "At", "Rn"]);
+function textOn(hex) {
+  const v = parseInt(hex.slice(1), 16), r = v >> 16 & 255, g = v >> 8 & 255, b = v & 255;
+  return (0.299 * r + 0.587 * g + 0.114 * b) / 255 > 0.6 ? "#1a1a1a" : "#ffffff";
+}
+function shade(hex, k) {
+  const v = parseInt(hex.slice(1), 16);
+  const f = c => Math.round(c * (1 - k)).toString(16).padStart(2, "0");
+  return "#" + f(v >> 16 & 255) + f(v >> 8 & 255) + f(v & 255);
+}
+
+/* 화학식 HTML: 원소·괄호 뒤 숫자는 아래 첨자, ·뒤 계수는 그대로, 전하는 위 첨자 */
+function formulaHTML(text) {
+  let out = "", m;
+  let body = text, charge = "";
+  if ((m = body.match(/\^?(\d*[+-]+)$/)) && (m[0][0] === "^" || !/\d/.test(m[1]))) {
+    charge = m[1].replace(/-/g, "−"); body = body.slice(0, m.index);
+  }
+  for (let i = 0; i < body.length; i++) {
+    const ch = body[i];
+    if (/\d/.test(ch)) {
+      let j = i; while (j < body.length && /\d/.test(body[j])) j++;
+      const d = body.slice(i, j), p = body[i - 1];
+      out += p && /[A-Za-z)\]}]/.test(p) ? `<sub>${d}</sub>` : d;
+      i = j - 1;
+    } else out += ESC(ch);
+  }
+  return out + (charge ? `<sup>${charge}</sup>` : "");
+}
+function hillHTML(counts, charge) {
+  return Chem.hillOrder(counts).map(([e, n]) => e + (n > 1 ? `<sub>${n}</sub>` : "")).join("") + chargeSup(charge);
+}
+function chargeStr(c) { return !c ? "" : (Math.abs(c) > 1 ? Math.abs(c) : "") + (c > 0 ? "+" : "−"); }
+function chargeSup(c) { return c ? `<sup>${chargeStr(c)}</sup>` : ""; }
+
+/* ---------- 입력 해석 ---------- */
+function tryF(q) { try { return Chem.parseFormula(q); } catch (e) { return { err: e }; } }
+function tryS(q) { try { return Chem.parseSmiles(q); } catch (e) { return { err: e }; } }
+
+function resolve(q, mode) {
+  q = q.trim();
+  if (!q) return { error: "화학식, 이름, SMILES 중 하나를 입력해 주세요." };
+  if (mode !== "smiles") {
+    const named = Chem.lookupName(q);
+    if (named) {
+      const others = Chem.lookupFormula(named.key).filter(e => e !== named);
+      return { kind: "dict", candidates: [named, ...others], pick: 0, via: "name" };
+    }
+  }
+  const f = mode === "smiles" ? null : tryF(q);
+  if (mode === "formula") {
+    if (f.err) return { error: f.err.message };
+    return formulaResult(q, f);
+  }
+  const s = mode === "formula" ? null : tryS(q);
+  if (mode === "smiles") {
+    if (s.err) return { error: s.err.message };
+    return { kind: "smiles", mol: s, smiles: q };
+  }
+  // 자동: 사전에 있는 화학식 → 화학식, 아니면 SMILES로 그릴 수 있으면 SMILES, 그래도 안 되면 화학식(조성만)
+  if (!f.err) {
+    const r = formulaResult(q, f);
+    if (r.candidates.length || s.err) return Object.assign(r, { alt: !s.err ? "smiles" : null });
+  }
+  if (!s.err) return { kind: "smiles", mol: s, smiles: q, alt: !f.err ? "formula" : null };
+  const msg = /[a-z=#\[\]@]/.test(q) && !/^[A-Z]/.test(q) ? s.err.message : f.err.message;
+  return { error: msg };
+}
+function formulaResult(q, f) {
+  const key = Chem.hillKey(f.counts, f.charge);
+  return { kind: "formula", formula: f, candidates: Chem.lookupFormula(key), pick: 0 };
+}
+
+/* ---------- 상태 ---------- */
+const state = { mode: "auto", style: null, res: null, pick: 0 };
+
+function run(q, mode) {
+  state.mode = mode || state.mode;
+  $("q").value = q;
+  syncSeg($("modeSeg"), "mode", state.mode);
+  state.res = resolve(q, state.mode);
+  state.pick = 0;
+  draw();
+}
+
+function draw() {
+  const r = state.res, msgs = $("msgs");
+  msgs.innerHTML = "";
+  if (!r || r.error) {
+    $("results").hidden = true;
+    if (r) msgs.innerHTML = `<div class="msg err">${ESC(r.error)}</div>`;
+    return;
+  }
+  $("results").hidden = false;
+
+  let entry = null, mol = null, smiles = null;
+  if (r.kind === "smiles") { mol = r.mol; smiles = r.smiles; entry = sameAsDict(smiles); }
+  else if (r.candidates.length) {
+    entry = r.candidates[Math.min(state.pick, r.candidates.length - 1)];
+    smiles = entry.smiles; mol = Chem.parseSmiles(smiles);
+  }
+
+  // 이성질체 칩
+  const iso = $("isomers");
+  iso.innerHTML = "";
+  if (r.candidates && r.candidates.length > 1) {
+    const lab = document.createElement("span");
+    lab.className = "lbl"; lab.style.alignSelf = "center";
+    lab.textContent = r.via === "name" ? "같은 분자식:" : `이 분자식의 구조 ${r.candidates.length}가지:`;
+    iso.appendChild(lab);
+    r.candidates.forEach((c, i) => {
+      const b = document.createElement("button");
+      b.type = "button"; b.className = "chip"; b.textContent = c.ko;
+      b.setAttribute("aria-pressed", String(i === state.pick));
+      b.onclick = () => { state.pick = i; draw(); };
+      iso.appendChild(b);
+    });
+  }
+
+  // 이름·설명
+  if (entry) {
+    $("molName").innerHTML = `${ESC(entry.ko)}<small>${ESC(entry.en)}</small>`;
+    $("molDesc").textContent = entry.desc;
+  } else if (r.kind === "smiles") {
+    $("molName").innerHTML = `SMILES로 그린 분자`;
+    $("molDesc").textContent = "내장 사전에 없는 분자예요. 원자 연결은 입력한 SMILES 그대로예요.";
+  } else {
+    $("molName").innerHTML = `<span class="fml">${formulaHTML(r.formula.text)}</span>`;
+    $("molDesc").textContent = "";
+  }
+
+  // 메시지
+  const notes = [];
+  if (mol && mol.warnings.length) mol.warnings.forEach(w => notes.push(`<div class="msg warn">${ESC(w)}</div>`));
+  if (r.alt === "smiles") notes.push(`<div class="msg info">화학식으로 읽었어요. <button class="linkbtn" data-alt="smiles">SMILES로 읽기</button></div>`);
+  if (r.alt === "formula") notes.push(`<div class="msg info">SMILES(원자 연결)로 읽었어요. <button class="linkbtn" data-alt="formula">화학식으로 읽기</button></div>`);
+  msgs.innerHTML = notes.join("");
+  msgs.querySelectorAll("[data-alt]").forEach(b => b.onclick = () => run($("q").value, b.dataset.alt));
+
+  // 구조
+  const stage = $("stage");
+  if (mol) {
+    const heavy = mol.atoms.filter(a => a.el !== "H").length;
+    const style = state.style || (heavy <= 6 ? "all" : "skeletal");
+    syncSeg($("styleSeg"), "style", style);
+    $("styleSeg").hidden = false;
+    stage.innerHTML = renderMol(mol, style, entry ? entry.ko : "분자 구조");
+    $("smiles").textContent = "SMILES  " + smiles;
+    drawLegend(mol, style);
+  } else {
+    $("styleSeg").hidden = true;
+    const f = r.formula;
+    const hyd = f.segs.length > 1;
+    stage.innerHTML = `<div class="empty">${hyd
+      ? "수화물·혼합물은 조성만 계산해요."
+      : `분자식 <b class="fml">${formulaHTML(f.text)}</b>은 원자의 <b>개수</b>만 알려 줘요.<br>원자가 어떻게 이어졌는지는 알 수 없어서, 내장 사전에 없는 물질은 구조를 그릴 수 없어요.<br><br>SMILES로 입력하면 그려 드려요. 예: <code class="mono">CCO</code>`}</div>`;
+    $("smiles").textContent = "";
+    $("legend").innerHTML = "";
+  }
+
+  // 조성
+  let counts, charge, segs = null;
+  if (mol) ({ counts, charge } = Chem.molCounts(mol));
+  else { counts = r.formula.counts; charge = r.formula.charge; segs = r.formula.segs; }
+  drawComposition(counts, charge, segs);
+}
+
+function sameAsDict(smiles) {
+  return Chem.DICT.find(e => e.smiles === smiles) || null;
+}
+
+function syncSeg(seg, attr, val) {
+  seg.querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset[attr] === val)));
+}
+
+function drawComposition(counts, charge, segs) {
+  const c = Chem.composition(counts);
+  const dbe = Chem.unsaturation(counts, charge);
+  const big = (k, v, note) => `<div class="big"><div class="k">${k}</div><div class="v">${v}</div>${note ? `<div class="note">${note}</div>` : ""}</div>`;
+  $("bigs").innerHTML =
+    big("몰 질량", `<span class="mono">${c.mass.toFixed(3)}</span> <small>g/mol</small>`, "1몰(6.02×10²³개)의 무게") +
+    big("분자식 (힐 순서)", `<span class="fml mono">${hillHTML(counts, charge)}</span>`, charge ? `전하 ${chargeStr(charge)}` : "") +
+    big("원자 수", `<span class="mono">${c.atoms}</span> <small>개</small>`, `원소 ${c.rows.length}종류`) +
+    (dbe != null ? big("불포화도", `<span class="mono">${dbe}</span>`, "고리 수 + 이중 결합 수 (삼중은 2)") : "");
+  $("bar").innerHTML = c.rows.map(r => {
+    const col = barColor(r.el);
+    return `<div style="width:${r.pct}%;background:${col};color:${textOn(col)}" title="${r.el} ${r.pct.toFixed(1)}%">${r.pct >= 9 ? r.el : ""}</div>`;
+  }).join("");
+  $("bar").setAttribute("aria-label", "질량 비율: " + c.rows.map(r => `${r.ko} ${r.pct.toFixed(1)}%`).join(", "));
+  $("compBody").innerHTML = c.rows.map(r =>
+    `<tr><td class="el"><span><i style="background:${barColor(r.el)}"></i><b>${r.el}</b><span>${r.ko}</span></span></td>` +
+    `<td class="mono">${r.n}</td><td class="mono">${r.am}</td><td class="mono">${r.mass.toFixed(3)}</td><td class="mono">${r.pct.toFixed(2)}</td></tr>`).join("");
+  $("compFoot").innerHTML = `<tr><td>합계</td><td class="mono">${c.atoms}</td><td></td><td class="mono">${c.mass.toFixed(3)}</td><td class="mono">100</td></tr>`;
+  $("segs").innerHTML = segs && segs.length > 1
+    ? "구성: " + segs.map(s => `<span class="fml mono">${formulaHTML(s.text)}</span>`).join(" + ")
+    : "";
+}
+
+function drawLegend(mol, style) {
+  if (style !== "ball") { $("legend").innerHTML = ""; return; }
+  const els = [...new Set(Chem.expandH(mol).atoms.map(a => a.el))];
+  $("legend").innerHTML = els.map(e => `<span><i style="background:${elColor(e)}"></i>${e} ${ESC(Chem.ELEMENTS[e].ko)}</span>`).join("");
+}
+
+/* ---------- SVG 그리기 ---------- */
+const layoutCache = new Map();
+function laidOut(mol, explicitH) {
+  const key = JSON.stringify([mol.atoms.map(a => [a.el, a.charge, a.h]), mol.bonds.map(b => [b.a, b.b, b.order]), explicitH]);
+  if (layoutCache.has(key)) return layoutCache.get(key);
+  const m = explicitH ? Chem.expandH(mol) : {
+    atoms: mol.atoms.map(a => Object.assign({}, a)), bonds: mol.bonds.map(b => Object.assign({}, b)), warnings: mol.warnings,
+  };
+  Chem.layout(m);
+  if (layoutCache.size > 40) layoutCache.clear();
+  layoutCache.set(key, m);
+  return m;
+}
+
+function renderMol(mol0, style, title) {
+  const explicitH = style === "all" || style === "ball";
+  const mol = laidOut(mol0, explicitH);
+  const n = mol.atoms.length;
+  const L = n <= 4 ? 64 : n <= 12 ? 52 : n <= 30 ? 44 : 38;
+  const fs = Math.round(L * 0.4);
+  const adj = Chem.adjacency(mol);
+  const P = mol.atoms.map(a => [a.x * L, -a.y * L]);
+
+  // 라벨 결정
+  const labels = mol.atoms.map((a, i) => {
+    let show;
+    if (style === "ball") show = false;
+    else if (style === "skeletal") show = a.el !== "C" || a.deg === 0 || a.charge || a.iso;
+    else show = true;
+    if (!show) return null;
+    const hc = style === "all" ? 0 : a.h;
+    let sx = 0;
+    adj[i].forEach(j => { sx += P[j][0] - P[i][0]; });
+    const left = adj[i].length ? sx > L * 0.15 : ["O", "S", "Se", "F", "Cl", "Br", "I"].includes(a.el);
+    const w = a.el.length === 2 ? fs * 1.05 : fs * 0.68;
+    return { el: a.el, h: hc, left, w, charge: a.charge, iso: a.iso };
+  });
+
+  // 결합선 끝을 라벨 상자 밖으로
+  function trim(i, ux, uy) {
+    const lb = labels[i];
+    if (!lb) return 0;
+    const hw = lb.w / 2 + 2.5, hh = fs * 0.52 + 1;
+    return Math.min(Math.abs(ux) > 1e-6 ? hw / Math.abs(ux) : 1e9, Math.abs(uy) > 1e-6 ? hh / Math.abs(uy) : 1e9);
+  }
+  const ringOfBond = b => {
+    let best = null;
+    for (const r of mol.rings) if (r.includes(b.a) && r.includes(b.b) && (!best || r.length < best.length)) best = r;
+    return best;
+  };
+  const centroid = r => {
+    let x = 0, y = 0; r.forEach(i => { x += P[i][0]; y += P[i][1]; });
+    return [x / r.length, y / r.length];
+  };
+
+  const out = [];
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  P.forEach(([x, y]) => { minX = Math.min(minX, x); maxX = Math.max(maxX, x); minY = Math.min(minY, y); maxY = Math.max(maxY, y); });
+
+  const line = (x1, y1, x2, y2, cls, extra) =>
+    `<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" class="${cls}"${extra || ""}/>`;
+
+  if (style === "ball") {
+    const defs = new Set(mol.atoms.map(a => a.el));
+    out.push("<defs>" + [...defs].map(el => {
+      const c = elColor(el);
+      return `<radialGradient id="g-${el}" cx=".38" cy=".32" r=".75"><stop offset="0" stop-color="#ffffff" stop-opacity=".95"/><stop offset=".28" stop-color="${c}"/><stop offset="1" stop-color="${shade(c, .45)}"/></radialGradient>`;
+    }).join("") + "</defs>");
+    const sw = L * 0.13;
+    mol.bonds.forEach(b => {
+      const [x1, y1] = P[b.a], [x2, y2] = P[b.b];
+      const dx = x2 - x1, dy = y2 - y1, len = Math.hypot(dx, dy) || 1, nx = -dy / len, ny = dx / len;
+      const k = b.arom ? 2 : Math.round(b.order);
+      if (k === 1) out.push(line(x1, y1, x2, y2, "stk", ` stroke-width="${sw}"`));
+      else {
+        const gap = L * (k === 2 ? 0.1 : 0.14), w = sw * 0.62;
+        for (let t = 0; t < k; t++) {
+          const o = (t - (k - 1) / 2) * gap * (k === 2 ? 2 : 1);
+          out.push(line(x1 + nx * o, y1 + ny * o, x2 + nx * o, y2 + ny * o, "stk" + (b.arom && t ? " dash" : ""), ` stroke-width="${w}"`));
+        }
+      }
+    });
+    mol.atoms.forEach((a, i) => {
+      const ion = !NONMETAL.has(a.el);
+      const r = L * (a.el === "H" ? 0.22 : ion ? 0.4 : 0.31);
+      const c = elColor(a.el);
+      out.push(`<circle cx="${P[i][0].toFixed(1)}" cy="${P[i][1].toFixed(1)}" r="${r.toFixed(1)}" fill="url(#g-${a.el})" class="ball"/>`);
+      const t = a.el + (a.charge ? chargeStr(a.charge) : "");
+      out.push(`<text x="${P[i][0].toFixed(1)}" y="${P[i][1].toFixed(1)}" class="btxt" font-size="${(r * (t.length > 2 ? 0.62 : 0.8)).toFixed(1)}" text-anchor="middle" dominant-baseline="central" fill="${textOn(c)}">${ESC(t)}</text>`);
+      minX = Math.min(minX, P[i][0] - r); maxX = Math.max(maxX, P[i][0] + r);
+      minY = Math.min(minY, P[i][1] - r); maxY = Math.max(maxY, P[i][1] + r);
+    });
+  } else {
+    const off = L * 0.17;
+    mol.bonds.forEach(b => {
+      const [x1, y1] = P[b.a], [x2, y2] = P[b.b];
+      const dx = x2 - x1, dy = y2 - y1, len = Math.hypot(dx, dy) || 1, ux = dx / len, uy = dy / len;
+      const nx = -uy, ny = ux;
+      const ta = trim(b.a, ux, uy), tb = trim(b.b, ux, uy);
+      const ax = x1 + ux * ta, ay = y1 + uy * ta, bx = x2 - ux * tb, by = y2 - uy * tb;
+      const order = b.arom ? 1.5 : b.order;
+      if (order === 1) { out.push(line(ax, ay, bx, by, "bnd")); return; }
+      if (order >= 3) {
+        const g = L * 0.13;
+        for (const o of [-g, 0, g]) out.push(line(ax + nx * o, ay + ny * o, bx + nx * o, by + ny * o, "bnd"));
+        return;
+      }
+      // 이중(또는 방향족) 결합: 고리 안이면 안쪽으로, 아니면 치환기가 많은 쪽 또는 가운데
+      const ring = ringOfBond(b);
+      let side = 0;
+      if (ring) {
+        const [cx, cy] = centroid(ring);
+        side = Math.sign((cx - x1) * nx + (cy - y1) * ny) || 1;
+      } else if (adj[b.a].length > 1 && adj[b.b].length > 1) {
+        let s = 0;
+        [[b.a, b.b], [b.b, b.a]].forEach(([u, v]) => adj[u].forEach(w => {
+          if (w !== v) s += (P[w][0] - P[u][0]) * nx + (P[w][1] - P[u][1]) * ny;
+        }));
+        side = Math.sign(s);
+      }
+      const dashCls = b.arom ? "bnd dash" : "bnd";
+      if (side === 0) {
+        const h = off / 2;
+        out.push(line(ax + nx * h, ay + ny * h, bx + nx * h, by + ny * h, "bnd"));
+        out.push(line(ax - nx * h, ay - ny * h, bx - nx * h, by - ny * h, dashCls));
+      } else {
+        out.push(line(ax, ay, bx, by, "bnd"));
+        const sh = L * 0.13;
+        const ia = Math.max(ta, sh), ib = Math.max(tb, sh);
+        const o = off * side;
+        out.push(line(x1 + ux * ia + nx * o, y1 + uy * ia + ny * o, x2 - ux * ib + nx * o, y2 - uy * ib + ny * o, dashCls));
+      }
+    });
+    // 원자 라벨
+    labels.forEach((lb, i) => {
+      if (!lb) return;
+      const [x, y] = P[i];
+      const metal = !NONMETAL.has(lb.el);
+      const cls = `alab el-${lb.el}${metal ? " metal" : ""}`;
+      const iso = lb.iso ? `<tspan font-size="${fs * 0.62}" dy="${-fs * 0.35}">${lb.iso}</tspan><tspan dy="${fs * 0.35}">` : "";
+      out.push(`<text x="${x.toFixed(1)}" y="${y.toFixed(1)}" class="${cls}" font-size="${fs}" text-anchor="middle" dominant-baseline="central">${iso}${lb.el}${lb.iso ? "</tspan>" : ""}</text>`);
+      let right = x + lb.w / 2, leftEdge = x - lb.w / 2;
+      if (lb.h) {
+        const sub = lb.h > 1 ? `<tspan font-size="${fs * 0.7}" dy="${fs * 0.3}">${lb.h}</tspan>` : "";
+        const hw = fs * 0.72 + (lb.h > 1 ? fs * 0.45 : 0);
+        if (lb.left) {
+          out.push(`<text x="${(leftEdge - 0.5).toFixed(1)}" y="${y.toFixed(1)}" class="${cls}" font-size="${fs}" text-anchor="end" dominant-baseline="central">H${sub}</text>`);
+          leftEdge -= hw;
+        } else {
+          out.push(`<text x="${(right + 0.5).toFixed(1)}" y="${y.toFixed(1)}" class="${cls}" font-size="${fs}" text-anchor="start" dominant-baseline="central">H${sub}</text>`);
+          right += hw;
+        }
+      }
+      if (lb.charge) {
+        out.push(`<text x="${(right + 1).toFixed(1)}" y="${(y - fs * 0.45).toFixed(1)}" class="${cls}" font-size="${fs * 0.68}" text-anchor="start" dominant-baseline="central">${chargeStr(lb.charge)}</text>`);
+        right += fs * 0.68 * chargeStr(lb.charge).length * 0.7;
+      }
+      minX = Math.min(minX, leftEdge); maxX = Math.max(maxX, right);
+      minY = Math.min(minY, y - fs * 0.6); maxY = Math.max(maxY, y + fs * 0.75);
+    });
+  }
+
+  const pad = L * 0.45;
+  const vx = minX - pad, vy = minY - pad, vw = maxX - minX + pad * 2, vh = maxY - minY + pad * 2;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${vx.toFixed(1)} ${vy.toFixed(1)} ${vw.toFixed(1)} ${vh.toFixed(1)}" width="${Math.round(vw)}" height="${Math.round(vh)}" role="img" aria-label="${ESC(title)}의 구조">${out.join("")}</svg>`;
+}
+
+/* ---------- 이벤트 ---------- */
+const EXAMPLES = [
+  ["물", "H2O"], ["이산화 탄소", "CO2"], ["C₂H₆O (이성질체)", "C2H6O"], ["포도당", "C6H12O6"], ["벤젠", "c1ccccc1"],
+  ["카페인", "카페인"], ["아스피린", "아스피린"], ["식초", "CH3COOH"], ["소금", "NaCl"], ["황산구리 수화물", "CuSO4·5H2O"],
+];
+$("examples").innerHTML = EXAMPLES.map(([t, q]) => `<button type="button" class="chip" data-q="${ESC(q)}">${ESC(t)}</button>`).join("");
+$("examples").addEventListener("click", e => {
+  const b = e.target.closest("[data-q]");
+  if (b) run(b.dataset.q, "auto");
+});
+$("form").addEventListener("submit", e => { e.preventDefault(); run($("q").value); });
+$("modeSeg").addEventListener("click", e => {
+  const b = e.target.closest("[data-mode]");
+  if (b) run($("q").value, b.dataset.mode);
+});
+$("styleSeg").addEventListener("click", e => {
+  const b = e.target.closest("[data-style]");
+  if (!b) return;
+  state.style = b.dataset.style;
+  draw();
+});
+$("btnTheme").addEventListener("click", () => {
+  const cur = document.documentElement.getAttribute("data-theme");
+  const dark = cur ? cur === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+  document.documentElement.setAttribute("data-theme", dark ? "light" : "dark");
+  try { localStorage.setItem("sagu-theme", dark ? "light" : "dark"); } catch (_) {}
+});
+try { const th = localStorage.getItem("sagu-theme"); if (th) document.documentElement.setAttribute("data-theme", th); } catch (_) {}
+
+run("C6H12O6", "auto");
+</script>
+</body>
+</html>
