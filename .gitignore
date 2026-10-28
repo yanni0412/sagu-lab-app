@@ -12,3 +12,6 @@ android/keystore.properties
 *.aab
 *.jks
 .DS_Store
+
+# Playwright MCP output
+.playwright-mcp/
