@@ -12,6 +12,7 @@
   html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);overflow:hidden;font-family:var(--serif)}
   #stage{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#000}
   canvas{display:block;width:100vw;height:56.25vw;max-height:100vh;max-width:177.78vh;background:#000}
+  body.portrait canvas{width:56.25vh;height:100vh;max-width:100vw;max-height:177.78vw}
   #overlay{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;
     background:radial-gradient(ellipse at 50% 55%,rgba(20,16,30,.55),rgba(0,0,0,.88) 70%);cursor:pointer;
     transition:opacity .9s ease;text-align:center;padding:16px;box-sizing:border-box;user-select:none}
@@ -45,8 +46,11 @@
 "use strict";
 // ================= CORE: math, color, noise, drawing helpers =================
 const W = 1280, H = 720, DUR = 80;
+const PT = H > W, V = (l, p) => PT ? p : l;   // landscape / portrait (9:16) layouts
 const TAU = Math.PI * 2;
 const cv = document.getElementById('cv');
+cv.width = W; cv.height = H;
+document.body.classList.toggle('portrait', PT);
 const ctx = cv.getContext('2d');
 const INK = '#1b1220';
 
@@ -160,8 +164,9 @@ function camera(c, cx, cy, z) { c.translate(W / 2, H / 2); c.scale(z, z); c.tran
 // ---- offscreen buffers ----
 function mk(w, h) { const o = document.createElement('canvas'); o.width = w; o.height = h; return o; }
 const rimBuf = mk(W, H), rimCtx = rimBuf.getContext('2d');
-const bloomBuf = mk(160, 90), bloomCtx = bloomBuf.getContext('2d');
-const bloomBuf2 = mk(320, 180), bloomCtx2 = bloomBuf2.getContext('2d');
+const bloomBuf = mk(W / 8 | 0, H / 8 | 0), bloomCtx = bloomBuf.getContext('2d');
+const bloomBuf2 = mk(W / 4 | 0, H / 4 | 0), bloomCtx2 = bloomBuf2.getContext('2d');
+const BW = bloomBuf.width, BH = bloomBuf.height, BW2 = bloomBuf2.width, BH2 = bloomBuf2.height;
 
 // draw something with a backlit rim (silhouette offset copies under the real drawing)
 function rimmed(c, drawFn, rimCol, amt, offs) {
@@ -198,7 +203,7 @@ const grains = [];
 })();
 const vignette = (function () {
   const v = mk(W, H), vc = v.getContext('2d');
-  const g = vc.createRadialGradient(W / 2, H / 2, H * .35, W / 2, H / 2, H * .95);
+  const g = vc.createRadialGradient(W / 2, H / 2, V(H * .35, W * .3), W / 2, H / 2, V(H * .95, Math.hypot(W, H) / 2));
   g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(.7, 'rgba(10,4,18,.28)'); g.addColorStop(1, 'rgba(6,2,10,.78)');
   vc.fillStyle = g; vc.fillRect(0, 0, W, H);
   return v;
@@ -211,12 +216,12 @@ function postFX(t, frame, opt) {
   const bs = opt.bloom ?? .5;
   if (bs > 0) {
     bloomCtx2.globalCompositeOperation = 'source-over';
-    bloomCtx2.drawImage(cv, 0, 0, 320, 180);
+    bloomCtx2.drawImage(cv, 0, 0, BW2, BH2);
     bloomCtx2.globalCompositeOperation = 'multiply';
     bloomCtx2.drawImage(bloomBuf2, 0, 0);
     bloomCtx2.drawImage(bloomBuf2, 0, 0);
     bloomCtx.globalCompositeOperation = 'source-over';
-    bloomCtx.drawImage(bloomBuf2, 0, 0, 160, 90);
+    bloomCtx.drawImage(bloomBuf2, 0, 0, BW, BH);
     c.save();
     c.globalCompositeOperation = 'lighter'; c.globalAlpha = bs * .55;
     c.drawImage(bloomBuf, 0, 0, W, H);
@@ -540,11 +545,11 @@ function drawRoom(c, t, o) {
   // ---- wall ----
   const wg = c.createLinearGradient(0, 0, 0, 515);
   wg.addColorStop(0, '#0f1322'); wg.addColorStop(1, '#1f2539');
-  c.fillStyle = wg; c.fillRect(-200, -100, 1700, 620);
+  c.fillStyle = wg; c.fillRect(-200, -700, 1700, 1220);
   c.fillStyle = 'rgba(40,48,72,.35)';
-  for (let x = -200; x < 1500; x += 46) c.fillRect(x, -100, 16, 615);
+  for (let x = -200; x < 1500; x += 46) c.fillRect(x, -700, 16, 1215);
   c.fillStyle = 'rgba(52,60,88,.35)';
-  for (let x = -177; x < 1500; x += 46) for (let y = 20; y < 500; y += 58) {
+  for (let x = -177; x < 1500; x += 46) for (let y = 20 - 58 * 11; y < 500; y += 58) {
     c.beginPath(); c.moveTo(x, y - 4); c.lineTo(x + 4, y); c.lineTo(x, y + 4); c.lineTo(x - 4, y); c.fill();
   }
   // water stain under the window
@@ -556,10 +561,10 @@ function drawRoom(c, t, o) {
   // ---- floor ----
   const fg = c.createLinearGradient(0, 520, 0, 760);
   fg.addColorStop(0, '#16151d'); fg.addColorStop(1, '#0c0b11');
-  c.fillStyle = fg; c.fillRect(-200, 520, 1700, 300);
+  c.fillStyle = fg; c.fillRect(-200, 520, 1700, 1000);
   c.strokeStyle = 'rgba(0,0,0,.45)'; c.lineWidth = 2;
   for (let i = -14; i <= 14; i++) {
-    c.beginPath(); c.moveTo(640 + i * 130 * .574, 521); c.lineTo(640 + i * 130 * 1.35, 800); c.stroke();
+    c.beginPath(); c.moveTo(640 + i * 130 * .574, 521); c.lineTo(640 + i * 130 * (.574 + .776 * (1500 - 521) / 279), 1500); c.stroke();
   }
   // ---- window: outside view ----
   c.save();
@@ -675,6 +680,23 @@ function drawRoom(c, t, o) {
   c.fillStyle = `rgba(140,170,220,${la * .55})`;
   c.beginPath(); c.moveTo(760, 120); c.lineTo(1060, 120); c.lineTo(830, 548); c.lineTo(600, 548); c.closePath(); c.fill();
   c.restore();
+  // puddle under the leaking pane, fed by drips from the sill
+  c.save();
+  ell(c, 890, 578, 120, 17); c.fillStyle = `rgba(70,90,130,${.28 + out * .15})`; c.fill();
+  c.clip();
+  c.fillStyle = `rgba(175,200,235,${.14 + out * .35 + fl * .45})`;
+  for (const [px, pw] of [[800, 54], [870, 54], [940, 54]]) c.fillRect(px, 568, pw, 7);
+  if (rainA > 0) for (let i = 0; i < 4; i++) {
+    const ph = (t * .9 + hash(i * 9)) % 1, x = 840 + hash(i * 3 + Math.floor(t * .9 + hash(i * 9))) * 100;
+    c.strokeStyle = `rgba(210,225,255,${(1 - ph) * .55 * rainA})`; c.lineWidth = 1.2;
+    ell(c, x, 580, 3 + ph * 34, 1 + ph * 5); c.stroke();
+  }
+  c.restore();
+  ell(c, 890, 578, 120, 17); c.strokeStyle = 'rgba(160,185,225,.25)'; c.lineWidth = 1.2; c.stroke();
+  if (rainA > 0) {
+    const ph = (t * 1.25) % 1;
+    c.fillStyle = `rgba(200,220,250,${.7 * rainA})`; ell(c, 884, 440 + ph * ph * 132, 1.6, 2.6); c.fill();
+  }
   c.fillStyle = `rgba(10,10,20,${.5 - out * .2})`;
   c.beginPath(); c.moveTo(706, 548); c.lineTo(722, 548); c.lineTo(626, 712); c.lineTo(606, 712); c.fill();
   c.fillRect(470, 624, 340, 10);
@@ -920,7 +942,7 @@ function summitRock(c, cx, topY, w, pal, rimA) {
 // ================= SHOTS 1-5: the rainy room =================
 // single source of truth shared with the audio engine
 const CHIRPS = [11.0, 13.0, 16.5, 22.6, 28.0, 44.5, 52.2, 60.6, 64.2, 70.4, 74.5, 76.2, 77.0, 78.0];
-const STRIKES = [3.6, 18.3];
+const STRIKES = V([3.6, 18.3], [1.3, 18.3]);
 const WALK0 = 30.4;          // walk cycle origin: a foot lands every 0.5 s after this
 const beakOpen = t => CHIRPS.some(t0 => t - t0 >= 0 && t - t0 < .42 && (Math.floor((t - t0) * 9) % 2 === 0));
 const walkPh = t => (t - WALK0) * TAU;
@@ -947,24 +969,24 @@ function robotRoom(tq) {
 }
 
 function titleCard(c, t) {
-  const a = ss(2.4, 3.6, t) * (1 - ss(6.4, 7.6, t));
+  const a = V(ss(2.4, 3.6, t), ss(1.0, 2.0, t)) * (1 - ss(6.4, 7.6, t));
   if (a <= 0) return;
   c.save(); c.setTransform(1, 0, 0, 1, 0, 0);
   c.globalAlpha = a; c.textAlign = 'center'; c.textBaseline = 'middle';
   c.shadowColor = 'rgba(255,170,100,.55)'; c.shadowBlur = 22;
   c.fillStyle = '#f6e8cc';
-  c.font = '600 70px "Hiragino Mincho ProN","Yu Mincho","Noto Serif CJK JP","Noto Serif JP","Noto Serif KR",serif';
-  const s = 'ねむりの丘', sp = 84;
-  for (let i = 0; i < s.length; i++) c.fillText(s[i], W / 2 + (i - (s.length - 1) / 2) * sp, H * .4);
-  c.shadowBlur = 10; c.font = '500 22px "Noto Serif KR","Nanum Myeongjo",serif'; c.fillStyle = '#d8c8ae';
-  c.fillText('잠  드  는    언  덕', W / 2, H * .4 + 70);
+  c.font = V('600 70px', '600 104px') + ' "Hiragino Mincho ProN","Yu Mincho","Noto Serif CJK JP","Noto Serif JP","Noto Serif KR",serif';
+  const s = 'ねむりの丘', sp = V(84, 126), ty = V(H * .4, H * .155);
+  for (let i = 0; i < s.length; i++) c.fillText(s[i], W / 2 + (i - (s.length - 1) / 2) * sp, ty);
+  c.shadowBlur = 10; c.font = V('500 22px', '500 34px') + ' "Noto Serif KR","Nanum Myeongjo",serif'; c.fillStyle = '#d8c8ae';
+  c.fillText('잠  드  는    언  덕', W / 2, ty + V(70, 104));
   c.restore();
 }
 
 // ---- S1 (0-9): establishing, the abandoned robot ----
 function S1(c, t, tq) {
   const fl = flashAt(t);
-  c.save(); camera(c, 640, 380, lerp(1, 1.07, easeIO(clamp(t / 9))));
+  c.save(); camera(c, V(640, 750), V(380, 430), V(1, 1.69) * lerp(1, 1.07, easeIO(clamp(t / 9))));
   drawRoom(c, t, { flash: fl, outside: 0, rain: 1 });
   roomDust(c, t, .6);
   const R = robotRoom(tq); R.ambA = .42 - fl * .22;
@@ -972,13 +994,13 @@ function S1(c, t, tq) {
   c.restore();
   flashOverlay(c, fl);
   titleCard(c, t);
-  return { fade: 1 - ss(0, 2.6, t), bloom: .3 };
+  return { fade: 1 - ss(0, V(2.6, .8), t), bloom: .3 };
 }
 
 // ---- S2 (9-14): a wet little bird slips in through the broken pane ----
 function S2(c, t, tq) {
   const fl = flashAt(t);
-  c.save(); camera(c, 905, 300, 1.9);
+  c.save(); camera(c, 905, 300, V(1.9, 3.0));
   drawRoom(c, t, { flash: fl, outside: 0, rain: 1 });
   const B = { s: 1, face: -1, amb: '#16203a', ambA: .3, lx: 1.5, ly: -1.5, wet: 1 };
   const sill = { x: 905, y: 418 };
@@ -1011,7 +1033,7 @@ function S2(c, t, tq) {
 
 // ---- S3 (14-18): the bird finds the sleeping robot ----
 function S3(c, t, tq) {
-  c.save(); camera(c, 610, 545, 1.75);
+  c.save(); camera(c, V(610, 600), V(545, 560), V(1.75, 3.2));
   drawRoom(c, t, { flash: 0, outside: 0, rain: 1 });
   roomDust(c, t, .8);
   const R = robotRoom(tq);
@@ -1046,7 +1068,7 @@ function eyeWake(t) {
 }
 function S4(c, t, tq) {
   const fl = flashAt(t);
-  c.save(); camera(c, 560, 472, lerp(3.0, 3.15, lin(18, 24, t)));
+  c.save(); camera(c, 560, V(472, 490), V(1, 1.37) * lerp(3.0, 3.15, lin(18, 24, t)));
   drawRoom(c, t, { flash: fl, outside: 0, rain: 1 });
   roomDust(c, t, .8);
   const R = robotRoom(tq);
@@ -1076,7 +1098,7 @@ function S4(c, t, tq) {
 // ---- S5 (24-33.3): bird climbs aboard, the robot stands and walks into the light ----
 function S5(c, t, tq) {
   const out = ss(30, 33, t), rain = 1 - ss(29, 33, t);
-  c.save(); camera(c, 640, 500, 1.45);
+  c.save(); camera(c, V(640, 610), V(500, 470), V(1.45, 2.55));
   drawRoom(c, t, { flash: 0, outside: out, rain });
   roomDust(c, t, .8 + out);
   const R = robotRoom(tq);
@@ -1117,6 +1139,7 @@ function S5(c, t, tq) {
   return { bloom: .55 + out * .3, white: ss(32.4, 33.3, t) };
 }
 // ================= SHOTS 6-11: the climb, the summit, stone & flight =================
+// Each shot reads a layout object: first value = 16:9 landscape, second = 9:16 portrait (TikTok).
 const g6 = x => 620 - x * .30 + (fbm(N3, x * .004) - .5) * 60;
 const g7 = x => 700 - x * .36 + (fbm(N4, x * .003) - .5) * 40;
 const g8 = x => 640 - x * .42 + (fbm(N2, x * .005) - .5) * 50;
@@ -1133,10 +1156,10 @@ function shoulderBird(c, R, t, tq, extra) {
 }
 function residualRain(c, t, a) {
   if (a <= 0) return;
-  c.strokeStyle = `rgba(220,230,245,${.35 * a})`; c.lineWidth = 1.2; c.beginPath();
-  for (let i = 0; i < 90; i++) {
-    const y = (hash(i) * H + t * 900) % (H + 40) - 20, x = (hash(i + .3) * (W + 200) - y * .15) % (W + 100);
-    c.moveTo(x, y); c.lineTo(x - 3, y + 24);
+  c.strokeStyle = `rgba(220,230,245,${.35 * a})`; c.lineWidth = V(1.2, 1.6); c.beginPath();
+  for (let i = 0; i < V(90, 140); i++) {
+    const y = (hash(i) * H + t * V(900, 1500)) % (H + 40) - 20, x = (hash(i + .3) * (W + 200) - y * .15) % (W + 100);
+    c.moveTo(x, y); c.lineTo(x - 3, y + V(24, 34));
   }
   c.stroke();
 }
@@ -1146,23 +1169,26 @@ function drift(c, t, n, col, a) {
     const x = ((hash(i) * W - t * (30 + hash(i + 1) * 60)) % W + W) % W;
     const y = hash(i + 2) * H * .8 + Math.sin(t * .9 + i) * 18;
     c.fillStyle = rgb(P(col), a * (.35 + .35 * Math.sin(t * 2 + i)));
-    ell(c, x, y, 2.2, 1.2, t + i); c.fill();
+    ell(c, x, y, V(2.2, 3), V(1.2, 1.6), t + i); c.fill();
   }
   c.restore();
 }
+const sunScreen = (cam, z, x, y) => ({ x: W / 2 + (x - cam[0]) * z, y: H / 2 + (y - cam[1]) * z });
 
 // ---- S6 (33.3-43): wide, rain clearing on the long slope ----
+const L6 = V({ z: 1, dx: 150, dy: -90, hz: 470, sun: [1060, 150, 34], cl: [5, 140, 120], rb: [980, 640, 560], far: [470, 170], mid: [560, 130] },
+  { z: 1.5, dx: 73, dy: -193, hz: 1150, sun: [880, 330, 44], cl: [7, 250, 420], rb: [820, 1330, 760], far: [1120, 220], mid: [1250, 170] });
 function S6(c, t, tq) {
-  const pal = skyPal(lerp(.12, .4, lin(33.3, 43, t)));
-  const rx = 200 + (tq - 33.3) * 26, cx = rx + 150 + (t - 33.3) * 4, cy = g6(200 + (t - 33.3) * 26) - 90;
-  drawSky(c, pal, 470);
-  drawSun(c, 1060, 150, 34, pal, lerp(.3, 1, lin(35, 42, t)));
-  for (let i = 0; i < 5; i++) drawCloud(c, ((i * 330 - t * 6 - cx * .05) % 1700 + 1700) % 1700 - 250, 140 + hash(i) * 120, 300 + hash(i + 1) * 200, 60 + hash(i + 2) * 30, i * 5, pal.cLit, pal.cShade, -6, 10, .9);
-  drawRainbow(c, 980, 640, 560, ss(36, 40, t) * (1 - ss(41.5, 43, t) * .3));
+  const L = L6, pal = skyPal(lerp(.12, .4, lin(33.3, 43, t)));
+  const rx = 200 + (tq - 33.3) * 26, cx = rx + L.dx + (t - 33.3) * 4, cy = g6(200 + (t - 33.3) * 26) + L.dy;
+  drawSky(c, pal, L.hz);
+  drawSun(c, L.sun[0], L.sun[1], L.sun[2], pal, lerp(.3, 1, lin(35, 42, t)));
+  for (let i = 0; i < L.cl[0]; i++) drawCloud(c, ((i * 330 - t * 6 - cx * .05) % 1700 + 1700) % 1700 - 250, L.cl[1] + hash(i) * L.cl[2], 300 + hash(i + 1) * 200, 60 + hash(i + 2) * 30, i * 5, pal.cLit, pal.cShade, -6, 10, .9);
+  drawRainbow(c, L.rb[0], L.rb[1], L.rb[2], ss(36, 40, t) * (1 - ss(41.5, 43, t) * .3));
   const farC = mixA(pal.mid, pal.top, .45), midC = mixA(farC, [34, 48, 52], .4);
-  ridge(c, cx * .08, 470, 170, .0022, N1, rgb(farC));
-  ridge(c, cx * .25, 560, 130, .004, N2, rgb(midC));
-  c.save(); camera(c, cx, cy, 1);
+  ridge(c, cx * .08, L.far[0], L.far[1], .0022, N1, rgb(farC));
+  ridge(c, cx * .25, L.mid[0], L.mid[1], .004, N2, rgb(midC));
+  c.save(); camera(c, cx, cy, L.z);
   drawSlope(c, t, { pal, g: g6, x0: cx - 700, x1: cx + 700, sparkle: ss(35, 38, t) });
   const R = climbRobot(tq, rx, g6(rx) + 2, .55, pal);
   drawRobot(c, R);
@@ -1173,109 +1199,130 @@ function S6(c, t, tq) {
 }
 
 // ---- S7 (43-50): tracking close, golden light ----
+const L7 = V({ z: 1, dx: 80, dy: -240, hz: 520, sun: [1110, 120, 40], cl: [4, 200, 100], far: [520, 190], mid: [600, 150], fg: [9, 130] },
+  { z: 1.6, dx: 25, dy: -262, hz: 1150, sun: [860, 300, 50], cl: [6, 360, 340], far: [1150, 230], mid: [1300, 180], fg: [8, 220] });
 function S7(c, t, tq) {
-  const pal = skyPal(lerp(.42, .6, lin(43, 50, t)));
-  const rx = 3000 + (tq - 43) * 60, cxs = rx, cx = cxs + 80, cy = g7(cxs) - 240;
-  drawSky(c, pal, 520);
-  drawSun(c, 1110, 120, 40, pal);
-  godRays(c, 1110, 120, .9, t);
-  for (let i = 0; i < 4; i++) drawCloud(c, ((i * 420 - cx * .06) % 1700 + 1700) % 1700 - 300, 200 + hash(i + 7) * 100, 360, 70, i * 3 + 1, pal.cLit, pal.cShade, -6, 10, .85);
+  const L = L7, pal = skyPal(lerp(.42, .6, lin(43, 50, t)));
+  const rx = 3000 + (tq - 43) * 60, cx = rx + L.dx, cy = g7(rx) + L.dy;
+  drawSky(c, pal, L.hz);
+  drawSun(c, L.sun[0], L.sun[1], L.sun[2], pal);
+  godRays(c, L.sun[0], L.sun[1], .9, t);
+  for (let i = 0; i < L.cl[0]; i++) drawCloud(c, ((i * 420 - cx * .06) % 1700 + 1700) % 1700 - 300, L.cl[1] + hash(i + 7) * L.cl[2], 360, 70, i * 3 + 1, pal.cLit, pal.cShade, -6, 10, .85);
   const farC = mixA(pal.mid, pal.top, .4), midC = mixA(farC, [50, 40, 60], .4);
-  ridge(c, cx * .1, 520, 190, .002, N1, rgb(farC));
-  ridge(c, cx * .3, 600, 150, .0035, N3, rgb(midC));
-  c.save(); camera(c, cx, cy, 1);
+  ridge(c, cx * .1, L.far[0], L.far[1], .002, N1, rgb(farC));
+  ridge(c, cx * .3, L.mid[0], L.mid[1], .0035, N3, rgb(midC));
+  c.save(); camera(c, cx, cy, L.z);
   drawSlope(c, t, { pal, g: g7, x0: cx - 700, x1: cx + 700, sparkle: .5, wind: 8 });
   const R = climbRobot(tq, rx, g7(rx) + 3, 1.35, pal, { lean: .09 });
   drawRobot(c, R);
   shoulderBird(c, R, t, tq);
   c.restore();
-  fgGrass(c, t, cx * 1.4, rgb(mixA([22, 30, 24], pal.cShade, .3)), 9, 130);
+  fgGrass(c, t, cx * 1.4, rgb(mixA([22, 30, 24], pal.cShade, .3)), L.fg[0], L.fg[1]);
   return { bloom: .55 };
 }
 
 // ---- S8 (50-57): above the clouds, the last ridge ----
+const L8 = V({ z: 1, dx: 120, dy: -60, hz: 440, sun: [1080, 290, 330, 46], st: [[-60, 120], [360, 170], [780, 220]], stw: [520, 26], peak: [470, 260], sea: 450 },
+  { z: 1.5, dx: 80, dy: -227, hz: 1000, sun: [800, 860, 920, 62], st: [[-60, 300], [420, 390], [80, 500], [560, 610], [-20, 720]], stw: [640, 30], peak: [1060, 300], sea: 1040 });
 function S8(c, t, tq) {
-  const pal = skyPal(lerp(.6, .78, lin(50, 57, t)));
-  const rx = 600 + (tq - 50) * 32, cxs = rx, cx = cxs + 120, cy = g8(cxs) - 60;
-  drawSky(c, pal, 440);
-  drawSun(c, 1080, lerp(290, 330, lin(50, 57, t)), 46, pal);
-  for (let i = 0; i < 3; i++) drawCloud(c, 140 + i * 420 - t * 4, 120 + i * 50, 520, 26, i * 11, pal.cLit, pal.cShade, 0, 6, .8);
+  const L = L8, pal = skyPal(lerp(.6, .78, lin(50, 57, t)));
+  const rx = 600 + (tq - 50) * 32, cx = rx + L.dx, cy = g8(rx) + L.dy;
+  drawSky(c, pal, L.hz);
+  drawSun(c, L.sun[0], lerp(L.sun[1], L.sun[2], lin(50, 57, t)), L.sun[3], pal);
+  L.st.forEach(([x, y], i) => drawCloud(c, x - (t - 50) * 4, y, L.stw[0], L.stw[1], i * 11, pal.cLit, pal.cShade, 0, 6, .8));
   const peakC = rgb(mixA(pal.cShade, [30, 20, 50], .35));
-  ridge(c, cx * .05 + 900, 470, 260, .0016, N4, peakC);
-  cloudSea(c, pal, 450, t, cx);
-  c.save(); camera(c, cx, cy, 1);
+  ridge(c, cx * .05 + 900, L.peak[0], L.peak[1], .0016, N4, peakC);
+  cloudSea(c, pal, L.sea, t, cx);
+  c.save(); camera(c, cx, cy, L.z);
   drawSlope(c, t, { pal, g: g8, x0: cx - 700, x1: cx + 700, rock: true, wind: 10 });
   const R = climbRobot(tq, rx, g8(rx) + 3, .8, pal, { lx: 5, ly: -3, lean: .12 });
   drawRobot(c, R);
   shoulderBird(c, R, t, tq);
   c.restore();
-  drift(c, t, 20, '#ffd6a0', .6);
+  drift(c, t, V(20, 30), '#ffd6a0', .6);
   return { bloom: .6 };
 }
 
 // ---- S9 (57-68): the summit, from behind, the great sunset ----
+const L9 = V({ cam: [640, 420], hz: 470, stY: 160, sun: [640, 400, 452, 96],
+  cl: [[-260, 150, 560, 22], [120, 212, 500, 26], [500, 274, 440, 30], [880, 336, 380, 34]],
+  peaks: [[[60, 480], [170, 400], [230, 430], [300, 380], [420, 480]], [[900, 480], [1010, 410], [1060, 436], [1140, 396], [1300, 480]]],
+  sea: 470, rock: [640, 600, 460], tuft: [300, 44, 16], R: [640, 618, 1.55], rim: 4 },
+  { cam: [540, 960], hz: 1100, stY: 640, sun: [540, 990, 1060, 132],
+  cl: [[-300, 330, 700, 30], [260, 450, 640, 34], [-200, 580, 620, 36], [300, 700, 560, 40], [-100, 830, 520, 40]],
+  peaks: [[[-40, 1112], [90, 1010], [160, 1050], [250, 990], [400, 1112]], [[700, 1112], [830, 1020], [890, 1060], [990, 1000], [1140, 1112]]],
+  sea: 1100, rock: [540, 1400, 560], tuft: [215, 44, 16], R: [540, 1422, 2.1], rim: 5 });
 function S9(c, t, tq) {
-  const pal = skyPal(lerp(.78, .88, lin(57, 68, t)));
-  c.save(); camera(c, 640, 420, lerp(1, 1.05, easeIO(lin(57, 68, t))));
-  drawSky(c, pal, 470);
-  drawStars(c, ss(64, 68, t) * .3, t, 160);
-  const sy = lerp(400, 452, lin(57, 68, t));
-  drawSun(c, 640, sy, 96, pal);
-  for (let i = 0; i < 4; i++) drawCloud(c, -260 + i * 380 + (t - 57) * (4 + i), 150 + i * 62, 560 - i * 60, 22 + i * 4, i * 13, mixA(pal.cLit, pal.sun, .2), pal.cShade, 0, 5, .9);
-  const peakC = rgb(mixA(pal.cShade, [24, 14, 44], .45));
-  c.fillStyle = peakC;
-  c.beginPath(); c.moveTo(60, 480); c.lineTo(170, 400); c.lineTo(230, 430); c.lineTo(300, 380); c.lineTo(420, 480); c.fill();
-  c.beginPath(); c.moveTo(900, 480); c.lineTo(1010, 410); c.lineTo(1060, 436); c.lineTo(1140, 396); c.lineTo(1300, 480); c.fill();
-  cloudSea(c, pal, 470, t, 0);
-  summitRock(c, 640, 600, 460, pal, 1);
+  const L = L9, pal = skyPal(lerp(.78, .88, lin(57, 68, t))), z = lerp(1, 1.05, easeIO(lin(57, 68, t)));
+  c.save(); camera(c, L.cam[0], L.cam[1], z);
+  drawSky(c, pal, L.hz);
+  drawStars(c, ss(64, 68, t) * .3, t, L.stY);
+  const sy = lerp(L.sun[1], L.sun[2], lin(57, 68, t));
+  drawSun(c, L.sun[0], sy, L.sun[3], pal);
+  L.cl.forEach(([x, y, w, h], i) => drawCloud(c, x + (t - 57) * (4 + i), y, w, h, i * 13, mixA(pal.cLit, pal.sun, .2), pal.cShade, 0, 5, .9));
+  c.fillStyle = rgb(mixA(pal.cShade, [24, 14, 44], .45));
+  for (const poly of L.peaks) { c.beginPath(); poly.forEach(([x, y], i) => i ? c.lineTo(x, y) : c.moveTo(x, y)); c.fill(); }
+  cloudSea(c, pal, L.sea, t, 0);
+  summitRock(c, L.rock[0], L.rock[1], L.rock[2], pal, 1);
   const wind = Math.sin(t * 1.4) * 5 + 8;
-  for (let i = 0; i < 16; i++) { const x = 300 + i * 44 + hash(i) * 20; const y = 600 + Math.pow((x - 640) / 300, 2) * 70; tuft(c, x, y, 18 + hash(i) * 14, wind + Math.sin(t * 2 + i) * 3, rgb(mixA(pal.cShade, [10, 6, 20], .5)), '#ffa868', 2.4); }
-  const R = { x: 640, y: 618, s: 1.55, back: true, sit: 1, eye: 1, amb: '#2a1838', ambA: .64, lx: 0, ly: 5, key: (tq - 21) * 2, t: tq,
+  for (let i = 0; i < L.tuft[2]; i++) {
+    const x = L.tuft[0] + i * L.tuft[1] + hash(i) * 20;
+    tuft(c, x, rockY(x) + 3, (18 + hash(i) * 14) * V(1, 1.3), wind + Math.sin(t * 2 + i) * 3, rgb(mixA(pal.cShade, [10, 6, 20], .5)), '#ffa868', V(2.4, 3));
+  }
+  const R = { x: L.R[0], y: L.R[1], s: L.R[2], back: true, sit: 1, eye: 1, amb: '#2a1838', ambA: .64, lx: 0, ly: 5, key: (tq - 21) * 2, t: tq,
     headRot: kf(tq, [[61.8, 0], [63.2, .1], [65.5, .04]]), wob: Math.sin(tq * 5) * .08, armL: .25, armR: .3 };
   const drawAll = k => {
     drawRobot(k, R);
     const p = R.out.shoulder;
-    drawBird(k, { x: p.x, y: p.y, s: 1.04, face: 1, amb: '#2a1838', ambA: .5, chirp: beakOpen(t), tail: Math.sin(tq * 12), headRot: kf(tq, [[61.8, -.15], [63, .25], [65, -.1]]) });
+    drawBird(k, { x: p.x, y: p.y, s: R.s * .67, face: 1, amb: '#2a1838', ambA: .5, chirp: beakOpen(t), tail: Math.sin(tq * 12), headRot: kf(tq, [[61.8, -.15], [63, .25], [65, -.1]]) });
   };
-  rimmed(c, drawAll, '#ffc488', 1, [[-4, -1], [4, -1], [0, -4], [-2, -3], [2, -3]]);
+  const r = L.rim;
+  rimmed(c, drawAll, '#ffc488', 1, [[-r, -1], [r, -1], [0, -r], [-r / 2, -r * .75], [r / 2, -r * .75]]);
   c.restore();
-  lensFlare(c, 640, sy, .9);
-  drift(c, t, 26, '#ffcf9a', .7);
+  const sp = sunScreen(L.cam, z, L.sun[0], sy);
+  lensFlare(c, sp.x, sp.y, .9);
+  drift(c, t, V(26, 36), '#ffcf9a', .7);
   return { bloom: .8 };
 }
 
 // ---- S10 (68-76): side close-up, the lamps fade, the tin turns to stone ----
 const FLOWERS = [[330, .0], [372, .15], [600, .3], [640, .05], [690, .4], [420, .55], [560, .65], [735, .25]];
+const L10 = V({ cam: [600, 420], hz: 490, stY: 200, sun: [1150, 470, 492, 78], cl: [[-200, 140, 600, 26], [320, 210, 600, 26], [840, 280, 600, 26]],
+  sea: 490, rock: [520, 640, 560], R: [470, 660, 2.55], fl: [520, 1, 1], rim: [[3, -1], [2, -3]] },
+  { cam: [540, 960], hz: 1120, stY: 720, sun: [900, 1070, 1102, 104], cl: [[-300, 380, 700, 30], [300, 500, 650, 30], [-150, 640, 700, 32], [420, 780, 600, 32]],
+  sea: 1110, rock: [480, 1340, 650], R: [430, 1368, 3.3], fl: [480, 1.16, 1.3], rim: [[4, -1], [3, -4]] });
 function S10(c, t, tq) {
-  const pal = skyPal(lerp(.88, .97, lin(68, 76, t)));
-  const st = ss(69, 75.5, tq);
-  c.save(); camera(c, 600, 420, lerp(1, 1.045, easeIO(lin(68, 76, t))));
-  drawSky(c, pal, 490);
-  drawStars(c, ss(70, 76, t) * .4, t, 200);
-  drawSun(c, 1150, lerp(470, 492, lin(68, 76, t)), 78, pal);
-  for (let i = 0; i < 3; i++) drawCloud(c, -200 + i * 520 + (t - 68) * 5, 140 + i * 70, 600, 26, i * 17, mixA(pal.cLit, pal.sun, .15), pal.cShade, 4, 5, .85);
-  cloudSea(c, pal, 490, t, 0);
-  godRays(c, 1150, 480, .5 * (1 - lin(68, 76, t)), t, '#ffb27a');
-  summitRock(c, 520, 640, 560, pal, .75);
+  const L = L10, pal = skyPal(lerp(.88, .97, lin(68, 76, t)));
+  const st = ss(69, 75.5, tq), sy = lerp(L.sun[1], L.sun[2], lin(68, 76, t));
+  c.save(); camera(c, L.cam[0], L.cam[1], lerp(1, 1.045, easeIO(lin(68, 76, t))));
+  drawSky(c, pal, L.hz);
+  drawStars(c, ss(70, 76, t) * .4, t, L.stY);
+  drawSun(c, L.sun[0], sy, L.sun[3], pal);
+  L.cl.forEach(([x, y, w, h], i) => drawCloud(c, x + (t - 68) * 5, y, w, h, i * 17, mixA(pal.cLit, pal.sun, .15), pal.cShade, 4, 5, .85));
+  cloudSea(c, pal, L.sea, t, 0);
+  godRays(c, L.sun[0], sy + 10, .5 * (1 - lin(68, 76, t)), t, '#ffb27a');
+  summitRock(c, L.rock[0], L.rock[1], L.rock[2], pal, .75);
   const glow = 1 - st;
   // eyes dim with a few brave flickers
   let eye = 1;
   if (tq > 69.6) eye = kf(tq, [[69.6, 1], [72.2, 0]]) * (tq > 70.6 && tq < 70.75 ? .3 : 1) * (tq > 71.3 && tq < 71.4 ? .2 : 1);
   const kspeed = u => 2 * (u - u * u / 12);
-  const R = { x: 470, y: 660, s: 2.55, face: 1, sit: 1, eye, stone: st, lx: 4.5, ly: -3, t: tq,
+  const R = { x: L.R[0], y: L.R[1], s: L.R[2], face: 1, sit: 1, eye, stone: st, lx: 4.5, ly: -3, t: tq,
     amb: '#3a2040', ambA: lerp(.22, .42, lin(68, 76, t)), lid: kf(tq, [[70.5, 0], [72.5, .62]]),
     headRot: kf(tq, [[69.5, -.04], [73, .12]]), headDrop: kf(tq, [[69.5, 0], [73, 3]]),
     armR: .5, armL: .42, key: (68 - 21) * 2 + kspeed(clamp(tq - 68, 0, 6)), lookX: .6, lookY: kf(tq, [[70, -.2], [72.5, .5]]),
     wob: tq < 72 ? Math.sin(tq * 4) * .06 : 0 };
   // flowers bloom around the base as he sleeps
-  for (const [fx, d] of FLOWERS) {
+  const fs = L.fl[2];
+  for (const [fx0, d] of FLOWERS) {
     const g = ss(72.4 + d * 3, 74.2 + d * 3, t); if (g <= 0) continue;
-    const by = rockY(fx) + 3, h = 26 * g, sw = Math.sin(t * 1.6 + fx) * 3;
-    c.strokeStyle = '#3f6a34'; c.lineWidth = 2.4; c.beginPath(); c.moveTo(fx, by); c.quadraticCurveTo(fx + sw * .5, by - h * .6, fx + sw, by - h); c.stroke();
-    const pr = 6 * ss(.5, 1, g);
+    const fx = L.fl[0] + (fx0 - 520) * L.fl[1];
+    const by = rockY(fx) + 3, h = 26 * fs * g, sw = Math.sin(t * 1.6 + fx0) * 3 * fs;
+    c.strokeStyle = '#3f6a34'; c.lineWidth = 2.4 * fs; c.beginPath(); c.moveTo(fx, by); c.quadraticCurveTo(fx + sw * .5, by - h * .6, fx + sw, by - h); c.stroke();
+    const pr = 6 * fs * ss(.5, 1, g);
     if (pr > .2) {
-      c.fillStyle = fx % 2 ? '#fff4e2' : '#ffd8a8';
-      for (let k = 0; k < 5; k++) { const a = k / 5 * TAU + fx; ell(c, fx + sw + Math.cos(a) * pr * .8, by - h + Math.sin(a) * pr * .8, pr * .65, pr * .4, a); c.fill(); }
+      c.fillStyle = fx0 % 2 ? '#fff4e2' : '#ffd8a8';
+      for (let k = 0; k < 5; k++) { const a = k / 5 * TAU + fx0; ell(c, fx + sw + Math.cos(a) * pr * .8, by - h + Math.sin(a) * pr * .8, pr * .65, pr * .4, a); c.fill(); }
       circ(c, fx + sw, by - h, pr * .35); c.fillStyle = '#e8a23a'; c.fill();
     }
   }
@@ -1283,17 +1330,26 @@ function S10(c, t, tq) {
     drawRobot(k, R);
     const p = R.out.shoulder;
     const nuzzle = tq > 72.6 && tq < 73.6 ? Math.sin((tq - 72.6) * 16) : 0;
-    drawBird(k, { x: p.x - kf(tq, [[71.5, 0], [72.5, 7]]), y: p.y, s: 1.7, face: -1, amb: '#3a2040', ambA: R.ambA * .7, lx: 1.5, ly: -1,
+    drawBird(k, { x: p.x - kf(tq, [[71.5, 0], [72.5, 7]]) * R.s / 2.55, y: p.y, s: R.s * .67, face: -1, amb: '#3a2040', ambA: R.ambA * .7, lx: 1.5, ly: -1,
       chirp: beakOpen(t), headRot: kf(tq, [[70, -.1], [70.6, .25], [72, .1]]) + nuzzle * .18, rot: nuzzle * .06,
       spread: ss(75, 75.8, tq), flapT: tq, tail: Math.sin(tq * 10) * 1.5 });
   };
-  rimmed(c, drawAll, '#ffc286', .85 * (1 - st * .5), [[3, -1], [2, -3]]);
+  rimmed(c, drawAll, '#ffc286', .85 * (1 - st * .5), L.rim);
   c.restore();
   return { bloom: .35 + glow * .35 };
 }
 
 // ---- S11 (76-80): the bird rises into the dusk; the stone robot sleeps ----
-const FLIGHT = [{ x: 0, y: 0 }, { x: 980, y: 372 }, { x: 860, y: 318 }, { x: 690, y: 250 }, { x: 380, y: 120 }, { x: -60, y: 30 }];
+const L11 = V({ hz: 500, stY: 330, sun: [700, 510, 528, 70], cl: [[-150, 190, 520, 20], [350, 250, 520, 20], [850, 310, 520, 20]], sea: 505,
+  rock: [[560, 760], [760, 560, 860, 486], [905, 470, 950, 488], [1080, 560, 1320, 680], [1320, 760]],
+  rim: [[780, 540], [840, 492, 880, 482], [910, 474, 950, 488]], R: [900, 482, .6],
+  fl: [{ x: 980, y: 372 }, { x: 860, y: 318 }, { x: 690, y: 250 }, { x: 380, y: 120 }, { x: -60, y: 30 }], bs: [.62, .42], b0: .5,
+  fe: [912, 432, 14, 9, 1], flare: [700, 515] },
+  { hz: 1170, stY: 1060, sun: [400, 1150, 1182, 100], cl: [[-200, 560, 640, 26], [380, 700, 620, 26], [-100, 840, 600, 28], [500, 980, 560, 28]], sea: 1170,
+  rock: [[260, 1940], [520, 1500, 700, 1310], [750, 1286, 810, 1312], [960, 1420, 1120, 1640], [1120, 1940]],
+  rim: [[600, 1420], [660, 1340, 700, 1310], [750, 1286, 810, 1312]], R: [745, 1306, .95],
+  fl: [{ x: 860, y: 1170 }, { x: 720, y: 1060 }, { x: 560, y: 880 }, { x: 430, y: 520 }, { x: 330, y: -80 }], bs: [.98, .62], b0: .8,
+  fe: [762, 1090, 20, 16, 1.5], flare: [400, 1160] });
 function catmull(pts, u) {
   const n = pts.length - 1, f = clamp(u) * n, i = Math.min(n - 1, Math.floor(f)), k = f - i;
   const p0 = pts[Math.max(0, i - 1)], p1 = pts[i], p2 = pts[i + 1], p3 = pts[Math.min(n, i + 2)];
@@ -1301,39 +1357,41 @@ function catmull(pts, u) {
   return { x: cr(p0.x, p1.x, p2.x, p3.x), y: cr(p0.y, p1.y, p2.y, p3.y) };
 }
 function S11(c, t, tq) {
-  const pal = skyPal(lerp(.97, 1, lin(76, 80, t)));
-  drawSky(c, pal, 500);
-  drawStars(c, ss(76.3, 79.3, t) * .95, t, 330);
-  drawSun(c, 700, lerp(510, 528, lin(76, 80, t)), 70, pal);
-  for (let i = 0; i < 3; i++) drawCloud(c, -150 + i * 500 + (t - 76) * 6, 190 + i * 60, 520, 20, i * 23, mixA(pal.cLit, pal.bot, .3), pal.cShade, 0, 4, .8);
-  cloudSea(c, pal, 505, t, 0);
-  const rockC = rgb(mixA('#21142c', pal.cShade, .25));
-  c.fillStyle = rockC;
-  c.beginPath(); c.moveTo(560, 760); c.quadraticCurveTo(760, 560, 860, 486); c.quadraticCurveTo(905, 470, 950, 488);
-  c.quadraticCurveTo(1080, 560, 1320, 680); c.lineTo(1320, 760); c.fill();
-  c.strokeStyle = 'rgba(255,170,110,.55)'; c.lineWidth = 2;
-  c.beginPath(); c.moveTo(780, 540); c.quadraticCurveTo(840, 492, 880, 482); c.quadraticCurveTo(910, 474, 950, 488); c.stroke();
-  const R = { x: 900, y: 482, s: .6, face: 1, sit: 1, eye: 0, stone: 1, lx: 3, ly: -3, amb: '#24142e', ambA: .55, t: tq,
+  const L = L11, pal = skyPal(lerp(.97, 1, lin(76, 80, t)));
+  drawSky(c, pal, L.hz);
+  drawStars(c, ss(76.3, 79.3, t) * .95, t, L.stY);
+  drawSun(c, L.sun[0], lerp(L.sun[1], L.sun[2], lin(76, 80, t)), L.sun[3], pal);
+  L.cl.forEach(([x, y, w, h], i) => drawCloud(c, x + (t - 76) * 6, y, w, h, i * 23, mixA(pal.cLit, pal.bot, .3), pal.cShade, 0, 4, .8));
+  cloudSea(c, pal, L.sea, t, 0);
+  c.fillStyle = rgb(mixA('#21142c', pal.cShade, .25));
+  const rk = L.rock;
+  c.beginPath(); c.moveTo(rk[0][0], rk[0][1]);
+  for (let i = 1; i < 4; i++) c.quadraticCurveTo(rk[i][0], rk[i][1], rk[i][2], rk[i][3]);
+  c.lineTo(rk[4][0], rk[4][1]); c.closePath(); c.fill();
+  c.strokeStyle = 'rgba(255,170,110,.55)'; c.lineWidth = V(2, 3);
+  const rm = L.rim;
+  c.beginPath(); c.moveTo(rm[0][0], rm[0][1]); c.quadraticCurveTo(rm[1][0], rm[1][1], rm[1][2], rm[1][3]); c.quadraticCurveTo(rm[2][0], rm[2][1], rm[2][2], rm[2][3]); c.stroke();
+  const R = { x: L.R[0], y: L.R[1], s: L.R[2], face: 1, sit: 1, eye: 0, stone: 1, lx: 3, ly: -3, amb: '#24142e', ambA: .55, t: tq,
     headRot: .12, headDrop: 3, armR: .5, armL: .42, lid: .62, key: 0 };
   rimmed(c, k => drawRobot(k, R), '#ffb070', .7, [[2, -1], [1, -2]]);
-  FLIGHT[0] = R.out.shoulder;
+  const path = [R.out.shoulder].concat(L.fl);
   if (tq < 76.15) {
-    drawBird(c, { x: R.out.shoulder.x, y: R.out.shoulder.y, s: .5, face: -1, amb: '#24142e', ambA: .5, spread: 1, flapT: tq });
+    drawBird(c, { x: R.out.shoulder.x, y: R.out.shoulder.y, s: L.b0, face: -1, amb: '#24142e', ambA: .5, spread: 1, flapT: tq });
   } else {
-    const u = Math.pow(lin(76.15, 79.7, tq), 1.15), p = catmull(FLIGHT, u), q = catmull(FLIGHT, Math.min(1, u + .01));
+    const u = Math.pow(lin(76.15, 79.7, tq), 1.15), p = catmull(path, u), q = catmull(path, Math.min(1, u + .01));
     const face = q.x >= p.x ? 1 : -1, glide = u > .55 && Math.sin(tq * 3) > .6;
-    drawBird(c, { x: p.x, y: p.y, s: lerp(.62, .42, u), face, fly: 1, flap: glide ? 1.2 : tq * TAU * 6, amb: '#24142e', ambA: .45,
+    drawBird(c, { x: p.x, y: p.y, s: lerp(L.bs[0], L.bs[1], u), face, fly: 1, flap: glide ? 1.2 : tq * TAU * 6, amb: '#24142e', ambA: .45,
       rot: face * Math.atan2(q.y - p.y, Math.abs(q.x - p.x) + .001) * .5 });
   }
   // a single feather drifting down onto the sleeping head
   if (t > 76.3) {
-    const d = t - 76.3, fx = 912 + Math.sin(d * 2.2) * 14 - d * 4, fy = Math.min(R.out.head.y - 14, 432 + d * 9);
-    c.save(); c.translate(fx, fy); c.rotate(Math.sin(d * 2.2) * .6 + .4);
+    const d = t - 76.3, fe = L.fe, fx = fe[0] + Math.sin(d * 2.2) * fe[2] - d * 4, fy = Math.min(R.out.head.y - 14 * R.s / .6, fe[1] + d * fe[3]);
+    c.save(); c.translate(fx, fy); c.rotate(Math.sin(d * 2.2) * .6 + .4); c.scale(fe[4], fe[4]);
     ell(c, 0, 0, 6, 2); c.fillStyle = '#d9c2a0'; c.fill();
     c.strokeStyle = '#7d5437'; c.lineWidth = .8; c.beginPath(); c.moveTo(-7, 0); c.lineTo(6, 0); c.stroke();
     c.restore();
   }
-  lensFlare(c, 700, 515, .35 * (1 - lin(76, 80, t)));
+  lensFlare(c, L.flare[0], L.flare[1], .35 * (1 - lin(76, 80, t)));
   return { bloom: .55, fade: ss(78.4, 79.8, t) };
 }
 
@@ -1343,10 +1401,10 @@ function endCard(c, t) {
   c.save(); c.setTransform(1, 0, 0, 1, 0, 0); c.globalAlpha = a;
   c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = '#f1e2c6';
   c.shadowColor = 'rgba(255,170,100,.4)'; c.shadowBlur = 16;
-  c.font = '600 46px "Hiragino Mincho ProN","Yu Mincho","Noto Serif CJK JP","Noto Serif JP","Noto Serif KR",serif';
-  c.fillText('お わ り', W / 2, H / 2 - 10);
-  c.shadowBlur = 0; c.font = '15px "Noto Serif KR",serif'; c.fillStyle = 'rgba(241,226,198,.6)';
-  c.fillText('잠드는 언덕', W / 2, H / 2 + 40);
+  c.font = V('600 46px', '600 72px') + ' "Hiragino Mincho ProN","Yu Mincho","Noto Serif CJK JP","Noto Serif JP","Noto Serif KR",serif';
+  c.fillText('お わ り', W / 2, H / 2 - V(10, 30));
+  c.shadowBlur = 0; c.font = V('15px', '24px') + ' "Noto Serif KR",serif'; c.fillStyle = 'rgba(241,226,198,.6)';
+  c.fillText('잠드는 언덕', W / 2, H / 2 + V(40, 50));
   c.restore();
 }
 
