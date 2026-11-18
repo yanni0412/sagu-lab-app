@@ -1,0 +1,12 @@
+<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+  <defs/>
+  <g>
+    <path stroke="none" fill="#FFFFFF" d="M4 0 L64 0 64 64 4 64 4 0"/>
+    <path fill="none" stroke="#2A2A2A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M4 64 Q4.7 62.35 4.35 60.2 4 58.05 3.95 55.75 3.9 53.5 4.25 51.85 4.65 50.25 4.3 48.1 4 46 4 43.8 L4 40.15 Q4.05 38.7 4.45 36.75 4.9 34.85 4.85 32.05 4.85 29.25 4.4 27.75 4 26.25 4 24.1 L4.05 20.3 Q4.15 18.65 3.65 16.65 3.15 14.65 3.75 12.6 4.4 10.6 4.1 8.55 L3.55 4.85 Q3.3 3.25 4 0"/>
+    <path fill="none" stroke="#B2B7BB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M20 64 Q20.65 62.15 19.95 60.1 19.25 58.1 19.1 56 19 53.95 19.55 52.05 20.15 50.15 19.9 48.1 19.65 46.1 19.75 44 L20 39.6 20.1 35.65 19.6 32.25 Q19.25 30.4 19.25 28 L19.35 23.5 Q19.45 21.4 20.15 19.45 20.9 17.5 20.5 15.75 L19.6 11.9 Q19.1 9.85 19.75 8.15 20.4 6.5 19.75 5.25 19.15 4.05 20 0"/>
+    <path stroke="none" fill="#FFFFFF" d="M13.3 37.55 Q11 37.55 9.35 35.95 7.75 34.3 7.75 32 7.75 29.7 9.35 28.1 11 26.45 13.3 26.45 L25.8 26.45 Q28.1 26.45 29.7 28.1 31.35 29.7 31.35 32 31.35 34.3 29.7 35.95 28.1 37.55 25.8 37.55 L13.3 37.55"/>
+    <path fill="none" stroke="#B2B7BB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M13.3 37.55 L10.05 35.95 Q8.7 35.3 8.6 33.05 8.5 30.8 8.95 28.75 9.45 26.7 10.7 26.6 L13.3 26.45 Q14.85 27.4 17.25 26.75 19.7 26.1 21.4 26.75 23.15 27.4 24.2 27.05 L25.8 26.45 Q27.25 28.15 29.05 28.75 30.85 29.4 30.7 31.9 30.6 34.4 29.6 35.5 L27.8 37.2 Q27 37.8 25.8 37.55 L21.05 37.45 17.1 37.3 Q14.95 37.6 14.2 38.05 13.45 38.5 13.3 37.55"/>
+    <path fill="none" stroke="#B2B7BB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M13.75 32 L14.6 32"/>
+    <path fill="none" stroke="#B2B7BB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M24.4 32 L25.25 32"/>
+  </g>
+</svg>

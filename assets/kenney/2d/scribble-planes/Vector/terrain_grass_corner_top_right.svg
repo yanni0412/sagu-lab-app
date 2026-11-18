@@ -1,0 +1,9 @@
+<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+  <defs/>
+  <g>
+    <path stroke="none" fill="#FFFFFF" d="M64 0 L64 64 10 64 Q12.35 52.4 0 54 L0 0 64 0"/>
+    <path fill="none" stroke="#2A2A2A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M0 54 L4.15 54.3 Q6.4 54.65 7.65 55.3 8.9 56 9.5 58.15 L10.4 61.4 Q10.65 62.45 10 64"/>
+    <path fill="none" stroke="#B2B7BB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M0 38.2 Q1.95 37.9 3.9 38.15 5.9 38.4 7.55 39.3 9.25 40.25 11.35 40.3 13.45 40.35 15 42 L17.95 44.9 20.7 47.8 Q22.05 49.45 23 51.8 L24.35 55.65 Q24.75 57.2 24.8 59.2 L24.95 62.5 25.05 64"/>
+    <path fill="none" stroke="#B2B7BB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M20.95 33.25 Q21.95 31.1 21.95 30.25 21.95 29.4 22.5 28.9 M14.25 34.2 L13.05 31.25 Q12.45 30.15 11.75 29.8 M17.5 33.55 Q17.1 31.95 17 30.3 16.9 28.7 17.5 26.55"/>
+  </g>
+</svg>

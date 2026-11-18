@@ -1,0 +1,10 @@
+<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+  <defs/>
+  <g>
+    <path stroke="none" fill="#FFFFFF" d="M64 0 L64 64 0 64 0 4 4 4 4 0 64 0"/>
+    <path fill="none" stroke="#2A2A2A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M4 0 Q4.95 0.05 4 4 0.2 4.9 0 4"/>
+    <path fill="none" stroke="#B2B7BB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M20 0 Q20.95 2.05 20 3.65 19.05 5.3 19.65 8.05 20.3 10.8 19.75 12.7 19.25 14.6 19.75 14.9 20.25 15.25 20 20 L14.9 20.6 12.05 19.9 8.1 20.15 4.1 20.45 0 20"/>
+    <path stroke="none" fill="#FFFFFF" d="M7.75 15.5 Q6.1 13.85 6.05 11.6 6.05 9.3 7.7 7.65 9.35 6 11.6 6.05 13.9 6.05 15.55 7.7 L24.35 16.5 Q26 18.15 25.95 20.4 26.05 22.7 24.4 24.35 22.75 26 20.4 25.95 18.2 25.95 16.55 24.3 L7.75 15.5"/>
+    <path fill="none" stroke="#B2B7BB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M7.75 15.5 Q6.9 13.85 7 12.25 7.15 10.7 8.5 9.1 9.85 7.55 11.3 7.05 L13.75 6.7 Q14.7 6.85 15.55 7.7 16.9 8.1 18.5 10 L21.4 13.15 Q22.75 14.4 23.05 15.25 23.35 16.1 24.35 16.5 L24.95 20.2 Q25.35 21.95 24.25 23.55 23.15 25.2 21.3 25.35 L18.7 25.85 Q17.95 26.2 16.55 24.3 14.75 23.05 13.55 21.25 12.35 19.45 10.7 18.8 9.05 18.2 8.6 17.05 L7.75 15.5 M19.5 19.45 Q20.1 19.5 20.1 20.05 M11.95 11.9 Q11.25 11.5 12.55 12.5"/>
+  </g>
+</svg>
