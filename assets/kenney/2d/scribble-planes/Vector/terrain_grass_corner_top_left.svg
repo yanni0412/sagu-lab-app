@@ -1,0 +1,10 @@
+<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+  <defs/>
+  <g>
+    <path stroke="none" fill="#FFFFFF" d="M0 0 L64 0 64 54 Q51.65 52.4 54 64 L0 64 0 0"/>
+    <path fill="none" stroke="#2A2A2A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M64 54 Q62.05 53.15 60.25 54.05 L56.6 55.85 Q54.7 56.7 54.25 58.3 L53.6 60.85 Q53.4 61.8 54 64"/>
+    <path fill="none" stroke="#B2B7BB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M64 38.2 Q62 37.9 60 38.15 58.05 38.4 55.85 39.3 53.65 40.25 52.1 40.3 50.6 40.35 48.85 41.95 L45.7 44.8 Q44.25 46.1 43.3 47.65 42.4 49.25 41.8 51.6 L40.65 55.45 39.6 58.95 39.1 62.3 38.95 64"/>
+    <path fill="none" stroke="#B2B7BB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M34.2 53.95 L35.05 51.25 35.75 49.6 M31 54.15 Q30.6 52.4 29.95 51.2 29.3 50 28.5 49.75"/>
+    <path fill="none" stroke="#B2B7BB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M38.95 40.95 L39.25 38.15 Q39.35 37.3 40.5 36.6 M35.75 41.15 Q34.45 39.2 34.85 38.35 35.25 37.5 33.25 36.75"/>
+  </g>
+</svg>
