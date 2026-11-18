@@ -1,11 +1,12 @@
 // Renders every frame of a build (default: the 9:16 TikTok one) to JPEG + the soundtrack to WAV.
-// usage: node animations/tools/render-video.js [html] [outDir]   (needs: npm i playwright, or a preinstalled Chromium)
+// usage: node animations/tools/render-video.js [html] [outDir] [seconds=81.5] [query, e.g. ?nocap]
+// (needs Playwright with Chromium)
 const { chromium } = require('playwright');
 const fs = require('fs');
 
 const path = require('path');
 const FILE = 'file://' + path.resolve(process.argv[2] || path.join(__dirname, '..', 'rainy-robot-ova-tiktok.html'));
-const FPS = 24, SECS = 81.5, N = Math.round(FPS * SECS), WORKERS = 4;
+const FPS = 24, SECS = parseFloat(process.argv[4] || '81.5'), N = Math.round(FPS * SECS), WORKERS = 4, QUERY = process.argv[5] || '';
 const OUT = process.argv[3] || path.join(__dirname, '..', 'out');
 fs.mkdirSync(path.join(OUT, 'frames'), { recursive: true });
 (async () => {
@@ -14,7 +15,8 @@ fs.mkdirSync(path.join(OUT, 'frames'), { recursive: true });
   const work = async k => {
     const p = await b.newPage();
     p.on('pageerror', e => console.log('PAGEERR', e.message));
-    await p.goto(FILE);
+    await p.goto(FILE + QUERY);
+    await p.evaluate(() => window.__fontsReady || null);
     for (let i = k; i < N; i += WORKERS) {
       const url = await p.evaluate(t => { window.__render(t); return document.getElementById('cv').toDataURL('image/jpeg', .95); }, (i + .5) / FPS);
       fs.writeFileSync(`${OUT}/frames/f_${String(i).padStart(5, '0')}.jpg`, Buffer.from(url.slice(url.indexOf(',') + 1), 'base64'));
@@ -26,7 +28,8 @@ fs.mkdirSync(path.join(OUT, 'frames'), { recursive: true });
   console.log('frames done', ((Date.now() - t0) / 1000).toFixed(0), 's');
   // soundtrack
   const p = await b.newPage();
-  await p.goto(FILE);
+  await p.goto(FILE + QUERY);
+    await p.evaluate(() => window.__fontsReady || null);
   const sr = 48000;
   await p.evaluate(async ([sr, secs]) => {
     const oc = new OfflineAudioContext(2, Math.round(sr * secs), sr);
