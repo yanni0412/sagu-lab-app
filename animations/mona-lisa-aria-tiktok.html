@@ -322,6 +322,47 @@ function paintLandscape(c, S) {
 // figure: everything except the fine facial features
 function headXf(c, S) { c.translate(392, 520 - (S.breath || 0) * 4); c.rotate(S.tilt || 0); c.translate(-392, -520); }
 const FACE = (jaw) => { const ch = 478 + jaw * 40; return [[392, 234], [456, 244], [488, 298], [494, 360], [479, 418 + jaw * 16], [449, 452 + jaw * 28], [420, ch - 7], [392, ch], [364, ch - 7], [337, 452 + jaw * 28], [306, 418 + jaw * 16], [292, 360], [298, 298], [328, 244]]; };
+// ---- cracks live in the paint: each crack point is tagged with the painted layer under it ----
+const PIP = (pts, x, y) => { let ins = false; for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) { const [xi, yi] = pts[i], [xj, yj] = pts[j]; if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) ins = !ins; } return ins; };
+const R_HAIR = [[392, 190], [472, 206], [516, 286], [530, 400], [542, 480], [566, 560], [580, 650], [512, 650], [474, 520], [444, 474], [392, 486], [340, 474], [310, 520], [268, 650], [206, 650], [222, 560], [246, 480], [256, 400], [270, 286], [312, 206]];
+const R_NECK = [[350, 444], [436, 444], [448, 540], [540, 580], [395, 612], [250, 585], [342, 540]];
+const R_DRESS = [[250, 585], [395, 612], [540, 580], [585, 700], [600, 960], [500, 1130], [300, 1130], [212, 960], [218, 700]];
+const R_SLEEVE_R = [[536, 640], [646, 652], [708, 800], [724, 962], [684, 1024], [462, 1032], [452, 982], [604, 952], [612, 820]];
+const R_SHAWL = [[520, 590], [640, 640], [700, 760], [690, 1000], [600, 1100], [560, 900], [540, 720]];
+const R_SLEEVE_L = [[150, 650], [262, 642], [310, 780], [376, 934], [344, 994], [210, 890], [130, 820]];
+const HAND0 = { x: 340, y: 946, rot: .05, s: 1.05 };
+const CRK = (() => {
+  const n = CRACKS.length * 3, o = { px: new Float32Array(n), py: new Float32Array(n), reg: new Uint8Array(n), w: new Float32Array(n), hx: new Float32Array(n), hy: new Float32Array(n), wx: new Float32Array(n), wy: new Float32Array(n) };
+  const face0 = FACE(0), c0 = Math.cos(-HAND0.rot), s0 = Math.sin(-HAND0.rot);
+  CRACKS.forEach((sg, i) => sg.forEach(([x, y], k) => {
+    const j = i * 3 + k; o.px[j] = x; o.py[j] = y;
+    const dx = x - HAND0.x, dy = y - HAND0.y, lx = (dx * c0 - dy * s0) / HAND0.s, ly = (dx * s0 + dy * c0) / HAND0.s;
+    let r = 0;                                                     // 0 background (still)
+    if (PIP(face0, x, y)) r = 3;                                   // 3 face: head motion + jaw
+    else if (PIP(R_NECK, x, y)) r = 2;                             // 2 neck/chest/hair: head motion
+    else if (lx > -55 && lx < 115 && ly > -36 && ly < 46) { r = 4; o.hx[j] = lx; o.hy[j] = ly; } // 4 the hand that rises
+    else if (PIP(R_SLEEVE_L, x, y)) { r = 5; o.w[j] = clamp(((x - 180) * 150 + (y - 650) * 310) / (150 * 150 + 310 * 310)); } // 5 sleeve, dragged by the wrist
+    else if (PIP(R_DRESS, x, y) || PIP(R_SLEEVE_R, x, y) || PIP(R_SHAWL, x, y)) r = 1; // 1 body: breath
+    else if (PIP(R_HAIR, x, y)) r = 2;
+    o.reg[j] = r;
+  }));
+  return o;
+})();
+function crackWarp(S) { // same transforms as paintFigure/paintFeatures, applied to the crack points
+  const C = CRK, br = S.breath || 0, tl = S.tilt || 0, jaw = S.jaw || 0, hu = S.handUp || 0, by = -br * 6;
+  const ct = Math.cos(tl), st = Math.sin(tl);
+  const wxN = lerp(330, 392, hu), wyN = lerp(960, 688, hu), hr = lerp(.05, -.75, hu), ch = Math.cos(hr), sh = Math.sin(hr);
+  for (let j = 0; j < C.px.length; j++) {
+    let x = C.px[j], y = C.py[j]; const r = C.reg[j];
+    if (r === 0) { C.wx[j] = x; C.wy[j] = y; continue; }
+    if (r === 1) { C.wx[j] = x; C.wy[j] = y + by; continue; }
+    if (r === 4) { const lx = C.hx[j] * 1.05, ly = C.hy[j] * 1.05; C.wx[j] = wxN + 10 + lx * ch - ly * sh; C.wy[j] = wyN - 14 + lx * sh + ly * ch + by; continue; }
+    if (r === 5) { const k = Math.pow(C.w[j], 1.2); C.wx[j] = x + (wxN - 330) * k; C.wy[j] = y + (wyN - 960) * k + by; continue; }
+    if (r === 3 && y > 405) y += jaw * lerp(16, 40, clamp(1 - Math.abs(x - 392) / 90)) * clamp((y - 405) / 60);
+    const dx = x - 392, dy = y - 520;
+    C.wx[j] = 392 + dx * ct - dy * st; C.wy[j] = 520 - br * 4 + dx * st + dy * ct + by;
+  }
+}
 function softBlob(c, x, y, rx, ry, col, a) { c.save(); c.translate(x, y); c.scale(1, ry / rx); const g = c.createRadialGradient(0, 0, 0, 0, 0, rx); g.addColorStop(0, col.replace('A', a)); g.addColorStop(1, col.replace('A', 0)); c.fillStyle = g; c.fillRect(-rx, -rx, rx * 2, rx * 2); c.restore(); }
 // a hand seen from the back, fingers pointing along +x; curl bends the fingers down
 function paintHand(c, x, y, rot, s, curl, lower) {
@@ -501,7 +542,16 @@ function paintPortrait(c, M, z, S, rect) {
   c.globalCompositeOperation = 'multiply'; c.fillStyle = 'rgba(214,200,140,.55)'; c.fillRect(0, 0, PW, PH);
   c.globalCompositeOperation = 'source-over';
   c.fillStyle = RG(c, PW / 2, PH * .42, PH * .28, PW / 2, PH / 2, PH * .78, [[0, 'rgba(0,0,0,0)'], [1, 'rgba(22,16,6,.62)']]); c.fillRect(0, 0, PW, PH);
-  const crackPath = () => { c.beginPath(); for (const s of CRACKS) { c.moveTo(s[0][0], s[0][1]); c.quadraticCurveTo(s[1][0], s[1][1], s[2][0], s[2][1]); } };
+  crackWarp(S);
+  const X = CRK.wx, Y = CRK.wy, nSeg = CRACKS.length;
+  const crackPath = () => { c.beginPath(); for (let i = 0; i < nSeg; i++) { const j = i * 3; c.moveTo(X[j], Y[j]); c.quadraticCurveTo(X[j + 1], Y[j + 1], X[j + 2], Y[j + 2]); } };
+  const op = (S.jaw || 0) * 34;
+  if (op > 2) { // open mouth: no paint there, so no cracks
+    const vo = S.vo || 0, ve = S.ve || 0, w = 26 * (1 + ve * .28 - vo * .32), hw = w * (1 - vo * .28) + op * .12 * (1 - vo);
+    const br = S.breath || 0, tl = S.tilt || 0, dx = 393 - 392, dy = 431 + op * .34 - 520;
+    const mxs = 392 + dx * Math.cos(tl) - dy * Math.sin(tl), mys = 520 - br * 4 + dx * Math.sin(tl) + dy * Math.cos(tl) - br * 6;
+    c.beginPath(); c.rect(0, 0, PW, PH); c.ellipse(mxs, mys, hw + 4, op * .5 + 5, tl, 0, TAU); c.clip('evenodd');
+  }
   const ca = clamp(.15 + z * .02, .15, .26);
   c.globalCompositeOperation = 'multiply'; c.strokeStyle = `rgba(92,62,30,${ca})`; c.lineWidth = .9 / z; crackPath(); c.stroke();
   c.globalCompositeOperation = 'screen'; c.save(); c.translate(.9 / z, .9 / z); c.strokeStyle = `rgba(255,236,196,${ca * .22})`; c.lineWidth = .7 / z; crackPath(); c.stroke(); c.restore();
