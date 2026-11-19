@@ -1,0 +1,4 @@
+The remotion-* skills in this folder are copied from https://github.com/remotion-dev/skills
+at commit 6f55706d1069e512430582ad86e4e57dc07afe1b (the source installed by `npx skills add remotion-dev/skills`).
+That repository ships no license file. Remotion itself has its own license terms:
+https://www.remotion.dev/license
