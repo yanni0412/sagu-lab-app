@@ -1,16 +1,19 @@
 // Renders every frame of a build (default: the 9:16 TikTok one) to JPEG + the soundtrack to WAV.
-// usage: node animations/tools/render-video.js [html] [outDir] [seconds=81.5] [query, e.g. ?nocap]
+// usage: node animations/tools/render-video.js [html] [outDir] [seconds=81.5 | auto] [query, e.g. ?nocap]
+// 'auto' reads the page's own length (DUR + 0.5 s), e.g. when a voice recording sets it
 // (needs Playwright with Chromium)
 const { chromium } = require('playwright');
 const fs = require('fs');
 
 const path = require('path');
 const FILE = 'file://' + path.resolve(process.argv[2] || path.join(__dirname, '..', 'rainy-robot-ova-tiktok.html'));
-const FPS = 24, SECS = parseFloat(process.argv[4] || '81.5'), N = Math.round(FPS * SECS), WORKERS = 4, QUERY = process.argv[5] || '';
+const FPS = 24, SECS_ARG = process.argv[4] || '81.5', WORKERS = 4, QUERY = process.argv[5] || '';
+let SECS = parseFloat(SECS_ARG), N = Math.round(FPS * SECS);
 const OUT = process.argv[3] || path.join(__dirname, '..', 'out');
 fs.mkdirSync(path.join(OUT, 'frames'), { recursive: true });
 (async () => {
   const b = await chromium.launch();
+  if (SECS_ARG === 'auto') { const pp = await b.newPage(); await pp.goto(FILE + QUERY); await pp.evaluate(() => window.__fontsReady || null); SECS = await pp.evaluate(() => DUR + .5); N = Math.round(FPS * SECS); await pp.close(); console.log('auto length', SECS.toFixed(2), 's'); }
   const t0 = Date.now();
   const work = async k => {
     const p = await b.newPage();

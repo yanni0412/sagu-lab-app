@@ -101,6 +101,12 @@ bash animations/tools/encode-tiktok.sh animations/out/howl howl-parody_tiktok_10
 - **동기화:** 입 벌림, 모음 모양, 호흡, 눈 감기, 손 올리기는 오디오와 같은 악보 데이터(`SCORE`)에서 계산합니다. 유리 공명과 균열, 휴대폰 셔터, 박수도 같은 시간표를 씁니다.
 - `?nocap`을 붙이면 자막 없는 판이 됩니다.
 
+**실제 목소리 입히기**: 권리가 있는 녹음(직접 녹음한 것, 이용 허락을 받은 것, 퍼블릭 도메인 음원)을 넣으면, 입 모양과 연출 전체가 그 녹음에 맞춰 다시 짜입니다.
+- 브라우저에서 시작 화면의 「🎤 내 목소리 파일로 재생」을 누르고 오디오 파일을 고르면 됩니다.
+- 영상으로 만들 때는 녹음을 HTML에 넣어 빌드한 뒤 길이를 `auto`로 렌더링합니다.
+- 분석(`m_voice.js`)은 10ms 단위로 음량, 음높이(옥타브 오류를 보정한 자기상관), 밝기를 뽑습니다. 이 값으로 입 벌림, 노래 시작, 클라이맥스(최고음을 가장 오래 버티는 구간), 마지막 음, 숨, 끝을 찾고, 카메라 컷, 자막, 유리 균열, 박수를 거기에 맞춥니다. 실제 녹음 모드에서는 녹음이 음악을 맡고, 합성 반주는 끄고 미술관 효과음만 겹칩니다.
+- 검증: 합성 소프라노의 목소리 트랙을 대역 녹음으로 넣었을 때, 표시점 5개가 악보 정답과 ±0.1초 안에서 맞았고 입 모양 상관계수는 0.89(시간 차 0ms)였습니다.
+
 | 시간 | 장면 | 소리 |
 |---|---|---|
 | 0:00 | 미술관 와이드, 그림이 곁눈질 → 관객 침묵 → 숨 들이쉼 | 웅성거림, 발소리, 하프 |
@@ -117,3 +123,5 @@ node animations/tools/render-video.js animations/mona-lisa-aria-tiktok.html anim
 ```bash
 bash animations/tools/encode-tiktok.sh animations/out/mona mona-lisa-aria_tiktok_1080x1920.mp4 "모나리자, 오늘 첫 공연"
 ```
+
+녹음을 넣은 판은 빌드할 때 `VOICE_FILE=녹음.mp3`를 주고, 렌더링 길이를 `auto`로 지정합니다(`node animations/tools/render-video.js <html> <outDir> auto`).
