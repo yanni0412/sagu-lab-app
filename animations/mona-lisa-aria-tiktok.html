@@ -264,12 +264,14 @@ function postFX(t, frame, opt) {
 // Painting space: PW x PH units. Layers are rendered at screen resolution through matrix M, then softened (sfumato).
 const PW = 770, PH = 1120;
 const L1 = mk(W, H), L1c = L1.getContext('2d'), L2 = mk(W, H), L2c = L2.getContext('2d'), L3 = mk(W, H), L3c = L3.getContext('2d');
-const CRACKS = (() => { // craquelure network in painting space (fixed)
-  const r = mulberry32(99), segs = [];
-  for (let i = 0; i < 260; i++) {
-    let x = r() * PW, y = r() * PH, a = r() * TAU; const pts = [[x, y]];
-    for (let k = 0; k < 5 + r() * 6; k++) { a += (r() - .5) * 1.4; x += Math.cos(a) * (8 + r() * 18); y += Math.sin(a) * (8 + r() * 18); pts.push([x, y]); }
-    segs.push(pts);
+const CRACKS = (() => { // craquelure: a fine net of small paint islands (jittered grid, wobbly joins, some joins missing)
+  const r = mulberry32(99), cs = 14, nx = Math.ceil(PW / cs) + 2, ny = Math.ceil(PH / cs) + 2, P = [], segs = [];
+  for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) P.push([(i - .5) * cs + (r() - .5) * cs * .95, (j - .5) * cs * 1.15 + (r() - .5) * cs * .95]);
+  const at = (i, j) => P[j * nx + i];
+  const wob = (a, b) => { const mx = (a[0] + b[0]) / 2, my = (a[1] + b[1]) / 2, dx = b[1] - a[1], dy = a[0] - b[0], L = Math.hypot(dx, dy) || 1, k = (r() - .5) * 4.5; return [a, [mx + dx / L * k, my + dy / L * k], b]; };
+  for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
+    if (i + 1 < nx && r() > .2) segs.push(wob(at(i, j), at(i + 1, j)));
+    if (j + 1 < ny && r() > .12) segs.push(wob(at(i, j), at(i, j + 1)));
   }
   return segs;
 })();
@@ -499,12 +501,16 @@ function paintPortrait(c, M, z, S, rect) {
   c.globalCompositeOperation = 'multiply'; c.fillStyle = 'rgba(214,200,140,.55)'; c.fillRect(0, 0, PW, PH);
   c.globalCompositeOperation = 'source-over';
   c.fillStyle = RG(c, PW / 2, PH * .42, PH * .28, PW / 2, PH / 2, PH * .78, [[0, 'rgba(0,0,0,0)'], [1, 'rgba(22,16,6,.62)']]); c.fillRect(0, 0, PW, PH);
-  c.strokeStyle = `rgba(30,20,8,${clamp(.3 - z * .025, .1, .26)})`; c.lineWidth = 1.1 / z;
-  c.beginPath(); for (const s of CRACKS) { c.moveTo(s[0][0], s[0][1]); for (const p of s) c.lineTo(p[0], p[1]); } c.stroke();
+  const crackPath = () => { c.beginPath(); for (const s of CRACKS) { c.moveTo(s[0][0], s[0][1]); c.quadraticCurveTo(s[1][0], s[1][1], s[2][0], s[2][1]); } };
+  const ca = clamp(.15 + z * .02, .15, .26);
+  c.globalCompositeOperation = 'multiply'; c.strokeStyle = `rgba(92,62,30,${ca})`; c.lineWidth = .9 / z; crackPath(); c.stroke();
+  c.globalCompositeOperation = 'screen'; c.save(); c.translate(.9 / z, .9 / z); c.strokeStyle = `rgba(255,236,196,${ca * .22})`; c.lineWidth = .7 / z; crackPath(); c.stroke(); c.restore();
+  c.globalCompositeOperation = 'source-over';
   if (z < 2) { c.strokeStyle = 'rgba(255,240,200,.05)'; c.lineWidth = .6; c.beginPath(); for (let y = 0; y < PH; y += 4) { c.moveTo(0, y); c.lineTo(PW, y); } c.stroke(); }
   c.restore();
 }
 const VOICE_B64 = null;
+const VOICE_CREDIT = null;
 // ================= REAL VOICE: decode a recording, analyse it, derive lip-sync + show markers =================
 // Works with any singing recording the user has the rights to (their own, licensed, or public domain).
 const VOICE = { buf: null, jaw: null, vo: null, hop: .01, marks: null };
@@ -765,6 +771,11 @@ function overlayText(c, t) {
     c.globalAlpha = e; c.font = `27px ${CAPF}`; c.textAlign = 'center'; c.textBaseline = 'middle';
     const w = c.measureText(cr).width + 40; c.fillStyle = 'rgba(16,10,20,.62)'; rrect(c, 500 - w / 2, 1440, w, 50, 25); c.fill();
     c.fillStyle = 'rgba(255,240,220,.92)'; c.fillText(cr, 500, 1466);
+    if (MK.voice && typeof VOICE_CREDIT === 'string' && VOICE_CREDIT) {
+      c.font = `24px ${CAPF}`; const w2 = c.measureText(VOICE_CREDIT).width + 40;
+      c.fillStyle = 'rgba(16,10,20,.62)'; rrect(c, 500 - w2 / 2, 1500, w2, 44, 22); c.fill();
+      c.fillStyle = 'rgba(255,240,220,.88)'; c.fillText(VOICE_CREDIT, 500, 1523);
+    }
   }
   c.restore();
 }
