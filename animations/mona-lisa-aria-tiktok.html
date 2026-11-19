@@ -826,12 +826,12 @@ function buildAudio(ac, T0) {
   const bus = (v, s) => { const g = ac.createGain(); g.gain.value = v; g.connect(master); const q = ac.createGain(); q.gain.value = s; g.connect(q); q.connect(rev); return g; };
   const voiceBus = bus(.8, .65), orch = bus(.5, .5), sfx = bus(.7, .25), amb = bus(.6, .3);
   if (window.__STEM === 'voice') { orch.gain.value = 0; sfx.gain.value = 0; amb.gain.value = 0; }
-  if (VOICE.buf) return buildVoiceShow(ac, T0, { master, rev, sfx, amb, osc, env, hold, noise, filt, WHITE, BROWN, T });
   const osc = (type, f, t0, t1, dest) => { const o = ac.createOscillator(); o.type = type; o.frequency.value = f; o.connect(dest); o.start(t0); o.stop(t1); return o; };
   const env = (t0, a, peak, dec, dest) => { const g = ac.createGain(); g.gain.setValueAtTime(0, t0); g.gain.linearRampToValueAtTime(peak, t0 + a); g.gain.exponentialRampToValueAtTime(.0001, t0 + a + dec); g.connect(dest); return g; };
   const hold = (t0, a, peak, dur, rel, dest) => { const g = ac.createGain(); g.gain.setValueAtTime(0, t0); g.gain.linearRampToValueAtTime(peak, t0 + a); g.gain.setValueAtTime(peak, t0 + dur); g.gain.linearRampToValueAtTime(0, t0 + dur + rel); g.connect(dest); return g; };
   const noise = (buf, t0, dur, dest) => { const s = ac.createBufferSource(); s.buffer = buf; s.loop = true; s.connect(dest); s.start(t0, Math.random()); s.stop(t0 + dur); return s; };
   const filt = (type, f, q, dest) => { const b = ac.createBiquadFilter(); b.type = type; b.frequency.value = f; b.Q.value = q; b.connect(dest); return b; };
+  if (VOICE.buf) return buildVoiceShow(ac, T0, { master, rev, sfx, amb, osc, env, hold, noise, filt, WHITE, BROWN, T });
 
   // ---- soprano: one continuous voice per phrase (legato + portamento) ----
   const real = new Float32Array(48), imag = new Float32Array(48);
