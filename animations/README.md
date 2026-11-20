@@ -126,3 +126,35 @@ bash animations/tools/encode-tiktok.sh animations/out/mona mona-lisa-aria_tiktok
 ```
 
 녹음을 넣은 판은 빌드할 때 `VOICE_FILE=녹음.mp3`를 주고, 렌더링 길이를 `auto`로 지정합니다(`node animations/tools/render-video.js <html> <outDir> auto`).
+
+---
+
+# 칠판으로 배우는 삼각함수 (약 94초)
+
+`trig-chalkboard-tiktok.html`: 9:16. 분필로 쓰고 지우개로 지우며 진행하는 수업 영상입니다. 칠판, 분필 글씨, 도형, 소리를 모두 코드로 만들었습니다.
+
+- **분필 표현:** 선과 글씨는 진행도에 따라 써 내려가고, 입자 마스크로 가루가 묻어나는 질감을 냅니다. 손에 든 분필이 쓰는 위치를 따라다니고, 장면이 바뀔 때 지우개가 지그재그로 지나가며 분필 가루 흔적을 남깁니다.
+- **글꼴:** 손글씨는 나눔손글씨 펜(OFL, © 2010 NHN Corporation)에서 쓰는 글자만 추려 "ChalkFont"라는 이름으로 넣었습니다("Nanum"이 예약 이름이라 이름을 바꿈). 글꼴에 없는 θ, π, √, °, −, 원문자, 별, 체크는 분필 획으로 직접 그립니다.
+- **수식:** 분수, 루트, 윗첨자를 손글씨로 배치하는 작은 엔진이 있습니다.
+- **소리:** 분필 긁는 소리, 톡 소리, 지우개 소리, 새로 만든 80BPM 로파이 배경 음악입니다. 모든 효과음은 화면과 같은 타임라인 데이터(`SND`)에서 시간을 가져옵니다.
+
+| 장면 | 내용 |
+|---|---|
+| 제목 | 삼각함수 · sin · cos · tan |
+| ① 직각삼각형 | 빗변·높이·밑변, 세 비율. 필기체 s·c·t를 따라 그리며 분모 → 분자 순서 |
+| ② 예: 30° | 변의 비 1 : √3 : 2 → sin 30° = 1/2, cos 30° = √3/2, tan 30° = 1/√3 |
+| ③ 단위원 | 점이 한 바퀴 돌며 P = (cos θ, sin θ), θ·sin·cos 실시간 표시 |
+| ④ 그래프 | 원을 펼쳐 사인 곡선을 그리고 코사인 곡선을 겹침. 주기 2π, 최대 1, 최소 −1, cos = sin을 π/2만큼 당긴 모양 |
+| ⑤ tan | 접선 x = 1과의 교점 높이 = tan θ. 90°로 갈수록 끝없이 커짐, tan = sin/cos |
+| ⑥ 핵심 공식 | sin²θ + cos²θ = 1 (단위원 속 피타고라스) |
+| 마무리 | 소리 · 바퀴 · 시계, 저장해두고 복습! |
+
+```bash
+node animations/tools/render-video.js animations/trig-chalkboard-tiktok.html animations/out/trig auto
+```
+
+```bash
+bash animations/tools/encode-tiktok.sh animations/out/trig trig-chalkboard_tiktok_1080x1920.mp4 "칠판으로 배우는 삼각함수"
+```
+
+인코더는 영상 길이에 맞춰 비트레이트를 낮춰 약 64MB 이하로 맞추고, 음량 정규화 뒤에 리미터를 겁니다.
