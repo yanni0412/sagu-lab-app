@@ -184,3 +184,30 @@ node animations/tools/render-video.js animations/inscribed-angle-chalkboard-tikt
 ```bash
 bash animations/tools/encode-tiktok.sh animations/out/inscribed inscribed-angle-chalkboard_tiktok_1080x1920.mp4 "칠판으로 배우는 원주각"
 ```
+
+---
+
+# 중3 통계 칠판 강의 시리즈 (4편)
+
+통계 단원 전체를 한 영상에 담으면 3분이 넘어서 네 편으로 나눴습니다. 네 편 모두 9:16이고 삼각함수·원주각 편과 같은 칠판 엔진을 씁니다. 장면 구성 도우미(수직선, 점그림, 표, 상자그림, 산점도 축 등)는 네 편이 함께 쓰고, 손글씨 수식에는 아래첨자(Q₁, Q₃)를 분필 획으로 추가했습니다.
+
+산점도의 점 구름은 고정된 시드의 난수로 만들기 때문에 다시 렌더링해도 똑같이 나옵니다. 퀴즈와 예시 계산은 모두 손으로 다시 검산했습니다.
+
+| 편 | 파일 | 길이 | 내용 |
+|---|---|---|---|
+| 1편 대푯값 | `stats1-representative-values-chalkboard-tiktok.html` | 약 89초 | 대푯값의 뜻 → 평균(점그림의 균형점 7.6) → 중앙값(홀수/짝수) → 최빈값(신발 크기 245) → 극단값이 있으면 중앙값(용돈 2, 4, 4, 6, 34) → 퀴즈 → 정리 |
+| 2편 산포도 | `stats2-dispersion-chalkboard-tiktok.html` | 약 100초 | 평균은 같고 흩어짐은 다른 두 반 → 편차(합은 항상 0) → 분산 표(40 ÷ 5 = 8) → 표준편차 √8 = 2√2, 평균 ± 표준편차 → A반 √2 vs B반 2√2 → 퀴즈 → 정리 |
+| 3편 상자그림 | `stats3-boxplot-chalkboard-tiktok.html` | 약 89초 | 사분위수 Q₁·Q₂·Q₃ → 상자그림 그리기(다섯 수) → 사분위범위 Q₃ − Q₁, 구간마다 25% → 두 반 비교 → 퀴즈 → 정리 |
+| 4편 상관관계 | `stats4-correlation-chalkboard-tiktok.html` | 약 111초 | 산점도(순서쌍 찍기) → 양의 상관관계 → 음의 상관관계 → 상관관계 없음 → 강한/약한 상관관계 → 상관관계와 인과관계 구분 → 퀴즈 → 시리즈 총정리 |
+
+상자그림은 2022 개정 교육과정에서 중학교에 새로 들어온 내용이고, 대푯값은 교육과정에 따라 다른 학년에 배치되기도 합니다. 수업에 쓸 때는 사용하는 교과서의 단원 구성을 확인하세요.
+
+편마다 렌더링하고 인코딩합니다(N = 1–4, NAME은 위 파일 이름에서 `-tiktok.html`을 뺀 부분).
+
+```bash
+node animations/tools/render-video.js animations/stats1-representative-values-chalkboard-tiktok.html animations/out/stats1 auto
+```
+
+```bash
+bash animations/tools/encode-tiktok.sh animations/out/stats1 stats1-representative-values-chalkboard_tiktok_1080x1920.mp4 "중3 통계 1편 · 대푯값 (칠판 강의)"
+```
