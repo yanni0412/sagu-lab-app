@@ -211,3 +211,48 @@ node animations/tools/render-video.js animations/stats1-representative-values-ch
 ```bash
 bash animations/tools/encode-tiktok.sh animations/out/stats1 stats1-representative-values-chalkboard_tiktok_1080x1920.mp4 "중3 통계 1편 · 대푯값 (칠판 강의)"
 ```
+
+---
+
+# 중3 수학 단원별 칠판 강의 시리즈 (13편)
+
+중3 수학 교과서의 단원 순서를 따라 단원마다 영상을 만들었습니다. 한 단원을 90초 안팎에 담기 어려우면 여러 편으로 나눴습니다. 통계 단원은 위의 4편 시리즈를, 원주각의 기본 성질은 원주각 편을 그대로 씁니다.
+
+엔진은 앞의 칠판 강의들과 같습니다. 이번 시리즈를 만들면서 다음을 더했습니다.
+
+- 좌표평면과 함수 그래프 그리기
+- 각도 호, 직각 표시, 같은 길이 표시
+- 넓이 모형 색칠
+- 식의 항과 항을 잇는 곡선 화살표
+- 손글씨 폰트에 없는 가운뎃점(·)은 분필 점으로 그림
+- 빌드할 때 폰트에 없는 글자가 있는지 자동으로 검사
+
+장면 끝에서 움직이는 그림(사분원 위에서 움직이는 점, 원 위에서 움직이는 점 C)은 매 프레임 좌표로 다시 계산해서 각도와 삼각비 값을 표시합니다.
+
+| 단원 | 파일 (`m3-…-chalkboard-tiktok.html`) | 길이 | 내용 |
+|---|---|---|---|
+| 제곱근 1편 | `root1-square-roots` | 약 97초 | 제곱근의 뜻, 근호, "9의 제곱근"과 "제곱근 9"의 차이, 제곱근의 성질, 크기 비교, 퀴즈 |
+| 제곱근 2편 | `root2-irrational-real-numbers` | 약 99초 | 무리수, 실수의 분류, 컴퍼스로 수직선 위에 √2 나타내기, 실수와 수직선, 실수의 크기 비교, 퀴즈 |
+| 제곱근 3편 | `root3-radical-calculation` | 약 96초 | 근호가 있는 식의 곱셈과 나눗셈, 분모의 유리화, 덧셈과 뺄셈, 섞인 계산, 퀴즈 |
+| 인수분해 1편 | `fac1-multiplication-formulas` | 약 87초 | 분배법칙(곡선 화살표), (a+b)² 넓이 모형, 합차 공식, 99×101 암산, (ax+b)(cx+d), 퀴즈 |
+| 인수분해 2편 | `fac2-factorization` | 약 99초 | 인수분해의 뜻, 공통인수, 공식 이용, 합과 곱 표, 십자 방법, 퀴즈 |
+| 이차방정식 1편 | `quad1-quadratic-equations` | 약 85초 | 이차방정식의 뜻, AB=0 이용, 중근, 제곱근을 이용한 풀이, 퀴즈 |
+| 이차방정식 2편 | `quad2-quadratic-formula` | 약 100초 | 완전제곱식으로 풀기, 근의 공식, 공식 대입, 근의 개수(b²−4ac), 활용 문제, 퀴즈 |
+| 이차함수 1편 | `qf1-quadratic-function-graph` | 약 85초 | 이차함수의 뜻, y=x² 그래프(표에서 점 찍기), a의 부호, a의 절댓값과 폭, 퀴즈 |
+| 이차함수 2편 | `qf2-quadratic-graph-shift` | 약 88초 | y축·x축 방향 평행이동, y=a(x−p)²+q, 일반형을 완전제곱식으로 바꾸기(꼭짓점, 절편), 퀴즈 |
+| 삼각비 1편 | `trig1-trig-ratios` | 약 89초 | sin·cos·tan의 뜻, 3·4·5 삼각형 예, 닮음이라 비가 같은 이유, 30°·45°·60° 표, 퀴즈 |
+| 삼각비 2편 | `trig2-trig-applications` | 약 90초 | 반지름 1인 사분원, 0°와 90°(움직이는 점), 나무 높이 구하기, 삼각형 넓이 ½ab sin C, 퀴즈 |
+| 원의 성질 1편 | `circ1-chords-tangents` | 약 88초 | 중심에서 현에 내린 수선, 중심에서 같은 거리에 있는 현, 접선과 반지름, 접선의 길이 PA=PB, 퀴즈 |
+| 원의 성질 2편 | `circ2-inscribed-angle-applications` | 약 86초 | 호의 길이와 원주각, 내접사각형의 대각, 외각과 내대각, 접선과 현이 이루는 각(움직이는 점 C), 퀴즈 |
+
+교과서 출판사와 교육과정(2015 개정 또는 2022 개정)에 따라 다루는 범위와 용어가 조금 다를 수 있습니다. 예를 들어 근의 개수 판별이나 둔각삼각형의 넓이는 교과서마다 다룰 수도, 안 다룰 수도 있습니다.
+
+편마다 렌더링하고 인코딩합니다(제곱근 1편 예시).
+
+```bash
+node animations/tools/render-video.js animations/m3-root1-square-roots-chalkboard-tiktok.html animations/out/m3-root1 auto
+```
+
+```bash
+bash animations/tools/encode-tiktok.sh animations/out/m3-root1 m3-root1-square-roots_tiktok_1080x1920.mp4 "중3 수학 · 제곱근의 뜻과 성질 (칠판 강의)"
+```
