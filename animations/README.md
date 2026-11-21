@@ -158,3 +158,29 @@ bash animations/tools/encode-tiktok.sh animations/out/trig trig-chalkboard_tikto
 ```
 
 인코더는 영상 길이에 맞춰 비트레이트를 낮춰 약 64MB 이하로 맞추고, 음량 정규화 뒤에 리미터를 겁니다.
+
+---
+
+# 칠판으로 배우는 원주각 (약 84초)
+
+`inscribed-angle-chalkboard-tiktok.html`: 9:16. 삼각함수 편과 같은 칠판 엔진(분필 질감, 손글씨 수식, 지우개, 분필 소리, 로파이 음악)을 씁니다. 수식 엔진에 ∠ 기호를 분필 획으로 추가했습니다.
+
+움직이는 장면의 각도는 그림을 그린 좌표에서 매 프레임 직접 계산해 표시합니다. 점 P가 어디로 가도 "늘 40°", "늘 90°"가 실제 측정값으로 나옵니다.
+
+| 장면 | 내용 |
+|---|---|
+| 제목 | 원주각 = 중심각의 ½ |
+| ① 용어 | 호 AB, 중심각(꼭짓점이 중심), 원주각(꼭짓점이 원 위) |
+| ② 핵심 성질 | 중심각 80°. 점 P가 원 위를 움직여도 ∠APB = 40°로 유지됨. 같은 호 위의 원주각은 모두 같다 |
+| ③ 증명 | 지름 PC를 긋고 반지름이 같은 이등변삼각형 두 개를 만든다. 외각으로 ∠AOC = 2a, ∠BOC = 2b → ∠AOB = 2∠APB |
+| ④ 지름 | 중심각 180° → 원주각은 늘 90° (직각 표시가 따라다님) |
+| ⑤ 3초 퀴즈 | ∠AOB = 110°일 때 ∠APB = ? → 카운트다운 후 55° |
+| 정리 | 원주각 = 중심각 × ½, 같은 호 → 같은 원주각, 지름 → 90° |
+
+```bash
+node animations/tools/render-video.js animations/inscribed-angle-chalkboard-tiktok.html animations/out/inscribed auto
+```
+
+```bash
+bash animations/tools/encode-tiktok.sh animations/out/inscribed inscribed-angle-chalkboard_tiktok_1080x1920.mp4 "칠판으로 배우는 원주각"
+```
