@@ -256,3 +256,59 @@ node animations/tools/render-video.js animations/m3-root1-square-roots-chalkboar
 ```bash
 bash animations/tools/encode-tiktok.sh animations/out/m3-root1 m3-root1-square-roots_tiktok_1080x1920.mp4 "중3 수학 · 제곱근의 뜻과 성질 (칠판 강의)"
 ```
+
+---
+
+# 중1 · 중2 수학 단원별 칠판 강의 시리즈 (25편)
+
+지금 중1·중2가 쓰는 2022 개정 교육과정의 단원 순서를 따랐습니다. 2022 개정은 중1에 2025년, 중2에 2026년부터 적용되었습니다. 대푯값은 2022 개정에서 중1로 옮겨졌는데, 중1 자료 편에서 짧게 다루고 자세한 내용은 통계 1편을 보도록 안내합니다. 엔진은 중3 시리즈와 같습니다.
+
+이번 시리즈를 만들면서 손글씨 폰트에 없는 기호를 분필 획으로 그리도록 추가했습니다.
+
+- 부등호 ≤ ≥
+- 순환소수의 점 (0.3̇)
+- 닮음 기호 ∽
+- 합동 기호 ≡
+- 연립방정식 중괄호
+
+긴 제목은 칠판 폭에 맞춰 글자 크기를 자동으로 줄입니다.
+
+| 학년 | 파일 (`…-chalkboard-tiktok.html`) | 내용 |
+|---|---|---|
+| 중1 | `m1-primes` | 소수와 합성수(1~20 표), 거듭제곱, 소인수분해(가지치기·나눗셈), 약수의 개수 |
+| 중1 | `m1-gcd-lcm` | 공약수·공배수, 소인수분해로 최대공약수(작은 지수)와 최소공배수(큰 지수), 나눗셈 방법 |
+| 중1 | `m1-integers` | 양수와 음수, 정수와 유리수 분류, 수직선, 절댓값, 대소 관계, 부등호 |
+| 중1 | `m1-integer-operations` | 수직선 덧셈, 뺄셈은 부호 바꿔 더하기, 곱셈의 부호, 역수와 나눗셈, 계산 순서 |
+| 중1 | `m1-expressions` | 문자 사용, 기호 생략 규칙, 식의 값, 다항식 용어, 일차식 계산 |
+| 중1 | `m1-linear-equations` | 방정식과 해, 등식의 성질(저울), 이항, 괄호·소수·분수 방정식, 활용 |
+| 중1 | `m1-coordinates` | 순서쌍과 좌표, 사분면, 시간–거리 그래프 읽기 |
+| 중1 | `m1-proportion` | 정비례 y = ax, 반비례 y = a/x, 표와 그래프 |
+| 중1 | `m1-basic-geometry` | 점·선·면, 직선·반직선·선분, 각의 종류, 맞꼭지각, 수선, 평행선의 동위각·엇각 |
+| 중1 | `m1-construction-congruence` | 작도, 삼각형이 되는 조건, 삼각형이 하나로 정해지는 조건, SSS·SAS·ASA 합동 |
+| 중1 | `m1-polygons-circles` | 내각의 합, 외각의 합, 대각선의 개수, 부채꼴의 호의 길이와 넓이 |
+| 중1 | `m1-solids` | 다면체, 정다면체 5가지, 회전체, 기둥·뿔·구의 부피와 겉넓이 |
+| 중1 | `m1-data` | 줄기와 잎 그림, 도수분포표, 히스토그램과 도수분포다각형, 상대도수, 대푯값 |
+| 중2 | `m2-repeating-decimals` | 유한소수와 무한소수, 순환소수 표기, 유한소수가 되는 분수, 순환소수를 분수로 |
+| 중2 | `m2-expressions` | 지수법칙, 단항식의 곱셈과 나눗셈, 다항식의 덧셈과 뺄셈, 분배법칙 |
+| 중2 | `m2-inequalities` | 부등식, 부등식의 성질(음수를 곱하면 방향 반대), 풀이, 수직선 표시, 활용 |
+| 중2 | `m2-simultaneous-equations` | 미지수 2개인 방정식, 가감법, 대입법, 닭과 토끼 활용 |
+| 중2 | `m2-linear-functions` | 일차함수, 평행이동과 y절편, 기울기, 절편으로 그래프 그리기 |
+| 중2 | `m2-linear-equation-graphs` | 일차방정식의 그래프, x = p와 y = q, 연립방정식의 해 = 교점, 해의 개수 |
+| 중2 | `m2-triangles` | 이등변삼각형, RHA·RHS 합동, 외심과 외접원, 내심과 내접원 |
+| 중2 | `m2-quadrilaterals` | 평행사변형의 성질과 조건, 여러 가지 사각형, 포함 관계 |
+| 중2 | `m2-similarity` | 닮음비, 넓이의 비와 부피의 비, SSS·SAS·AA 닮음, 평행선과 선분의 비, 중점연결정리 |
+| 중2 | `m2-pythagorean-theorem` | 세 정사각형 넓이로 보는 정리, 변의 길이 구하기, 사다리 활용, 직각삼각형 판별 |
+| 중2 | `m2-counting` | 경우의 수, 합의 법칙, 곱의 법칙(수형도), 한 줄로 세우기, 대표 뽑기 |
+| 중2 | `m2-probability` | 확률의 뜻과 범위, 일어나지 않을 확률, 확률의 덧셈과 곱셈 |
+
+교과서 출판사마다 단원 순서나 다루는 범위가 조금씩 다를 수 있습니다.
+
+렌더링과 인코딩은 다른 편과 같은 방식입니다(소인수분해 편 예시).
+
+```bash
+node animations/tools/render-video.js animations/m1-primes-chalkboard-tiktok.html animations/out/m1-primes auto
+```
+
+```bash
+bash animations/tools/encode-tiktok.sh animations/out/m1-primes m1-primes_tiktok_1080x1920.mp4 "중1 수학 · 소인수분해 (칠판 강의)"
+```
