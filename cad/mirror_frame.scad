@@ -44,6 +44,11 @@ v_angle  = 90;     // V 내각 (°)
 v_flat   = 0.010;  // 홈 사이 상단 평탄부
 v_margin = 0.20;   // 포켓 가장자리 여백
 
+/* [Reflective lens — 가정값] */
+fiber_d = 0.125;   // 파이버 지름
+lens_a  = 0.110;   // 렌즈 구경 (피치 127µm보다 작게)
+lens_r  = 0.25;    // 오목 구면 곡률반경
+
 $fn = 48;
 eps = 0.001;
 
@@ -69,7 +74,7 @@ module ledge() {
     // 경사면: (Y,Z) 단면 삼각형을 X방향으로 돌출
     rotate([90, 0, 90])
         linear_extrude(height = win_w, center = true)
-            polygon([[y_s0, z_floor - eps], [y_l0 + eps, z_floor - eps], [y_l0 + eps, z_ledge]]);
+            polygon([[y_m, z_b], [y_l0 + eps, z_b], [y_l0 + eps, z_ledge]]);
 }
 
 v_open  = v_pitch - v_flat;
@@ -78,6 +83,27 @@ v_n     = floor((win_w - 2*v_margin - v_flat) / v_pitch);
 v_x0    = -(v_n*v_pitch - v_flat)/2;
 v_y0    = -win_h/2 + v_margin;
 v_y1    = y_s0 - v_margin;
+
+// 45° 반사면: 홈 바닥 높이(z_b)부터 시작하도록 경사 시작점을 앞으로 당김
+z_b     = z_floor - v_depth;
+m_ang   = atan2(z_ledge - z_floor, slope_len);
+y_m     = y_s0 - (z_floor - z_b) / tan(m_ang);
+z_axis  = z_b + (fiber_d/2) / sin(v_angle/2);            // 파이버 광축 높이
+p_y     = y_m + (z_axis - z_b) / tan(m_ang);              // 광축이 반사면에 닿는 Y
+m_n     = [0, -sin(m_ang), cos(m_ang)];                   // 반사면 바깥 법선
+lens_sag = lens_r - sqrt(lens_r*lens_r - (lens_a/2)*(lens_a/2));
+
+module trench() {     // 파이버 끝 ~ 반사면 사이 광로
+    translate([v_x0, v_y1 - eps, z_b]) cube([v_n*v_pitch - v_flat, y_m - v_y1 + 2*eps, z_floor - z_b + eps]);
+}
+module lenses() {     // lane마다 오목 구면, 반사면 쐐기 안쪽만
+    intersection() {
+        for (i = [0 : v_n - 1])
+            translate([v_x0 + i*v_pitch + v_open/2, p_y, z_axis] + m_n*(lens_r - lens_sag)) sphere(r = lens_r, $fn = 96);
+        rotate([90, 0, 90]) linear_extrude(height = win_w, center = true)
+            polygon([[y_m, z_b], [y_l0, z_b], [y_l0, z_ledge]]);
+    }
+}
 
 module vgrooves() {   // XZ 단면 삼각형을 -Y 방향으로 돌출 → 바닥에서 잘라냄
     for (i = [0 : v_n - 1]) let(x = v_x0 + i*v_pitch)
@@ -116,12 +142,16 @@ difference() {
         if (feature == "dot" && dot_mode == "bump") dot_bumps();
     }
     vgrooves();
+    trench();
+    lenses();
     if (feature == "dot" && dot_mode == "dimple") dot_dimples();
     if (feature == "notch") notches();
 }
 
 // ---------- 설계 체크 (콘솔 출력) ----------
 echo(str("V-groove ", v_n, "개, 깊이 ", v_depth));
+echo(str("Reflective lens sag ", lens_sag, ", 광축 z ", z_axis));
+assert(lens_a < v_pitch, "렌즈 구경이 피치보다 큽니다");
 echo(str("DOT 종횡비(h/d) = ", dot_h / dot_d));
 assert(frame_dot_inset + dot_d/2 < (W - win_w)/2, "프레임 DOT이 포켓과 겹칩니다");
 assert(ledge_dot_inset > dot_d/2, "레지 DOT이 레지 끝을 벗어납니다");

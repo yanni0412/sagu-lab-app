@@ -83,6 +83,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
       <button id="v-ledge">② 레지 DOT 확대</button>
       <button id="v-notch">Notch 확대</button>
       <button id="v-groove">V-groove 단면</button>
+      <button id="v-lens">Reflective lens</button>
     </div>
     <div class="legend">
       <span><i style="background:var(--legacy)"></i>① 기존 제안 위치</span>
@@ -126,7 +127,9 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
       <span class="label">V-groove · 가상 파이버</span>
       <div class="row"><label for="vAngle">V 내각</label><output id="vAngle-o"></output><input type="range" id="vAngle" min="60" max="110" step="0.5" value="90"></div>
       <div class="row"><label for="vFlat">홈 사이 평탄부</label><output id="vFlat-o"></output><input type="range" id="vFlat" min="0" max="0.04" step="0.001" value="0.010"></div>
-      <label class="check"><input type="checkbox" id="showFiber" checked>가상 파이버 Ø125µm 표시</label>
+      <label class="check"><input type="checkbox" id="showFiber" checked>가상 파이버 Ø125µm · 광로 표시</label>
+      <div class="row"><label for="lensA">Reflective lens 구경</label><output id="lensA-o"></output><input type="range" id="lensA" min="0.04" max="0.127" step="0.001" value="0.110"></div>
+      <div class="row"><label for="lensR">렌즈 곡률반경 R</label><output id="lensR-o"></output><input type="range" id="lensR" min="0.08" max="1.5" step="0.01" value="0.25"></div>
     </div>
 
     <div class="group">
@@ -140,7 +143,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
       <ul class="checks" id="checks"></ul>
     </div>
 
-    <p class="note">기본값: 외곽 10×10×0.5 · 포켓 8×8 깊이 0.25 · V-groove 피치 127µm 내각 90° · 레지 폭 0.9, 프레임 윗면 위로 0.10 돌출 + 경사 0.35. 같은 파라미터의 OpenSCAD 원본은 저장소의 cad/mirror_frame.scad 입니다.</p>
+    <p class="note">기본값: 외곽 10×10×0.5 · 포켓 8×8 깊이 0.25 · V-groove 피치 127µm 내각 90° · 45° 반사면 + Reflective lens 구경 110µm R 250µm · 레지 폭 0.9, 프레임 윗면 위로 0.10 돌출 + 경사 0.35. 같은 파라미터의 OpenSCAD 원본은 저장소의 cad/mirror_frame.scad 입니다.</p>
   </aside>
 </div>
 
@@ -154,7 +157,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
     notchN: 3, notchW: 0.20, notchD: 0.15, notchZ: 0.04,
     W: 10, H: 10, T: 0.5, winW: 8, winH: 8, pocketD: 0.25,
     ledgeH: 0.90, ledgeRise: 0.10, slopeLen: 0.35,
-    vPitch: 0.127, vAngle: 90, vFlat: 0.010, ribMargin: 0.20, fiberD: 0.125, showFiber: true,
+    vPitch: 0.127, vAngle: 90, vFlat: 0.010, ribMargin: 0.20, fiberD: 0.125, showFiber: true, lensA: 0.110, lensR: 0.25,
     frameInset: 0.5, ledgeInset: 0.3,
   };
   const d = () => {
@@ -189,9 +192,12 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
     rib: new THREE.MeshStandardMaterial({ color: 0x8a939e, metalness: 0.4, roughness: 0.45 }),
     legacy: new THREE.MeshStandardMaterial({ color: 0xd22f3c, roughness: 0.4 }),
     accent: new THREE.MeshStandardMaterial({ color: 0x1d4fd8, roughness: 0.4 }),
+    lens: new THREE.MeshStandardMaterial({ color: 0xe0b85c, metalness: 0.55, roughness: 0.18, side: THREE.DoubleSide }),
+    beam: new THREE.LineBasicMaterial({ color: 0xff3b30, transparent: true, opacity: 0.8 }),
     fiber: new THREE.MeshStandardMaterial({ color: 0x9fd8ff, transparent: true, opacity: 0.55, roughness: 0.1 }),
     edge: new THREE.LineBasicMaterial({ color: 0x3a4450, transparent: true, opacity: 0.35 }),
   };
+  mats.ledge2 = mats.ledge.clone(); mats.ledge2.side = THREE.DoubleSide;
   function applyTheme() {
     scene.background = new THREE.Color(css('--stage'));
     mats.legacy.color.set(css('--legacy'));
@@ -218,6 +224,15 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
     const g = new THREE.CircleGeometry(r, 48); g.translate(x, y, z); addMesh(g, mat, false);
   }
 
+  function mirror(G) {   // 45° 반사면을 홈 바닥(zB)부터 시작, 광축이 닿는 점에 렌즈
+    const { zF, zL, yS0 } = d(); const zB = zF - G.depth, ang = Math.atan2(zL - zF, P.slopeLen);
+    const yM = yS0 - (zF - zB) / Math.tan(ang);
+    const zc = zB + (P.fiberD / 2) / Math.sin(P.vAngle / 2 * Math.PI / 180);
+    const h = P.lensA / 2, R = Math.max(P.lensR, h + 1e-6), sag = R - Math.sqrt(R * R - h * h);
+    const vC = (zc - zB) / Math.sin(ang), L = (zL - zB) / Math.sin(ang);
+    const t = new THREE.Vector3(0, Math.cos(ang), Math.sin(ang)), n = new THREE.Vector3(0, -Math.sin(ang), Math.cos(ang));
+    return { zB, yM, zc, ang, h, R, sag, vC, L, t, n, py: yM + vC * Math.cos(ang) };
+  }
   function vg() {
     const { yS0 } = d(); const open = P.vPitch - P.vFlat, depth = (open / 2) / Math.tan(P.vAngle / 2 * Math.PI / 180);
     const n = Math.floor((P.winW - 2 * P.ribMargin - P.vFlat) / P.vPitch), x0 = -(n * P.vPitch - P.vFlat) / 2;
@@ -241,7 +256,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
     const G = vg();
     const zB = zF - G.depth;
     slab(rectShape(-hx, -hy, hx, hy), 0, zB, mats.metal);
-    const fill = rectShape(-hx, -hy, hx, hy); fill.holes.push(rectShape(G.xs[0], G.y0, G.xe, G.y1, THREE.Path));
+    const fill = rectShape(-hx, -hy, hx, hy); fill.holes.push(rectShape(G.xs[0], G.y0, G.xe, mirror(G).yM, THREE.Path));   // 홈 + 광로 트렌치
     slab(fill, zB, zF, mats.metal);
 
     // 프레임 테두리 (凹이면 윗층에 원형 구멍)
@@ -273,11 +288,27 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
       slab(s, zL - ledgeCutDepth, zL, mats.ledge);
     }
 
-    // 경사면 프리즘: (Y,Z) 삼각형을 X 방향으로 돌출
-    const tri = new THREE.Shape(); tri.moveTo(yS0, zF); tri.lineTo(yL0, zF); tri.lineTo(yL0, zL); tri.lineTo(yS0, zF);
-    const tg = new THREE.ExtrudeGeometry(tri, { depth: P.winW, bevelEnabled: false });
-    tg.applyMatrix4(new THREE.Matrix4().set(0, 0, 1, -wx, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1));
-    addMesh(tg, mats.ledge);
+    // 45° 반사면 + Reflective lens (lane마다 오목 구면)
+    const M = mirror(G);
+    const face = rectShape(-wx, 0, wx, M.L);
+    G.xs.forEach(x => face.holes.push(circlePath(x + G.open / 2, M.vC, M.h)));
+    const fgeo = new THREE.ShapeGeometry(face, 48);
+    fgeo.applyMatrix4(new THREE.Matrix4().makeBasis(new THREE.Vector3(1, 0, 0), M.t, M.n).setPosition(0, M.yM, M.zB));
+    addMesh(fgeo, mats.ledge2);
+    const endTri = new THREE.Shape(); endTri.moveTo(M.yM, M.zB); endTri.lineTo(yL0, M.zB); endTri.lineTo(yL0, zL); endTri.lineTo(M.yM, M.zB);
+    [-wx, wx].forEach(x => { const g = new THREE.ShapeGeometry(endTri); g.applyMatrix4(new THREE.Matrix4().makeBasis(new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0, 1), new THREE.Vector3(1, 0, 0)).setPosition(x, 0, 0)); addMesh(g, mats.ledge2); });
+    const cap = new THREE.SphereGeometry(M.R, 40, 10, 0, Math.PI * 2, 0, Math.asin(M.h / M.R));
+    const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), M.n.clone().negate());
+    G.xs.forEach(x => {
+      const p = new THREE.Vector3(x + G.open / 2, M.py, M.zc), c = p.clone().addScaledVector(M.n, M.R - M.sag);
+      const m = new THREE.Mesh(cap, mats.lens); m.quaternion.copy(q); m.position.copy(c); group.add(m);
+    });
+    // 광로: 파이버 끝 → 렌즈 → 위로 반사
+    if (P.showFiber) {
+      const pts = []; G.xs.forEach(x => { const xc = x + G.open / 2; pts.push(xc, G.y1, M.zc, xc, M.py, M.zc, xc, M.py, M.zc, xc, M.py, zL + 0.25); });
+      const lg = new THREE.BufferGeometry(); lg.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
+      group.add(new THREE.LineSegments(lg, mats.beam));
+    }
 
     // V-groove: XZ 톱니 단면을 Y로 돌출
     const saw = new THREE.Shape(); saw.moveTo(G.xs[0], zB); saw.lineTo(G.xe, zB);
@@ -313,6 +344,11 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
       const contactH = rf / s2 - rf * s2;            // 꼭짓점 기준 벽 접촉점 높이
       const top = rf / s2 + rf - G.depth;             // 파이버 윗면이 평탄부보다 높은 양
       add(contactH < G.depth ? 'ok' : 'bad', `V-groove ${G.n}개 · 깊이 ${(G.depth * 1000).toFixed(1)}µm · 벽 접촉 높이 ${(contactH * 1000).toFixed(1)}µm${contactH < G.depth ? '' : ' → 파이버가 홈 모서리에 걸림'}`);
+      { const M = mirror(G);
+        add(P.lensA < P.vPitch ? 'ok' : 'bad', `렌즈 ${G.n}개 · 구경 ${(P.lensA * 1000).toFixed(0)}µm · sag ${(M.sag * 1000).toFixed(2)}µm · 렌즈 간 간격 ${((P.vPitch - P.lensA) * 1000).toFixed(0)}µm`);
+        const lo = M.vC - M.h, hi = M.L - (M.vC + M.h);
+        add(lo >= 0 && hi >= 0 ? 'ok' : 'bad', `렌즈가 반사면 안에 들어감 (아래 여유 ${(lo * 1000).toFixed(1)}µm, 위 여유 ${(hi * 1000).toFixed(1)}µm)`);
+        add('ok', `파이버 끝 → 렌즈 거리 ${((M.py - G.y1) * 1000).toFixed(0)}µm · 반사면 ${(M.ang * 180 / Math.PI).toFixed(1)}°`); }
       add('ok', `파이버 중심 높이(평탄부 기준) ${((rf / s2 - G.depth) * 1000).toFixed(1)}µm · 윗면 돌출 ${(top * 1000).toFixed(1)}µm`); }
     if (P.mode !== 'notch') {
       const ar = P.dotH / P.dotD;
@@ -349,9 +385,10 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
     frame: () => { const [x, y] = framePts()[0]; goTo([x, y, P.T], [x - 0.35, y - 0.75, P.T + 0.55]); },
     ledge: () => { const { zL } = d(); const [x, y] = ledgePts()[0]; goTo([x, y, zL], [x - 0.35, y - 0.8, zL + 0.55]); },
     notch: () => { const { zL, yTop } = d(); goTo([0, yTop - 0.1, zL], [0.6, yTop - 1.3, zL + 0.9]); },
+    lens: () => { const G = vg(), M = mirror(G), x = G.xs[1] + G.open / 2; goTo([x + 0.1, M.py, M.zc], [x + 0.3, M.py - 0.95, M.zc + 0.6]); },
     groove: () => { const G = vg(), zF = P.T - P.pocketD; goTo([G.xs[0] + 0.25, G.y0, zF], [G.xs[0] + 0.3, G.y0 - 0.55, zF + 0.9]); },
   };
-  const viewBtns = { all: 'v-all', frame: 'v-frame', ledge: 'v-ledge', notch: 'v-notch', groove: 'v-groove' };
+  const viewBtns = { all: 'v-all', frame: 'v-frame', ledge: 'v-ledge', notch: 'v-notch', groove: 'v-groove', lens: 'v-lens' };
   Object.entries(viewBtns).forEach(([k, id]) => document.getElementById(id).addEventListener('click', () => {
     if (k === 'notch' && P.mode !== 'notch') setMode('notch');
     if ((k === 'frame' || k === 'ledge') && P.mode === 'notch') setMode('bump');
@@ -371,7 +408,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
   }
   ['bump', 'dimple', 'notch'].forEach(k => document.getElementById('m-' + k).addEventListener('click', () => setMode(k)));
   ['atFrame', 'atLedge', 'showFiber'].forEach(k => document.getElementById(k).addEventListener('change', e => { P[k] = e.target.checked; build(); }));
-  const sliders = { dotD: 2, dotH: 3, notchN: 0, notchW: 2, notchD: 2, notchZ: 3, ledgeH: 2, ledgeRise: 2, vAngle: 1, vFlat: 3 };
+  const sliders = { dotD: 2, dotH: 3, notchN: 0, notchW: 2, notchD: 2, notchZ: 3, ledgeH: 2, ledgeRise: 2, vAngle: 1, vFlat: 3, lensA: 3, lensR: 2 };
   Object.entries(sliders).forEach(([k, dp]) => {
     const el = document.getElementById(k), o = document.getElementById(k + '-o');
     const show = () => { o.textContent = k === 'vAngle' ? el.value + '°' : k === 'notchN' ? el.value + ' 개' : (k === 'dotD' ? 'Φ ' : '') + fmt(el.value, dp); };
