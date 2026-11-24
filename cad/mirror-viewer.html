@@ -124,6 +124,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
     <div class="group">
       <span class="label">가정 치수</span>
       <div class="row"><label for="ledgeH">상단 레지 평탄부 폭</label><output id="ledgeH-o"></output><input type="range" id="ledgeH" min="0.15" max="1.5" step="0.01" value="0.90"></div>
+      <div class="row"><label for="ledgeRise">레지 돌출 높이 (프레임 윗면 기준)</label><output id="ledgeRise-o"></output><input type="range" id="ledgeRise" min="0" max="0.30" step="0.01" value="0.10"></div>
     </div>
 
     <div class="group">
@@ -131,7 +132,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
       <ul class="checks" id="checks"></ul>
     </div>
 
-    <p class="note">기본값: 외곽 10×10×0.5 · 포켓 8×8 깊이 0.25 · 레지 0.9 + 경사 0.35 · 리브 피치 0.12. 같은 파라미터의 OpenSCAD 원본은 저장소의 cad/mirror_frame.scad 입니다.</p>
+    <p class="note">기본값: 외곽 10×10×0.5 · 포켓 8×8 깊이 0.25 · 레지 폭 0.9, 프레임 윗면 위로 0.10 돌출 + 경사 0.35 · 리브 피치 0.12. 같은 파라미터의 OpenSCAD 원본은 저장소의 cad/mirror_frame.scad 입니다.</p>
   </aside>
 </div>
 
@@ -144,12 +145,12 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
     dotD: 0.15, dotH: 0.04,
     notchN: 3, notchW: 0.20, notchD: 0.15, notchZ: 0.04,
     W: 10, H: 10, T: 0.5, winW: 8, winH: 8, pocketD: 0.25,
-    ledgeH: 0.90, ledgeDrop: 0.05, slopeLen: 0.35,
+    ledgeH: 0.90, ledgeRise: 0.10, slopeLen: 0.35,
     ribPitch: 0.12, ribW: 0.06, ribH: 0.05, ribMargin: 0.20,
     frameInset: 0.5, ledgeInset: 0.3,
   };
   const d = () => {
-    const zF = P.T - P.pocketD, zL = P.T - P.ledgeDrop, yTop = P.winH / 2;
+    const zF = P.T - P.pocketD, zL = P.T + P.ledgeRise, yTop = P.winH / 2;
     const yL0 = yTop - P.ledgeH, yS0 = yL0 - P.slopeLen;
     return { zF, zL, yTop, yL0, yS0 };
   };
@@ -302,7 +303,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
       const gap = P.winW / (P.notchN + 1) - P.notchW;
       add(gap > 0.2 ? 'ok' : 'warn', `Notch 간격 ${gap.toFixed(2)}mm`);
       add(P.notchD < P.ledgeH ? 'ok' : 'bad', `Notch Y깊이 ${P.notchD.toFixed(2)} / 레지 폭 ${P.ledgeH.toFixed(2)}mm`);
-      add(P.notchZ < P.T - P.pocketD + P.ledgeDrop ? 'ok' : 'bad', `Notch Z깊이 ${P.notchZ.toFixed(3)}mm`);
+      add(P.notchZ < P.ledgeRise + P.pocketD ? 'ok' : 'bad', `Notch Z깊이 ${P.notchZ.toFixed(3)}mm`);
     }
     document.getElementById('checks').innerHTML = out.join('');
   }
@@ -338,7 +339,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
   }
   ['bump', 'dimple', 'notch'].forEach(k => document.getElementById('m-' + k).addEventListener('click', () => setMode(k)));
   ['atFrame', 'atLedge'].forEach(k => document.getElementById(k).addEventListener('change', e => { P[k] = e.target.checked; build(); }));
-  const sliders = { dotD: 2, dotH: 3, notchN: 0, notchW: 2, notchD: 2, notchZ: 3, ledgeH: 2 };
+  const sliders = { dotD: 2, dotH: 3, notchN: 0, notchW: 2, notchD: 2, notchZ: 3, ledgeH: 2, ledgeRise: 2 };
   Object.entries(sliders).forEach(([k, dp]) => {
     const el = document.getElementById(k), o = document.getElementById(k + '-o');
     const show = () => { o.textContent = k === 'notchN' ? el.value + ' 개' : (k === 'dotD' ? 'Φ ' : '') + fmt(el.value, dp); };

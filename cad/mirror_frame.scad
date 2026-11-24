@@ -35,7 +35,7 @@ pocket_d = 0.25;  // 포켓 깊이
 
 /* [상단 경사 레지 — 가정값] */
 ledge_h    = 0.90;  // 레지 평탄부 폭(Y)
-ledge_drop = 0.05;  // 레지 윗면이 프레임 윗면보다 낮은 양
+ledge_rise = 0.10;  // 레지 윗면이 프레임 윗면보다 돌출된 양 (가정값)
 slope_len  = 0.35;  // 경사면 Y길이 (레지 → 포켓 바닥)
 
 /* [그레이팅(세로 리브) — 가정값] */
@@ -49,7 +49,7 @@ eps = 0.001;
 
 // ---------- 파생 좌표 ----------
 z_floor  = T - pocket_d;          // 포켓 바닥 높이
-z_ledge  = T - ledge_drop;        // 레지 윗면 높이
+z_ledge  = T + ledge_rise;        // 레지 윗면 높이 (프레임 위로 돌출)
 y_top    = win_h/2;               // 포켓 윗변
 y_l0     = y_top - ledge_h;       // 레지 평탄부 아랫변
 y_s0     = y_l0 - slope_len;      // 경사면 끝(포켓 바닥과 만나는 선)
@@ -121,5 +121,6 @@ difference() {
 echo(str("DOT 종횡비(h/d) = ", dot_h / dot_d));
 assert(frame_dot_inset + dot_d/2 < (W - win_w)/2, "프레임 DOT이 포켓과 겹칩니다");
 assert(ledge_dot_inset > dot_d/2, "레지 DOT이 레지 끝을 벗어납니다");
-assert(dot_mode != "dimple" || dot_h < ledge_drop + (T - pocket_d) , "DOT 깊이가 과도합니다");
+assert(dot_mode != "dimple" || dot_h < ledge_rise + pocket_d , "DOT 깊이가 과도합니다");
+assert(notch_z < ledge_rise + pocket_d, "Notch Z깊이가 과도합니다");
 assert(notch_d < ledge_h, "Notch가 레지보다 깊습니다");
