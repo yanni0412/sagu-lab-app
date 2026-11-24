@@ -8,7 +8,7 @@ setOC(oc);
 
 // ---- 파라미터 (mm, 뷰어 기본값과 동일) ----
 const P = { W:10, H:10, T:0.5, winW:8, winH:8, pocketD:0.25, ledgeH:0.9, ledgeRise:0.10, slopeLen:0.35,
-  ribPitch:0.12, ribW:0.06, ribH:0.05, ribMargin:0.2, dotD:0.15, dotH:0.04, frameInset:0.5, ledgeInset:0.3,
+  vPitch:0.127, vAngle:90, vFlat:0.010, ribMargin:0.2, dotD:0.15, dotH:0.04, frameInset:0.5, ledgeInset:0.3,
   notchN:3, notchW:0.2, notchD:0.15, notchZ:0.04 };
 const e = 0.001;
 const zF = P.T - P.pocketD, zL = P.T + P.ledgeRise, yTop = P.winH/2, yL0 = yTop - P.ledgeH, yS0 = yL0 - P.slopeLen;
@@ -23,16 +23,21 @@ function body() {
   const tri = draw([yS0, zF - e]).lineTo([yL0 + e, zF - e]).lineTo([yL0 + e, zL]).close()
     .sketchOnPlane("YZ", [-wx, 0, 0]).extrude(P.winW);
   s = s.fuse(tri);
-  // 그레이팅 리브
-  const span = P.winW - 2*P.ribMargin, n = Math.floor((span - P.ribW)/P.ribPitch) + 1;
-  const y0 = -wy + P.ribMargin, y1 = yS0 - P.ribMargin;
-  let ribs = null;
-  for (let i = 0; i < n; i++) {
-    const x = -wx + P.ribMargin + i*P.ribPitch;
-    const b = makeBox([x, y0, zF - e], [x + P.ribW, y1, zF + P.ribH]);
-    ribs = ribs ? ribs.fuse(b, { optimisation: "none" }) : b;
+  // V-groove: 피치 127µm, 내각 90°, 상단 평탄부 10µm (가정값). XZ 단면 삼각형을 Y로 돌출해 바닥에서 잘라냄
+  const G = vgroove();
+  let cutter = null;
+  for (const x of G.xs) {
+    const tri = draw([x, zF + e]).lineTo([x + G.open/2, zF - G.depth]).lineTo([x + G.open, zF + e]).close()
+      .sketchOnPlane("XZ", [0, G.y1, 0]).extrude(G.y1 - G.y0);
+    cutter = cutter ? cutter.fuse(tri, { optimisation: "none" }) : tri;
   }
-  return s.fuse(ribs);
+  return s.cut(cutter);
+}
+function vgroove() {
+  const open = P.vPitch - P.vFlat, depth = (open/2) / Math.tan(P.vAngle/2 * Math.PI/180);
+  const n = Math.floor((P.winW - 2*P.ribMargin - P.vFlat) / P.vPitch);
+  const x0 = -(n*P.vPitch - P.vFlat)/2;               // 홈 배열을 X 중앙 정렬
+  return { open, depth, n, xs: Array.from({length:n}, (_,i) => x0 + i*P.vPitch), y0: -wy + P.ribMargin, y1: yS0 - P.ribMargin };
 }
 const framePts = [[1,1],[-1,1],[1,-1],[-1,-1]].map(([a,b]) => [a*(P.W/2-P.frameInset), b*(P.H/2-P.frameInset), P.T]);
 const ledgePts = [1,-1].map(a => [a*(wx-P.ledgeInset), (yL0+yTop)/2, zL]);
@@ -46,6 +51,7 @@ const variants = {
                   .reduce((s,cx) => s.cut(makeBox([cx-P.notchW/2, yTop-P.notchD, zL-P.notchZ], [cx+P.notchW/2, yTop+e, zL+e])), base),
 };
 const out = process.argv[2];
+{ const G = vgroove(); console.log(`V-groove ${G.n}개, 개구폭 ${(G.open*1000).toFixed(1)}µm, 깊이 ${(G.depth*1000).toFixed(1)}µm, x0 ${G.xs[0].toFixed(4)}`); }
 for (const [k, f] of Object.entries(variants)) {
   const s = f();
   const bb = s.boundingBox;

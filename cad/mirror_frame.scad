@@ -38,11 +38,11 @@ ledge_h    = 0.90;  // 레지 평탄부 폭(Y)
 ledge_rise = 0.10;  // 레지 윗면이 프레임 윗면보다 돌출된 양 (가정값)
 slope_len  = 0.35;  // 경사면 Y길이 (레지 → 포켓 바닥)
 
-/* [그레이팅(세로 리브) — 가정값] */
-rib_pitch  = 0.12;
-rib_w      = 0.06;
-rib_h      = 0.05;
-rib_margin = 0.20;
+/* [V-groove (파이버 정렬 홈) — 가정값] */
+v_pitch  = 0.127;  // 127µm 피치
+v_angle  = 90;     // V 내각 (°)
+v_flat   = 0.010;  // 홈 사이 상단 평탄부
+v_margin = 0.20;   // 포켓 가장자리 여백
 
 $fn = 48;
 eps = 0.001;
@@ -72,15 +72,18 @@ module ledge() {
             polygon([[y_s0, z_floor - eps], [y_l0 + eps, z_floor - eps], [y_l0 + eps, z_ledge]]);
 }
 
-module grating() {
-    x0 = -win_w/2 + rib_margin;
-    span = win_w - 2*rib_margin;
-    n = floor((span - rib_w) / rib_pitch) + 1;
-    y0 = -win_h/2 + rib_margin;
-    len = (y_s0 - rib_margin) - y0;
-    for (i = [0 : n - 1])
-        translate([x0 + i*rib_pitch, y0, z_floor - eps])
-            cube([rib_w, len, rib_h + eps]);
+v_open  = v_pitch - v_flat;
+v_depth = (v_open/2) / tan(v_angle/2);
+v_n     = floor((win_w - 2*v_margin - v_flat) / v_pitch);
+v_x0    = -(v_n*v_pitch - v_flat)/2;
+v_y0    = -win_h/2 + v_margin;
+v_y1    = y_s0 - v_margin;
+
+module vgrooves() {   // XZ 단면 삼각형을 -Y 방향으로 돌출 → 바닥에서 잘라냄
+    for (i = [0 : v_n - 1]) let(x = v_x0 + i*v_pitch)
+        translate([0, v_y1, 0]) rotate([90, 0, 0])
+            linear_extrude(height = v_y1 - v_y0)
+                polygon([[x, z_floor + eps], [x + v_open/2, z_floor - v_depth], [x + v_open, z_floor + eps]]);
 }
 
 // ---------- 마크 위치 ----------
@@ -110,14 +113,15 @@ difference() {
     union() {
         plate();
         ledge();
-        grating();
         if (feature == "dot" && dot_mode == "bump") dot_bumps();
     }
+    vgrooves();
     if (feature == "dot" && dot_mode == "dimple") dot_dimples();
     if (feature == "notch") notches();
 }
 
 // ---------- 설계 체크 (콘솔 출력) ----------
+echo(str("V-groove ", v_n, "개, 깊이 ", v_depth));
 echo(str("DOT 종횡비(h/d) = ", dot_h / dot_d));
 assert(frame_dot_inset + dot_d/2 < (W - win_w)/2, "프레임 DOT이 포켓과 겹칩니다");
 assert(ledge_dot_inset > dot_d/2, "레지 DOT이 레지 끝을 벗어납니다");

@@ -82,6 +82,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
       <button id="v-frame">① 프레임 DOT 확대</button>
       <button id="v-ledge">② 레지 DOT 확대</button>
       <button id="v-notch">Notch 확대</button>
+      <button id="v-groove">V-groove 단면</button>
     </div>
     <div class="legend">
       <span><i style="background:var(--legacy)"></i>① 기존 제안 위치</span>
@@ -122,6 +123,13 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
     </div>
 
     <div class="group">
+      <span class="label">V-groove · 가상 파이버</span>
+      <div class="row"><label for="vAngle">V 내각</label><output id="vAngle-o"></output><input type="range" id="vAngle" min="60" max="110" step="0.5" value="90"></div>
+      <div class="row"><label for="vFlat">홈 사이 평탄부</label><output id="vFlat-o"></output><input type="range" id="vFlat" min="0" max="0.04" step="0.001" value="0.010"></div>
+      <label class="check"><input type="checkbox" id="showFiber" checked>가상 파이버 Ø125µm 표시</label>
+    </div>
+
+    <div class="group">
       <span class="label">가정 치수</span>
       <div class="row"><label for="ledgeH">상단 레지 평탄부 폭</label><output id="ledgeH-o"></output><input type="range" id="ledgeH" min="0.15" max="1.5" step="0.01" value="0.90"></div>
       <div class="row"><label for="ledgeRise">레지 돌출 높이 (프레임 윗면 기준)</label><output id="ledgeRise-o"></output><input type="range" id="ledgeRise" min="0" max="0.30" step="0.01" value="0.10"></div>
@@ -132,7 +140,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
       <ul class="checks" id="checks"></ul>
     </div>
 
-    <p class="note">기본값: 외곽 10×10×0.5 · 포켓 8×8 깊이 0.25 · 레지 폭 0.9, 프레임 윗면 위로 0.10 돌출 + 경사 0.35 · 리브 피치 0.12. 같은 파라미터의 OpenSCAD 원본은 저장소의 cad/mirror_frame.scad 입니다.</p>
+    <p class="note">기본값: 외곽 10×10×0.5 · 포켓 8×8 깊이 0.25 · V-groove 피치 127µm 내각 90° · 레지 폭 0.9, 프레임 윗면 위로 0.10 돌출 + 경사 0.35. 같은 파라미터의 OpenSCAD 원본은 저장소의 cad/mirror_frame.scad 입니다.</p>
   </aside>
 </div>
 
@@ -146,7 +154,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
     notchN: 3, notchW: 0.20, notchD: 0.15, notchZ: 0.04,
     W: 10, H: 10, T: 0.5, winW: 8, winH: 8, pocketD: 0.25,
     ledgeH: 0.90, ledgeRise: 0.10, slopeLen: 0.35,
-    ribPitch: 0.12, ribW: 0.06, ribH: 0.05, ribMargin: 0.20,
+    vPitch: 0.127, vAngle: 90, vFlat: 0.010, ribMargin: 0.20, fiberD: 0.125, showFiber: true,
     frameInset: 0.5, ledgeInset: 0.3,
   };
   const d = () => {
@@ -181,6 +189,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
     rib: new THREE.MeshStandardMaterial({ color: 0x8a939e, metalness: 0.4, roughness: 0.45 }),
     legacy: new THREE.MeshStandardMaterial({ color: 0xd22f3c, roughness: 0.4 }),
     accent: new THREE.MeshStandardMaterial({ color: 0x1d4fd8, roughness: 0.4 }),
+    fiber: new THREE.MeshStandardMaterial({ color: 0x9fd8ff, transparent: true, opacity: 0.55, roughness: 0.1 }),
     edge: new THREE.LineBasicMaterial({ color: 0x3a4450, transparent: true, opacity: 0.35 }),
   };
   function applyTheme() {
@@ -209,6 +218,12 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
     const g = new THREE.CircleGeometry(r, 48); g.translate(x, y, z); addMesh(g, mat, false);
   }
 
+  function vg() {
+    const { yS0 } = d(); const open = P.vPitch - P.vFlat, depth = (open / 2) / Math.tan(P.vAngle / 2 * Math.PI / 180);
+    const n = Math.floor((P.winW - 2 * P.ribMargin - P.vFlat) / P.vPitch), x0 = -(n * P.vPitch - P.vFlat) / 2;
+    const xs = Array.from({ length: n }, (_, i) => x0 + i * P.vPitch);
+    return { open, depth, n, xs, xe: xs[n - 1] + open, y0: -P.winH / 2 + P.ribMargin, y1: yS0 - P.ribMargin };
+  }
   function framePts() { const r = P.W / 2 - P.frameInset, s = P.H / 2 - P.frameInset; return [[r, s], [-r, s], [r, -s], [-r, -s]]; }
   function ledgePts() { const { yL0, yTop } = d(); const x = P.winW / 2 - P.ledgeInset; return [[x, (yL0 + yTop) / 2], [-x, (yL0 + yTop) / 2]]; }
   function notchXs() { return Array.from({ length: P.notchN }, (_, i) => -P.winW / 2 + P.winW * (i + 1) / (P.notchN + 1)); }
@@ -222,8 +237,12 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
     const hx = P.W / 2, hy = P.H / 2, wx = P.winW / 2, wy = P.winH / 2;
     const isDot = P.mode !== 'notch', bump = P.mode === 'bump', dimple = P.mode === 'dimple';
 
-    // 바닥판
-    slab(rectShape(-hx, -hy, hx, hy), 0, zF, mats.metal);
+    // 바닥판: V-groove 깊이 아래까지는 통짜, 그 위는 홈 영역만 톱니 단면
+    const G = vg();
+    const zB = zF - G.depth;
+    slab(rectShape(-hx, -hy, hx, hy), 0, zB, mats.metal);
+    const fill = rectShape(-hx, -hy, hx, hy); fill.holes.push(rectShape(G.xs[0], G.y0, G.xe, G.y1, THREE.Path));
+    slab(fill, zB, zF, mats.metal);
 
     // 프레임 테두리 (凹이면 윗층에 원형 구멍)
     const border = (holes) => { const s = rectShape(-hx, -hy, hx, hy); s.holes.push(rectShape(-wx, -wy, wx, wy, THREE.Path)); holes.forEach(p => s.holes.push(p)); return s; };
@@ -260,13 +279,20 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
     tg.applyMatrix4(new THREE.Matrix4().set(0, 0, 1, -wx, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1));
     addMesh(tg, mats.ledge);
 
-    // 그레이팅 리브
-    const span = P.winW - 2 * P.ribMargin, n = Math.floor((span - P.ribW) / P.ribPitch) + 1;
-    const y0 = -wy + P.ribMargin, len = (yS0 - P.ribMargin) - y0;
-    if (len > 0) {
-      const rg = new THREE.BoxGeometry(P.ribW, len, P.ribH);
-      const im = new THREE.InstancedMesh(rg, mats.rib, n); const mtx = new THREE.Matrix4();
-      for (let i = 0; i < n; i++) { mtx.makeTranslation(-wx + P.ribMargin + P.ribW / 2 + i * P.ribPitch, y0 + len / 2, zF + P.ribH / 2); im.setMatrixAt(i, mtx); }
+    // V-groove: XZ 톱니 단면을 Y로 돌출
+    const saw = new THREE.Shape(); saw.moveTo(G.xs[0], zB); saw.lineTo(G.xe, zB);
+    G.xs.slice().reverse().forEach(x => { saw.lineTo(x + G.open, zF); saw.lineTo(x + G.open / 2, zB); saw.lineTo(x, zF); });
+    saw.lineTo(G.xs[0], zB);
+    const sg = new THREE.ExtrudeGeometry(saw, { depth: G.y1 - G.y0, bevelEnabled: false });
+    sg.applyMatrix4(new THREE.Matrix4().set(1, 0, 0, 0, 0, 0, -1, G.y1, 0, 1, 0, 0, 0, 0, 0, 1));
+    addMesh(sg, mats.rib, false);
+
+    // 가상 파이버 (Ø125µm, 양쪽 벽 접촉 시 중심 = 꼭짓점 + r/sin(θ/2))
+    if (P.showFiber) {
+      const rf = P.fiberD / 2, zc = zB + rf / Math.sin(P.vAngle / 2 * Math.PI / 180);
+      const fg = new THREE.CylinderGeometry(rf, rf, G.y1 - G.y0, 32);
+      const im = new THREE.InstancedMesh(fg, mats.fiber, G.n); const mtx = new THREE.Matrix4();
+      G.xs.forEach((x, i) => { mtx.makeTranslation(x + G.open / 2, (G.y0 + G.y1) / 2, zc); im.setMatrixAt(i, mtx); });
       group.add(im);
     }
 
@@ -283,6 +309,11 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
   function updateChecks() {
     const { yL0, yTop } = d(); const r = P.dotD / 2; const out = [];
     const add = (lvl, txt) => out.push(`<li><span class="pill ${lvl}">${{ ok: 'OK', warn: '확인', bad: 'NG' }[lvl]}</span><span>${txt}</span></li>`);
+    { const G = vg(), rf = P.fiberD / 2, s2 = Math.sin(P.vAngle / 2 * Math.PI / 180);
+      const contactH = rf / s2 - rf * s2;            // 꼭짓점 기준 벽 접촉점 높이
+      const top = rf / s2 + rf - G.depth;             // 파이버 윗면이 평탄부보다 높은 양
+      add(contactH < G.depth ? 'ok' : 'bad', `V-groove ${G.n}개 · 깊이 ${(G.depth * 1000).toFixed(1)}µm · 벽 접촉 높이 ${(contactH * 1000).toFixed(1)}µm${contactH < G.depth ? '' : ' → 파이버가 홈 모서리에 걸림'}`);
+      add('ok', `파이버 중심 높이(평탄부 기준) ${((rf / s2 - G.depth) * 1000).toFixed(1)}µm · 윗면 돌출 ${(top * 1000).toFixed(1)}µm`); }
     if (P.mode !== 'notch') {
       const ar = P.dotH / P.dotD;
       add(ar > 0.5 ? 'warn' : 'ok', `종횡비 h/Φ = ${ar.toFixed(2)}${ar > 0.5 ? ' · 가공 난이도 상승' : ''}`);
@@ -318,8 +349,9 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
     frame: () => { const [x, y] = framePts()[0]; goTo([x, y, P.T], [x - 0.35, y - 0.75, P.T + 0.55]); },
     ledge: () => { const { zL } = d(); const [x, y] = ledgePts()[0]; goTo([x, y, zL], [x - 0.35, y - 0.8, zL + 0.55]); },
     notch: () => { const { zL, yTop } = d(); goTo([0, yTop - 0.1, zL], [0.6, yTop - 1.3, zL + 0.9]); },
+    groove: () => { const G = vg(), zF = P.T - P.pocketD; goTo([G.xs[0] + 0.25, G.y0, zF], [G.xs[0] + 0.3, G.y0 - 0.55, zF + 0.9]); },
   };
-  const viewBtns = { all: 'v-all', frame: 'v-frame', ledge: 'v-ledge', notch: 'v-notch' };
+  const viewBtns = { all: 'v-all', frame: 'v-frame', ledge: 'v-ledge', notch: 'v-notch', groove: 'v-groove' };
   Object.entries(viewBtns).forEach(([k, id]) => document.getElementById(id).addEventListener('click', () => {
     if (k === 'notch' && P.mode !== 'notch') setMode('notch');
     if ((k === 'frame' || k === 'ledge') && P.mode === 'notch') setMode('bump');
@@ -338,11 +370,11 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
     build();
   }
   ['bump', 'dimple', 'notch'].forEach(k => document.getElementById('m-' + k).addEventListener('click', () => setMode(k)));
-  ['atFrame', 'atLedge'].forEach(k => document.getElementById(k).addEventListener('change', e => { P[k] = e.target.checked; build(); }));
-  const sliders = { dotD: 2, dotH: 3, notchN: 0, notchW: 2, notchD: 2, notchZ: 3, ledgeH: 2, ledgeRise: 2 };
+  ['atFrame', 'atLedge', 'showFiber'].forEach(k => document.getElementById(k).addEventListener('change', e => { P[k] = e.target.checked; build(); }));
+  const sliders = { dotD: 2, dotH: 3, notchN: 0, notchW: 2, notchD: 2, notchZ: 3, ledgeH: 2, ledgeRise: 2, vAngle: 1, vFlat: 3 };
   Object.entries(sliders).forEach(([k, dp]) => {
     const el = document.getElementById(k), o = document.getElementById(k + '-o');
-    const show = () => { o.textContent = k === 'notchN' ? el.value + ' 개' : (k === 'dotD' ? 'Φ ' : '') + fmt(el.value, dp); };
+    const show = () => { o.textContent = k === 'vAngle' ? el.value + '°' : k === 'notchN' ? el.value + ' 개' : (k === 'dotD' ? 'Φ ' : '') + fmt(el.value, dp); };
     el.addEventListener('input', () => { P[k] = Number(el.value); show(); build(); });
     show();
   });
