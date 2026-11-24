@@ -1,0 +1,417 @@
+<title>V-groove 가상 파이버 평가</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+KR:wght@400;500;600&display=swap">
+<style>
+/* 레이아웃: 왼쪽 입력·파라미터 열, 오른쪽 결과(요약 → 단면 → lane별 편차 → 표). 폰에서는 한 열 */
+:root {
+  --bg: #f1f3f5; --panel: #ffffff; --fg: #15191e; --muted: #5c6672; --faint: #8b949e; --line: #d5dae0; --grid: #e7eaee;
+  --profile: #1f5f7a;    /* 측정 V-groove 선 */
+  --fiber: #b3261e;      /* 가상 파이버 (도면의 빨간 원) */
+  --dx: #008300;         /* Δx — 도면의 초록 화살표 */
+  --dz: #2a78d6;         /* Δz — 도면의 파란 화살표 */
+  --ok: #1f7a4d; --bad: #c0262f; --chip: #e8ecf0; --accent: #15191e;
+  --font-ui: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+  --font-data: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #101317; --panel: #171b21; --fg: #e6e9ed; --muted: #9aa4b0; --faint: #6d7681; --line: #2b323b; --grid: #232931;
+  --profile: #5fb4d6; --fiber: #ff7a70; --dx: #0ca30c; --dz: #3987e5; --ok: #4cc48a; --bad: #ff6b74; --chip: #222830; --accent: #e6e9ed; color-scheme: dark;
+} }
+:root[data-theme="dark"] {
+  --bg: #101317; --panel: #171b21; --fg: #e6e9ed; --muted: #9aa4b0; --faint: #6d7681; --line: #2b323b; --grid: #232931;
+  --profile: #5fb4d6; --fiber: #ff7a70; --dx: #0ca30c; --dz: #3987e5; --ok: #4cc48a; --bad: #ff6b74; --chip: #222830; --accent: #e6e9ed; color-scheme: dark;
+}
+body { background: var(--bg); color: var(--fg); font-family: var(--font-ui); font-size: 14px; line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 20px; }
+.wrap { max-width: 1320px; margin: 0 auto; display: grid; grid-template-columns: 320px minmax(0, 1fr); gap: 20px; align-items: start; }
+header { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 4px; }
+h1 { font-size: 20px; font-weight: 600; margin: 0; text-wrap: balance; }
+h2 { font-size: 14px; font-weight: 600; margin: 0; }
+.sub { color: var(--muted); margin: 0; max-width: 75ch; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+aside { display: flex; flex-direction: column; gap: 16px; }
+main { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.label { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+.btns { display: flex; flex-wrap: wrap; gap: 6px; }
+button, .filebtn { font: 500 13px var(--font-ui); border: 1px solid var(--line); background: var(--panel); color: var(--fg); padding: 6px 10px; border-radius: 6px; cursor: pointer; }
+button.primary { background: var(--accent); color: var(--panel); border-color: var(--accent); }
+button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, .filebtn:focus-within { outline: 2px solid var(--dz); outline-offset: 2px; }
+textarea { width: 100%; box-sizing: border-box; min-height: 110px; font: 12px var(--font-data); background: var(--bg); color: var(--fg); border: 1px solid var(--line); border-radius: 6px; padding: 8px; resize: vertical; }
+.fields { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.field label { font-size: 12px; color: var(--muted); }
+.field input, .field select { font: 13px var(--font-data); padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--fg); min-width: 0; }
+.hint { font-size: 12px; color: var(--muted); margin: 0; }
+.status { font-size: 12.5px; color: var(--muted); }
+.status.err { color: var(--bad); }
+
+.kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.kpi { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.kpi .v { font: 500 22px var(--font-data); font-variant-numeric: tabular-nums; }
+.kpi .k { font-size: 12px; color: var(--muted); }
+.verdict { display: inline-flex; align-items: center; gap: 6px; font: 600 13px var(--font-ui); }
+.verdict i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+
+.figwrap { overflow-x: auto; }
+svg text { font-family: var(--font-data); font-size: 11px; fill: var(--muted); }
+.legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.sw { width: 16px; height: 0; border-top: 2px solid; display: inline-block; }
+.devs { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.tbl { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+th, td { text-align: right; padding: 6px 10px; border-bottom: 1px solid var(--grid); font-variant-numeric: tabular-nums; white-space: nowrap; }
+th { font-size: 11px; color: var(--muted); font-weight: 600; letter-spacing: .04em; }
+th:first-child, td:first-child { text-align: left; }
+td { font-family: var(--font-data); }
+.chip { font: 600 11px var(--font-ui); padding: 1px 7px; border-radius: 999px; }
+.chip.ok { color: var(--ok); background: color-mix(in srgb, var(--ok) 14%, transparent); }
+.chip.bad { color: var(--bad); background: color-mix(in srgb, var(--bad) 14%, transparent); }
+.chip.ref { color: var(--muted); background: var(--chip); }
+.tip { position: fixed; pointer-events: none; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font-size: 12px; box-shadow: 0 4px 14px rgb(0 0 0 / .14); z-index: 20; min-width: 150px; }
+.tip b { font-weight: 600; } .tip .r { display: flex; justify-content: space-between; gap: 12px; font-family: var(--font-data); }
+.example { font: 600 11px var(--font-ui); color: var(--muted); background: var(--chip); padding: 2px 8px; border-radius: 999px; align-self: flex-start; }
+.hit { cursor: pointer; }
+@media (max-width: 900px) {
+  .wrap { grid-template-columns: 1fr; }
+  .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .devs { grid-template-columns: 1fr; }
+}
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>V-groove 가상 파이버 평가</h1>
+    <p class="sub">기판의 V-groove 라인 프로파일에 가상 파이버를 접촉시켜 lane별 파이버 중심의 배열 방향(Δx)과 높이 방향(Δz) 편차를 계산합니다.</p>
+  </header>
+
+  <aside>
+    <section class="card" aria-labelledby="h-data">
+      <h2 id="h-data">1. 라인 프로파일</h2>
+      <div class="btns">
+        <button id="ex-noisy" class="primary">예시: 오차 포함</button>
+        <button id="ex-ideal">예시: 설계 이상값</button>
+        <label class="filebtn">CSV 열기<input type="file" id="file" accept=".csv,.txt,.tsv,.dat" hidden></label>
+      </div>
+      <textarea id="raw" spellcheck="false" aria-label="프로파일 데이터 (x, z)"></textarea>
+      <p class="hint">한 줄에 x, z 두 숫자(쉼표·탭·공백 구분). 숫자가 아닌 줄은 건너뜁니다.</p>
+      <div class="fields">
+        <div class="field"><label for="unit">입력 단위</label><select id="unit"><option value="1">µm</option><option value="1000">mm</option></select></div>
+        <div class="field"><label for="flip">Z 방향</label><select id="flip"><option value="1">위가 +</option><option value="-1">아래가 + (반전)</option></select></div>
+      </div>
+      <button id="run" class="primary">평가 실행</button>
+      <div class="status" id="status" role="status"></div>
+    </section>
+
+    <section class="card" aria-labelledby="h-par">
+      <h2 id="h-par">2. 평가 조건</h2>
+      <div class="fields">
+        <div class="field"><label for="fd">파이버 지름 (µm)</label><input id="fd" type="number" step="0.1" value="125"></div>
+        <div class="field"><label for="pitch">설계 피치 (µm)</label><input id="pitch" type="number" step="0.1" value="127"></div>
+        <div class="field"><label for="tol">허용 편차 ± (µm)</label><input id="tol" type="number" step="0.05" value="1.0"></div>
+        <div class="field"><label for="prom">홈 검출 최소 깊이 (µm)</label><input id="prom" type="number" step="1" value="10"></div>
+      </div>
+      <div class="field"><label for="refmode">기준 (Ideal position / Ref. line)</label>
+        <select id="refmode">
+          <option value="first">첫 파이버 기준 (평가 절차 그림 방식)</option>
+          <option value="fit">최소제곱 기준 (피치 고정 · 기울기 제거)</option>
+        </select>
+      </div>
+      <div class="field"><label for="zx">단면도 Z 배율</label>
+        <select id="zx"><option value="1">×1 (실제 비율, 원이 원으로 보임)</option><option value="2">×2</option><option value="4">×4</option></select>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>계산 방식</h2>
+      <p class="hint">① 프로파일을 0.25µm 간격으로 재샘플링합니다. ② 각 홈의 골을 찾고, 그 주변에서 원을 좌우로 옮기며 프로파일에 닿는 가장 낮은 중심 높이를 구합니다. 그 높이가 최소가 되는 곳이 양쪽 벽에 접촉해 안착한 위치입니다. ③ 첫 파이버 기준이면 이상 위치 = 첫 중심 + k·피치, Ref. line = 첫 중심 높이입니다. 최소제곱 기준이면 피치를 고정한 채 X 오프셋을 맞추고, Z는 직선 피팅으로 측정 기울기를 뺀 잔차입니다.</p>
+    </section>
+  </aside>
+
+  <main>
+    <span class="example" id="exbadge">예시 데이터 · 실제 측정값 아님</span>
+    <div class="kpis" id="kpis"></div>
+
+    <section class="card">
+      <h2>단면 · 가상 파이버 안착</h2>
+      <div class="legend">
+        <span><i class="sw" style="border-color:var(--profile)"></i>측정 V-groove</span>
+        <span><i class="sw" style="border-color:var(--fiber)"></i>가상 파이버</span>
+        <span><i class="sw" style="border-color:var(--faint);border-top-style:dashed"></i>이상 위치 / Ref. line</span>
+      </div>
+      <div class="figwrap" id="fig"></div>
+    </section>
+
+    <div class="devs">
+      <section class="card"><h2>Δx 배열 방향 편차 (µm)</h2><div id="cdx"></div></section>
+      <section class="card"><h2>Δz 높이 방향 편차 (µm)</h2><div id="cdz"></div></section>
+    </div>
+
+    <section class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
+        <h2>Lane별 결과</h2>
+        <button id="copy">표 복사 (엑셀 붙여넣기용)</button>
+      </div>
+      <div class="tbl" id="tbl"></div>
+    </section>
+  </main>
+</div>
+<div class="tip" id="tip" hidden></div>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const STEP = 0.25;   // 재샘플 간격 µm
+  let R = null;        // 마지막 결과
+
+  // ---------- 예시 데이터: 설계값(90°, 평탄부 10µm, 피치 127µm) + 시드 고정 오차 ----------
+  function rng(seed) { return () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; }; }
+  function synth(noisy) {
+    const n = 8, pitch = 127, flat = 10, open = pitch - flat, depth = open / 2, top = 65, x0 = 2050;
+    const rnd = rng(7), g = () => (rnd() + rnd() + rnd() - 1.5);
+    const ex = [], ez = [];
+    for (let k = 0; k < n; k++) { ex.push(noisy ? g() * 1.1 : 0); ez.push(noisy ? g() * 0.9 : 0); }
+    const lines = ['x_um,z_um'];
+    const xs = x0 - pitch / 2, xe = x0 + (n - 1) * pitch + pitch / 2;
+    for (let x = xs; x <= xe + 1e-9; x += 0.5) {
+      let z = top;
+      for (let k = 0; k < n; k++) { const c = x0 + k * pitch + ex[k]; z = Math.min(z, top - depth + ez[k] + Math.abs(x - c)); }
+      if (noisy) z += (rnd() - 0.5) * 0.12 + (x - x0) * 0.0006;   // 측정 노이즈 + 약한 기울기
+      lines.push(x.toFixed(2) + ',' + z.toFixed(4));
+    }
+    return lines.join('\n');
+  }
+
+  // ---------- 파싱 / 재샘플 ----------
+  function parse(text, unit, flip) {
+    const pts = [];
+    for (const line of text.split(/\r?\n/)) {
+      const t = line.trim().split(/[,\t; ]+/).filter(Boolean);
+      if (t.length < 2) continue;
+      const x = Number(t[0]), z = Number(t[1]);
+      if (Number.isFinite(x) && Number.isFinite(z)) pts.push([x * unit, z * unit * flip]);
+    }
+    pts.sort((a, b) => a[0] - b[0]);
+    return pts;
+  }
+  function resample(pts) {
+    const x0 = pts[0][0], x1 = pts[pts.length - 1][0], n = Math.floor((x1 - x0) / STEP) + 1;
+    const z = new Float64Array(n); let j = 0;
+    for (let i = 0; i < n; i++) {
+      const x = x0 + i * STEP;
+      while (j < pts.length - 2 && pts[j + 1][0] < x) j++;
+      const [xa, za] = pts[j], [xb, zb] = pts[Math.min(j + 1, pts.length - 1)];
+      z[i] = xb === xa ? za : za + (zb - za) * (x - xa) / (xb - xa);
+    }
+    return { x0, n, z };
+  }
+
+  // ---------- 핵심: 파이버 안착 ----------
+  function restZ(P, cx, r) {   // 중심 X가 cx일 때 프로파일에 닿는 최저 중심 높이
+    const i0 = Math.ceil((cx - r - P.x0) / STEP), i1 = Math.floor((cx + r - P.x0) / STEP);
+    if (i0 < 0 || i1 >= P.n) return null;
+    let m = -Infinity;
+    for (let i = i0; i <= i1; i++) { const dx = P.x0 + i * STEP - cx; const v = P.z[i] + Math.sqrt(Math.max(0, r * r - dx * dx)); if (v > m) m = v; }
+    return m;
+  }
+  function contacts(P, cx, r) {
+    const i0 = Math.ceil((cx - r - P.x0) / STEP), i1 = Math.floor((cx + r - P.x0) / STEP);
+    let L = [-Infinity, 0], Rr = [-Infinity, 0];
+    for (let i = i0; i <= i1; i++) { const x = P.x0 + i * STEP, dx = x - cx; const v = P.z[i] + Math.sqrt(Math.max(0, r * r - dx * dx));
+      if (dx < 0 && v > L[0]) L = [v, i]; if (dx > 0 && v > Rr[0]) Rr = [v, i]; }
+    return [L[1], Rr[1]].map(i => [P.x0 + i * STEP, P.z[i]]);
+  }
+  function settle(P, guess, r, span) {
+    let best = null, bx = guess;
+    for (let cx = guess - span; cx <= guess + span; cx += 0.5) { const z = restZ(P, cx, r); if (z !== null && (best === null || z < best)) { best = z; bx = cx; } }
+    if (best === null) return null;
+    let a = bx - 0.5, b = bx + 0.5;
+    for (let k = 0; k < 50; k++) {
+      const m1 = a + (b - a) / 3, m2 = b - (b - a) / 3, f1 = restZ(P, m1, r), f2 = restZ(P, m2, r);
+      if (f1 === null || f2 === null) break; if (f1 < f2) b = m2; else a = m1;
+    }
+    const cx = (a + b) / 2; return { cx, cz: restZ(P, cx, r) };
+  }
+  function findValleys(P, pitch, prom) {
+    const w = Math.max(2, Math.round(pitch * 0.4 / STEP)), sm = new Float64Array(P.n), h = Math.round(2 / STEP);
+    for (let i = 0; i < P.n; i++) { let s = 0, c = 0; for (let k = -h; k <= h; k++) { const j = i + k; if (j >= 0 && j < P.n) { s += P.z[j]; c++; } } sm[i] = s / c; }
+    const out = [];
+    for (let i = 0; i < P.n; i++) {
+      let mn = Infinity, mxL = -Infinity, mxR = -Infinity;
+      for (let k = -w; k <= w; k++) { const j = i + k; if (j < 0 || j >= P.n) continue; mn = Math.min(mn, sm[j]); if (k < 0) mxL = Math.max(mxL, sm[j]); if (k > 0) mxR = Math.max(mxR, sm[j]); }
+      if (sm[i] === mn && mxL - sm[i] >= prom && mxR - sm[i] >= prom) { out.push(P.x0 + i * STEP); i += w; }
+    }
+    return out;
+  }
+
+  function evaluate() {
+    const st = $('status'); st.className = 'status';
+    const pts = parse($('raw').value, Number($('unit').value), Number($('flip').value));
+    if (pts.length < 20) { st.textContent = '숫자 데이터가 20줄보다 적어요. x, z 두 열을 붙여넣거나 CSV를 열어 주세요.'; st.className = 'status err'; return; }
+    const fd = Number($('fd').value), r = fd / 2, pitch = Number($('pitch').value), tol = Number($('tol').value), prom = Number($('prom').value);
+    if (!(r > 0 && pitch > 0 && tol >= 0)) { st.textContent = '파이버 지름·피치·허용 편차를 양수로 입력해 주세요.'; st.className = 'status err'; return; }
+    const P = resample(pts);
+    const valleys = findValleys(P, pitch, prom);
+    const lanes = [];
+    let skipped = 0;
+    for (const v of valleys) { const s = settle(P, v, r, pitch * 0.3); if (s) lanes.push({ ...s, contacts: contacts(P, s.cx, r) }); else skipped++; }
+    if (lanes.length < 2) { st.textContent = `안착 가능한 홈이 ${lanes.length}개뿐이에요. 홈 검출 최소 깊이나 단위·Z 방향을 확인해 주세요.`; st.className = 'status err'; R = null; render(); return; }
+
+    const mode = $('refmode').value;
+    let idealX, refZ;
+    if (mode === 'first') {
+      idealX = k => lanes[0].cx + k * pitch; refZ = () => lanes[0].cz;
+    } else {
+      const a = lanes.reduce((s, l, k) => s + l.cx - k * pitch, 0) / lanes.length;
+      const mx = lanes.reduce((s, l) => s + l.cx, 0) / lanes.length, mz = lanes.reduce((s, l) => s + l.cz, 0) / lanes.length;
+      const sxx = lanes.reduce((s, l) => s + (l.cx - mx) ** 2, 0), sxz = lanes.reduce((s, l) => s + (l.cx - mx) * (l.cz - mz), 0);
+      const slope = sxx ? sxz / sxx : 0;
+      idealX = k => a + k * pitch; refZ = (cx) => mz + slope * (cx - mx);
+    }
+    lanes.forEach((l, k) => {
+      l.k = k; l.ix = idealX(k); l.rz = refZ(l.cx); l.dx = l.cx - l.ix; l.dz = l.cz - l.rz;
+      l.pitch = k ? l.cx - lanes[k - 1].cx : null;
+      l.ref = mode === 'first' && k === 0;
+      l.ok = Math.abs(l.dx) <= tol && Math.abs(l.dz) <= tol;
+    });
+    R = { P, lanes, r, pitch, tol, mode };
+    st.textContent = `원본 ${pts.length.toLocaleString()}점 · 홈 ${valleys.length}개 검출 · ${lanes.length}개 안착${skipped ? ` · 프로파일 끝에 걸린 ${skipped}개 제외` : ''}`;
+    render();
+  }
+
+  // ---------- 렌더 ----------
+  const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+  const f2 = v => (v >= 0 ? '+' : '') + v.toFixed(2);
+  const svgEl = (tag, a = {}) => { const e = document.createElementNS('http://www.w3.org/2000/svg', tag); for (const k in a) e.setAttribute(k, a[k]); return e; };
+  function niceTicks(a, b, target) { const span = b - a, raw = span / target, mag = 10 ** Math.floor(Math.log10(raw)); const st = [1, 2, 5, 10].map(m => m * mag).find(s => span / s <= target) || 10 * mag; const out = []; for (let v = Math.ceil(a / st) * st; v <= b + 1e-9; v += st) out.push(+v.toFixed(6)); return out; }
+
+  function render() {
+    ['kpis', 'fig', 'cdx', 'cdz', 'tbl'].forEach(id => $(id).innerHTML = '');
+    if (!R) return;
+    const { lanes, tol } = R, ev = lanes.filter(l => !l.ref);
+    const mx = Math.max(...ev.map(l => Math.abs(l.dx))), mz = Math.max(...ev.map(l => Math.abs(l.dz)));
+    const nOk = ev.filter(l => l.ok).length, allOk = nOk === ev.length;
+    $('kpis').innerHTML = [
+      [`<span class="verdict" style="color:var(${allOk ? '--ok' : '--bad'})"><i style="background:currentColor"></i>${allOk ? '전체 합격' : `${ev.length - nOk}개 lane 불합격`}</span>`, `판정 · 허용 ±${tol.toFixed(2)}µm`],
+      [`${mx.toFixed(2)}<small style="font-size:13px"> µm</small>`, 'max |Δx| 배열 방향'],
+      [`${mz.toFixed(2)}<small style="font-size:13px"> µm</small>`, 'max |Δz| 높이 방향'],
+      [`${lanes.length}`, `평가 lane 수${R.mode === 'first' ? ' (L1 = 기준)' : ''}`],
+    ].map(([v, k]) => `<div class="kpi"><span class="v">${v}</span><span class="k">${k}</span></div>`).join('');
+    drawSection(); drawDev('cdx', 'dx', '--dx'); drawDev('cdz', 'dz', '--dz'); drawTable();
+  }
+
+  function drawSection() {
+    const { P, lanes, r } = R, zx = Number($('zx').value);
+    const xa = lanes[0].cx - R.pitch * 0.75, xb = lanes[lanes.length - 1].cx + R.pitch * 0.75;
+    const i0 = Math.max(0, Math.floor((xa - P.x0) / STEP)), i1 = Math.min(P.n - 1, Math.ceil((xb - P.x0) / STEP));
+    let zmin = Infinity; for (let i = i0; i <= i1; i++) zmin = Math.min(zmin, P.z[i]);
+    const zmax = Math.max(...lanes.map(l => l.cz + r));
+    const za = zmin - 8, zb = zmax + 14;
+    const host = $('fig'), avail = host.clientWidth || 800;
+    const pxPerUm = Math.max(avail / (xb - xa), 1.1);
+    const W = (xb - xa) * pxPerUm, ml = 44, mb = 26, mt = 22;
+    const H = (zb - za) * pxPerUm * zx;
+    const X = x => ml + (x - xa) * pxPerUm, Z = z => mt + (zb - z) * pxPerUm * zx;
+    const svg = svgEl('svg', { width: W + ml + 8, height: H + mt + mb, role: 'img', 'aria-label': 'V-groove 단면과 가상 파이버' });
+    // 격자 + 축
+    niceTicks(za, zb, 5).forEach(t => { svg.append(svgEl('line', { x1: ml, x2: ml + W, y1: Z(t), y2: Z(t), stroke: css('--grid') })); const tx = svgEl('text', { x: ml - 6, y: Z(t) + 4, 'text-anchor': 'end' }); tx.textContent = t; svg.append(tx); });
+    niceTicks(xa, xb, Math.max(4, Math.round(W / 110))).forEach(t => { const tx = svgEl('text', { x: X(t), y: mt + H + 18, 'text-anchor': 'middle' }); tx.textContent = t; svg.append(tx); });
+    const ux = svgEl('text', { x: ml + W, y: mt + H + 18, 'text-anchor': 'end' }); ux.textContent = 'µm'; svg.append(ux);
+    // 이상 위치 / Ref. line
+    lanes.forEach(l => svg.append(svgEl('line', { x1: X(l.ix), x2: X(l.ix), y1: mt, y2: mt + H, stroke: css('--faint'), 'stroke-dasharray': '5 4' })));
+    const rl = lanes.map(l => `${X(l.cx - r)},${Z(l.rz)} ${X(l.cx + r)},${Z(l.rz)}`);
+    if (R.mode === 'first') svg.append(svgEl('line', { x1: ml, x2: ml + W, y1: Z(lanes[0].rz), y2: Z(lanes[0].rz), stroke: css('--faint'), 'stroke-dasharray': '10 3 2 3' }));
+    else svg.append(svgEl('line', { x1: X(lanes[0].cx), x2: X(lanes[lanes.length - 1].cx), y1: Z(lanes[0].rz), y2: Z(lanes[lanes.length - 1].rz), stroke: css('--faint'), 'stroke-dasharray': '10 3 2 3' }));
+    // 프로파일
+    let d = ''; const stride = Math.max(1, Math.floor(1 / (pxPerUm * STEP)));
+    for (let i = i0; i <= i1; i += stride) d += (d ? 'L' : 'M') + X(P.x0 + i * STEP).toFixed(1) + ',' + Z(P.z[i]).toFixed(1);
+    svg.append(svgEl('path', { d, fill: 'none', stroke: css('--profile'), 'stroke-width': 2, 'stroke-linejoin': 'round' }));
+    // 파이버
+    lanes.forEach(l => {
+      const g = svgEl('g', { class: 'hit', tabindex: 0, 'aria-label': `L${l.k + 1} Δx ${f2(l.dx)} Δz ${f2(l.dz)} µm` });
+      g.append(svgEl('ellipse', { cx: X(l.cx), cy: Z(l.cz), rx: r * pxPerUm, ry: r * pxPerUm * zx, fill: 'transparent', stroke: css('--fiber'), 'stroke-width': 2 }));
+      g.append(svgEl('line', { x1: X(l.cx), x2: X(l.cx), y1: Z(l.cz) - 6, y2: Z(l.cz) + 6, stroke: css('--fiber'), 'stroke-width': 1.5 }));
+      g.append(svgEl('line', { x1: X(l.cx) - 6, x2: X(l.cx) + 6, y1: Z(l.cz), y2: Z(l.cz), stroke: css('--fiber'), 'stroke-width': 1.5 }));
+      l.contacts.forEach(([x, z]) => g.append(svgEl('circle', { cx: X(x), cy: Z(z), r: 3, fill: css('--fiber') })));
+      const lb = svgEl('text', { x: X(l.cx), y: Z(l.cz + r) - 6, 'text-anchor': 'middle' }); lb.textContent = `L${l.k + 1}`; lb.style.fill = css('--fg'); g.append(lb);
+      bindTip(g, l);
+      svg.append(g);
+    });
+    host.append(svg);
+  }
+
+  function drawDev(id, key, colorVar) {
+    const { lanes, tol } = R, host = $(id);
+    const W = Math.max(260, host.clientWidth || 400), H = 200, ml = 40, mr = 8, mt = 10, mb = 26;
+    const vmax = Math.max(tol * 1.25, ...lanes.map(l => Math.abs(l[key]))) * 1.1;
+    const Y = v => mt + (vmax - v) / (2 * vmax) * (H - mt - mb);
+    const band = (W - ml - mr) / lanes.length, bw = Math.max(4, Math.min(28, band * 0.6));
+    const svg = svgEl('svg', { width: W, height: H, role: 'img', 'aria-label': (key === 'dx' ? 'Δx' : 'Δz') + ' lane별 편차' });
+    niceTicks(-vmax, vmax, 4).forEach(t => { svg.append(svgEl('line', { x1: ml, x2: W - mr, y1: Y(t), y2: Y(t), stroke: css('--grid') })); const tx = svgEl('text', { x: ml - 6, y: Y(t) + 4, 'text-anchor': 'end' }); tx.textContent = t; svg.append(tx); });
+    [tol, -tol].forEach(t => svg.append(svgEl('line', { x1: ml, x2: W - mr, y1: Y(t), y2: Y(t), stroke: css('--bad'), 'stroke-dasharray': '4 4', opacity: .7 })));
+    const tl = svgEl('text', { x: W - mr, y: Y(tol) - 4, 'text-anchor': 'end' }); tl.textContent = `±${tol} 허용`; svg.append(tl);
+    svg.append(svgEl('line', { x1: ml, x2: W - mr, y1: Y(0), y2: Y(0), stroke: css('--faint') }));
+    const col = css(colorVar);
+    lanes.forEach((l, k) => {
+      const cx = ml + band * (k + 0.5), v = l[key], y0 = Y(0), y1 = Y(v), top = Math.min(y0, y1), h = Math.max(1, Math.abs(y1 - y0));
+      const g = svgEl('g', { class: 'hit', tabindex: 0, 'aria-label': `L${k + 1} ${f2(v)} µm` });
+      g.append(svgEl('rect', { x: cx - band / 2, y: mt, width: band, height: H - mt - mb, fill: 'transparent' }));
+      if (!l.ref) {
+        const rx = Math.min(4, bw / 2, h / 2);
+        // 0선 쪽은 각지게, 끝단만 둥글게
+        const p = v >= 0
+          ? `M${cx - bw / 2},${y0} V${top + rx} Q${cx - bw / 2},${top} ${cx - bw / 2 + rx},${top} H${cx + bw / 2 - rx} Q${cx + bw / 2},${top} ${cx + bw / 2},${top + rx} V${y0} Z`
+          : `M${cx - bw / 2},${y0} V${top + h - rx} Q${cx - bw / 2},${top + h} ${cx - bw / 2 + rx},${top + h} H${cx + bw / 2 - rx} Q${cx + bw / 2},${top + h} ${cx + bw / 2},${top + h - rx} V${y0} Z`;
+        g.append(svgEl('path', { d: p, fill: Math.abs(v) > tol ? css('--bad') : col }));
+      } else { const t = svgEl('text', { x: cx, y: y0 - 6, 'text-anchor': 'middle' }); t.textContent = '기준'; g.append(t); }
+      if (lanes.length <= 24 || k % Math.ceil(lanes.length / 24) === 0) { const t = svgEl('text', { x: cx, y: H - 8, 'text-anchor': 'middle' }); t.textContent = `L${k + 1}`; g.append(t); }
+      bindTip(g, l);
+      svg.append(g);
+    });
+    host.append(svg);
+  }
+
+  function drawTable() {
+    const { lanes, tol } = R;
+    const rows = lanes.map(l => `<tr><td>L${l.k + 1}</td><td>${l.cx.toFixed(2)}</td><td>${l.cz.toFixed(2)}</td><td>${l.pitch === null ? '—' : l.pitch.toFixed(2)}</td><td style="color:${Math.abs(l.dx) > tol ? 'var(--bad)' : 'inherit'}">${f2(l.dx)}</td><td style="color:${Math.abs(l.dz) > tol ? 'var(--bad)' : 'inherit'}">${f2(l.dz)}</td><td>${l.ref ? '<span class="chip ref">기준</span>' : l.ok ? '<span class="chip ok">합격</span>' : '<span class="chip bad">불합격</span>'}</td></tr>`).join('');
+    $('tbl').innerHTML = `<table><thead><tr><th>Lane</th><th>중심 X (µm)</th><th>중심 Z (µm)</th><th>측정 피치 (µm)</th><th>Δx (µm)</th><th>Δz (µm)</th><th>판정</th></tr></thead><tbody>${rows}</tbody></table>`;
+  }
+
+  // ---------- 툴팁 ----------
+  const tip = $('tip');
+  function bindTip(g, l) {
+    const show = e => {
+      tip.innerHTML = `<b>L${l.k + 1}</b>${l.ref ? ' · 기준' : ''}<div class="r"><span>Δx</span><span>${f2(l.dx)} µm</span></div><div class="r"><span>Δz</span><span>${f2(l.dz)} µm</span></div><div class="r"><span>중심</span><span>${l.cx.toFixed(2)}, ${l.cz.toFixed(2)}</span></div>${l.pitch !== null ? `<div class="r"><span>피치</span><span>${l.pitch.toFixed(2)}</span></div>` : ''}`;
+      tip.hidden = false;
+      const b = (e.clientX !== undefined && e.type !== 'focus') ? { x: e.clientX, y: e.clientY } : (() => { const r = g.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top }; })();
+      const tw = tip.offsetWidth, th = tip.offsetHeight;
+      tip.style.left = Math.min(innerWidth - tw - 8, Math.max(8, b.x + 12)) + 'px';
+      tip.style.top = Math.max(8, b.y - th - 12) + 'px';
+    };
+    g.addEventListener('pointermove', show); g.addEventListener('focus', show);
+    g.addEventListener('pointerleave', () => tip.hidden = true); g.addEventListener('blur', () => tip.hidden = true);
+  }
+
+  // ---------- 이벤트 ----------
+  function loadExample(noisy) { $('raw').value = synth(noisy); $('unit').value = '1'; $('flip').value = '1'; $('exbadge').hidden = false; $('exbadge').textContent = noisy ? '예시 데이터 · 설계값 + 임의 오차 (실제 측정값 아님)' : '예시 데이터 · 설계 이상값 (오차 0, 실제 측정값 아님)'; evaluate(); }
+  $('ex-noisy').addEventListener('click', () => loadExample(true));
+  $('ex-ideal').addEventListener('click', () => loadExample(false));
+  $('run').addEventListener('click', () => { evaluate(); });
+  $('raw').addEventListener('input', () => { $('exbadge').hidden = true; });
+  $('file').addEventListener('change', e => { const f = e.target.files[0]; if (!f) return; const rd = new FileReader(); rd.onload = () => { $('raw').value = rd.result; $('exbadge').hidden = true; evaluate(); }; rd.readAsText(f); });
+  ['fd', 'pitch', 'tol', 'prom', 'refmode', 'unit', 'flip'].forEach(id => $(id).addEventListener('change', evaluate));
+  $('zx').addEventListener('change', render);
+  $('copy').addEventListener('click', async () => {
+    if (!R) return;
+    const tsv = ['Lane\tX_um\tZ_um\tPitch_um\tdX_um\tdZ_um\t판정', ...R.lanes.map(l => [`L${l.k + 1}`, l.cx.toFixed(3), l.cz.toFixed(3), l.pitch === null ? '' : l.pitch.toFixed(3), l.dx.toFixed(3), l.dz.toFixed(3), l.ref ? '기준' : l.ok ? '합격' : '불합격'].join('\t'))].join('\n');
+    try { await navigator.clipboard.writeText(tsv); $('copy').textContent = '복사됨'; setTimeout(() => $('copy').textContent = '표 복사 (엑셀 붙여넣기용)', 1500); }
+    catch { $('raw').value = tsv; $('raw').select(); $('status').textContent = '클립보드를 쓸 수 없어 입력칸에 표를 넣고 선택해 뒀어요. Ctrl+C로 복사하세요.'; }
+  });
+  let rt; new ResizeObserver(() => { clearTimeout(rt); rt = setTimeout(render, 120); }).observe($('fig'));
+  const rerender = () => render();
+  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', rerender);
+  new MutationObserver(rerender).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+  loadExample(true);
+})();
+</script>
