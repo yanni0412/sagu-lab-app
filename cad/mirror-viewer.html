@@ -143,7 +143,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
       <ul class="checks" id="checks"></ul>
     </div>
 
-    <p class="note">기본값: 외곽 10×10×0.5 · 포켓 8×8 깊이 0.25 · V-groove 피치 127µm 내각 90° · 45° 반사면 + Reflective lens 구경 110µm R 250µm · 레지 폭 0.9, 프레임 윗면 위로 0.10 돌출 + 경사 0.35. 같은 파라미터의 OpenSCAD 원본은 저장소의 cad/mirror_frame.scad 입니다.</p>
+    <p class="note">기본값: 외곽 10×10×0.5 · 포켓 8×8 깊이 0.25 · V-groove 피치 127µm 내각 90° · 45° 반사면 + 레지까지 이어지는 Reflective lens 채널(폭 110µm, R 250µm) · 레지 폭 0.9, 프레임 윗면 위로 0.10 돌출 + 경사 0.35. 같은 파라미터의 OpenSCAD 원본은 저장소의 cad/mirror_frame.scad 입니다.</p>
   </aside>
 </div>
 
@@ -290,19 +290,24 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
 
     // 45° 반사면 + Reflective lens (lane마다 오목 구면)
     const M = mirror(G);
-    const face = rectShape(-wx, 0, wx, M.L);
-    G.xs.forEach(x => face.holes.push(circlePath(x + G.open / 2, M.vC, M.h)));
-    const fgeo = new THREE.ShapeGeometry(face, 48);
-    fgeo.applyMatrix4(new THREE.Matrix4().makeBasis(new THREE.Vector3(1, 0, 0), M.t, M.n).setPosition(0, M.yM, M.zB));
-    addMesh(fgeo, mats.ledge2);
+    // 반사면 평면부: 렌즈 채널 사이의 띠들
+    const slopeM = new THREE.Matrix4().makeBasis(new THREE.Vector3(1, 0, 0), M.t, M.n).setPosition(0, M.yM, M.zB);
+    const edgesU = [-wx]; G.xs.forEach(x => edgesU.push(x + G.open / 2 - M.h, x + G.open / 2 + M.h)); edgesU.push(wx);
+    for (let i = 0; i < edgesU.length; i += 2) {
+      const u0 = edgesU[i], u1 = edgesU[i + 1]; if (u1 - u0 <= 1e-6) continue;
+      const g = new THREE.PlaneGeometry(u1 - u0, M.L); g.translate((u0 + u1) / 2, M.L / 2, 0); g.applyMatrix4(slopeM); addMesh(g, mats.ledge2, false);
+    }
     const endTri = new THREE.Shape(); endTri.moveTo(M.yM, M.zB); endTri.lineTo(yL0, M.zB); endTri.lineTo(yL0, zL); endTri.lineTo(M.yM, M.zB);
     [-wx, wx].forEach(x => { const g = new THREE.ShapeGeometry(endTri); g.applyMatrix4(new THREE.Matrix4().makeBasis(new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0, 1), new THREE.Vector3(1, 0, 0)).setPosition(x, 0, 0)); addMesh(g, mats.ledge2); });
-    const cap = new THREE.SphereGeometry(M.R, 40, 10, 0, Math.PI * 2, 0, Math.asin(M.h / M.R));
-    const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), M.n.clone().negate());
+    // Reflective lens: 반사면 바닥 → 레지 윗모서리까지 이어지는 오목 원통 채널 (lane당 1개)
+    const phi = Math.asin(M.h / M.R);
+    const chan = new THREE.CylinderGeometry(M.R, M.R, M.L, 24, 1, true, -phi, 2 * phi);
+    const chanM = new THREE.Matrix4().makeBasis(new THREE.Vector3(-1, 0, 0), M.t, M.n.clone().negate());
     G.xs.forEach(x => {
-      const p = new THREE.Vector3(x + G.open / 2, M.py, M.zc), c = p.clone().addScaledVector(M.n, M.R - M.sag);
-      const m = new THREE.Mesh(cap, mats.lens); m.quaternion.copy(q); m.position.copy(c); group.add(m);
+      const c = new THREE.Vector3(x + G.open / 2, M.yM, M.zB).addScaledVector(M.t, M.L / 2).addScaledVector(M.n, M.R - M.sag);
+      const g = chan.clone(); g.applyMatrix4(chanM); g.translate(c.x, c.y, c.z); addMesh(g, mats.lens, false);
     });
+    chan.dispose();
     // 광로: 파이버 끝 → 렌즈 → 위로 반사
     if (P.showFiber) {
       const pts = []; G.xs.forEach(x => { const xc = x + G.open / 2; pts.push(xc, G.y1, M.zc, xc, M.py, M.zc, xc, M.py, M.zc, xc, M.py, zL + 0.25); });
@@ -346,8 +351,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
       add(contactH < G.depth ? 'ok' : 'bad', `V-groove ${G.n}개 · 깊이 ${(G.depth * 1000).toFixed(1)}µm · 벽 접촉 높이 ${(contactH * 1000).toFixed(1)}µm${contactH < G.depth ? '' : ' → 파이버가 홈 모서리에 걸림'}`);
       { const M = mirror(G);
         add(P.lensA < P.vPitch ? 'ok' : 'bad', `렌즈 ${G.n}개 · 구경 ${(P.lensA * 1000).toFixed(0)}µm · sag ${(M.sag * 1000).toFixed(2)}µm · 렌즈 간 간격 ${((P.vPitch - P.lensA) * 1000).toFixed(0)}µm`);
-        const lo = M.vC - M.h, hi = M.L - (M.vC + M.h);
-        add(lo >= 0 && hi >= 0 ? 'ok' : 'bad', `렌즈가 반사면 안에 들어감 (아래 여유 ${(lo * 1000).toFixed(1)}µm, 위 여유 ${(hi * 1000).toFixed(1)}µm)`);
+        add('ok', `렌즈 채널 길이 ${(M.L * 1000).toFixed(0)}µm (홈 바닥 → 레지 윗모서리), 광축 입사점은 바닥에서 ${(M.vC * 1000).toFixed(0)}µm`);
         add('ok', `파이버 끝 → 렌즈 거리 ${((M.py - G.y1) * 1000).toFixed(0)}µm · 반사면 ${(M.ang * 180 / Math.PI).toFixed(1)}°`); }
       add('ok', `파이버 중심 높이(평탄부 기준) ${((rf / s2 - G.depth) * 1000).toFixed(1)}µm · 윗면 돌출 ${(top * 1000).toFixed(1)}µm`); }
     if (P.mode !== 'notch') {

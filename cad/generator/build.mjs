@@ -1,5 +1,5 @@
 import opencascade from "replicad-opencascadejs/src/replicad_single.js";
-import { setOC, makeBaseBox, makeCylinder, makeSphere, draw } from "replicad";
+import { setOC, makeBaseBox, makeCylinder, draw } from "replicad";
 const makeBox = (a, b) => makeBaseBox(b[0]-a[0], b[1]-a[1], b[2]-a[2]).translate([(a[0]+b[0])/2, (a[1]+b[1])/2, a[2]]);
 import fs from "fs"; import path from "path";
 const here = path.dirname(new URL(import.meta.url).pathname);
@@ -35,12 +35,13 @@ function body() {
   // 파이버 끝 ~ 반사면 사이 광로 트렌치 (홈 바닥 깊이)
   cutter = cutter.fuse(makeBox([G.xs[0], G.y1 - e, zB], [G.xe, M.yM + e, zF + e]));
   s = s.cut(cutter);
-  // Reflective lens: 각 lane 광축이 반사면과 만나는 점에 오목 구면 (구 빼기)
+  // Reflective lens: lane마다 반사면 바닥(zB)부터 레지 윗모서리까지 이어지는 오목 원통 채널
   let lenses = null;
+  const t = [0, Math.cos(M.ang), Math.sin(M.ang)], k = P.lensR - M.sag, ext = 0.05;
   for (const x of G.xs) {
-    const c = [x + G.open/2, M.py + M.n[1]*(P.lensR - M.sag), M.pz + M.n[2]*(P.lensR - M.sag)];
-    const sp = makeSphere(P.lensR).translate(c);
-    lenses = lenses ? lenses.fuse(sp, { optimisation: "none" }) : sp;
+    const o = [x + G.open/2, M.yM + M.n[1]*k - t[1]*ext, zB + M.n[2]*k - t[2]*ext];
+    const cy = makeCylinder(P.lensR, M.L + 2*ext, o, t);
+    lenses = lenses ? lenses.fuse(cy, { optimisation: "none" }) : cy;
   }
   // 반사면 쐐기 안쪽만 깎도록 제한 (홈 끝단·트렌치 옆 바닥은 건드리지 않음)
   const wedge = draw([M.yM, zB]).lineTo([yL0, zB]).lineTo([yL0, zL]).close()

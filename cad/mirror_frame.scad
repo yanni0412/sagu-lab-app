@@ -96,10 +96,13 @@ lens_sag = lens_r - sqrt(lens_r*lens_r - (lens_a/2)*(lens_a/2));
 module trench() {     // 파이버 끝 ~ 반사면 사이 광로
     translate([v_x0, v_y1 - eps, z_b]) cube([v_n*v_pitch - v_flat, y_m - v_y1 + 2*eps, z_floor - z_b + eps]);
 }
-module lenses() {     // lane마다 오목 구면, 반사면 쐐기 안쪽만
+m_L = (z_ledge - z_b) / sin(m_ang);                       // 반사면 길이
+module lenses() {     // lane마다 반사면 바닥 → 레지 윗모서리까지 이어지는 오목 원통 채널, 쐐기 안쪽만
     intersection() {
         for (i = [0 : v_n - 1])
-            translate([v_x0 + i*v_pitch + v_open/2, p_y, z_axis] + m_n*(lens_r - lens_sag)) sphere(r = lens_r, $fn = 96);
+            translate([v_x0 + i*v_pitch + v_open/2, y_m, z_b] + m_n*(lens_r - lens_sag))
+                rotate([-(90 - m_ang), 0, 0])      // +Z 축을 반사면 경사 방향으로
+                    translate([0, 0, -0.05]) cylinder(r = lens_r, h = m_L + 0.1, $fn = 96);
         rotate([90, 0, 90]) linear_extrude(height = win_w, center = true)
             polygon([[y_m, z_b], [y_l0, z_b], [y_l0, z_ledge]]);
     }
