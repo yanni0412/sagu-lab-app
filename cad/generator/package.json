@@ -1,0 +1,3 @@
+{ "name": "mirror-frame-generator", "private": true, "type": "module",
+  "scripts": { "build": "node boot.mjs ../export" },
+  "dependencies": { "replicad": "0.17.1", "replicad-opencascadejs": "0.17.1" } }
