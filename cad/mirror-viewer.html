@@ -95,7 +95,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
   <aside>
     <div>
       <h1>Mirror 프레임 식별 마크</h1>
-      <p class="sub">Φ0.15 DOT과 Notch 대안을 같은 형상에서 비교합니다. 외곽·포켓·레지 치수는 그림 비율로 잡은 가정값입니다.</p>
+      <p class="sub">Φ0.15 DOT과 Notch 대안을 같은 형상에서 비교합니다. 판·V-groove 영역·레지 치수는 CAD 그림 비율로 잡은 가정값입니다.</p>
     </div>
 
     <div class="group">
@@ -110,7 +110,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
     <div class="group" id="dot-group">
       <span class="label">DOT 위치</span>
       <label class="check"><input type="checkbox" id="atFrame" checked><span class="dot" style="background:var(--legacy)"></span>① 기존 제안: 프레임 4모서리</label>
-      <label class="check"><input type="checkbox" id="atLedge" checked><span class="dot" style="background:var(--accent)"></span>② 신규 요청: 상단 레지 양끝</label>
+      <label class="check"><input type="checkbox" id="atLedge" checked><span class="dot" style="background:var(--accent)"></span>② 신규 요청: 레지 윗면 양끝</label>
       <div class="row"><label for="dotD">DOT 지름 Φ</label><output id="dotD-o"></output><input type="range" id="dotD" min="0.05" max="0.30" step="0.01" value="0.15"></div>
       <div class="row"><label for="dotH" id="dotH-l">DOT 높이</label><output id="dotH-o"></output><input type="range" id="dotH" min="0.005" max="0.08" step="0.005" value="0.04"></div>
     </div>
@@ -134,8 +134,8 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
 
     <div class="group">
       <span class="label">가정 치수</span>
-      <div class="row"><label for="ledgeH">상단 레지 평탄부 폭</label><output id="ledgeH-o"></output><input type="range" id="ledgeH" min="0.15" max="1.5" step="0.01" value="0.90"></div>
-      <div class="row"><label for="ledgeRise">레지 돌출 높이 (프레임 윗면 기준)</label><output id="ledgeRise-o"></output><input type="range" id="ledgeRise" min="0" max="0.30" step="0.01" value="0.10"></div>
+      <div class="row"><label for="ledgeH">레지 윗면 폭</label><output id="ledgeH-o"></output><input type="range" id="ledgeH" min="0.15" max="1.0" step="0.01" value="0.40"></div>
+      <div class="row"><label for="ledgeRise">레지 높이 (판 윗면 기준)</label><output id="ledgeRise-o"></output><input type="range" id="ledgeRise" min="0.12" max="0.6" step="0.01" value="0.25"></div>
     </div>
 
     <div class="group">
@@ -143,7 +143,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
       <ul class="checks" id="checks"></ul>
     </div>
 
-    <p class="note">기본값: 외곽 10×10×0.5 · 포켓 8×8 깊이 0.25 · V-groove 피치 127µm 내각 90° · 45° 반사면 + 레지까지 이어지는 Reflective lens 채널(폭 110µm, R 250µm) · 레지 폭 0.9, 프레임 윗면 위로 0.10 돌출 + 경사 0.35. 같은 파라미터의 OpenSCAD 원본은 저장소의 cad/mirror_frame.scad 입니다.</p>
+    <p class="note">기본값: 판 10×10×0.5 · V-groove 피치 127µm 내각 90°, 판 윗면에 직접 가공 · 레지 길이 8.6, 윗면 폭 0.4, 높이 0.25, 앞면 45° 반사면, 양 끝 45° 경사 · Reflective lens 채널 폭 110µm R 250µm, 홈 바닥에서 레지 윗모서리까지. 같은 파라미터의 OpenSCAD 원본은 저장소의 cad/mirror_frame.scad 입니다.</p>
   </aside>
 </div>
 
@@ -155,15 +155,17 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
     mode: 'bump', atFrame: true, atLedge: true,
     dotD: 0.15, dotH: 0.04,
     notchN: 3, notchW: 0.20, notchD: 0.15, notchZ: 0.04,
-    W: 10, H: 10, T: 0.5, winW: 8, winH: 8, pocketD: 0.25,
-    ledgeH: 0.90, ledgeRise: 0.10, slopeLen: 0.35,
+    W: 10, H: 10, T: 0.5, winW: 8, frontMargin: 0.6,
+    ridgeL: 8.6, backMargin: 0.8, ledgeH: 0.40, ledgeRise: 0.25, mirrorAng: 45,
     vPitch: 0.127, vAngle: 90, vFlat: 0.010, ribMargin: 0.20, fiberD: 0.125, showFiber: true, lensA: 0.110, lensR: 0.25,
     frameInset: 0.5, ledgeInset: 0.3,
   };
   const d = () => {
-    const zF = P.T - P.pocketD, zL = P.T + P.ledgeRise, yTop = P.winH / 2;
-    const yL0 = yTop - P.ledgeH, yS0 = yL0 - P.slopeLen;
-    return { zF, zL, yTop, yL0, yS0 };
+    // zF = 판 윗면, zL = 레지 윗면, yTop = 레지 뒷면, yL0 = 레지 윗면 앞모서리, yS0 = 반사면이 판 윗면과 만나는 선
+    const zF = P.T, zL = P.T + P.ledgeRise, yTop = P.H / 2 - P.backMargin;
+    const yL0 = yTop - P.ledgeH, yS0 = yL0 - P.ledgeRise / Math.tan(P.mirrorAng * Math.PI / 180);
+    const xt = P.ridgeL / 2 - P.ledgeRise;   // 45° 끝단 경사 → 윗면 반길이
+    return { zF, zL, yTop, yL0, yS0, xt };
   };
 
   // ---------- three.js 기본 ----------
@@ -220,12 +222,18 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
     g.translate(0, 0, z0);
     return addMesh(g, mat, edges);
   }
+  function poly(pts, mat, edges = true) {   // 볼록 평면 다각형 (팬 삼각분할)
+    const v = []; for (let i = 1; i < pts.length - 1; i++) v.push(...pts[0], ...pts[i], ...pts[i + 1]);
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(v, 3)); g.computeVertexNormals();
+    return addMesh(g, mat, edges);
+  }
+  function shapeOn(shape, m, mat, edges = true) { const g = new THREE.ShapeGeometry(shape, 48); g.applyMatrix4(m); return addMesh(g, mat, edges); }
   function disc(x, y, z, r, mat) {
     const g = new THREE.CircleGeometry(r, 48); g.translate(x, y, z); addMesh(g, mat, false);
   }
 
   function mirror(G) {   // 45° 반사면을 홈 바닥(zB)부터 시작, 광축이 닿는 점에 렌즈
-    const { zF, zL, yS0 } = d(); const zB = zF - G.depth, ang = Math.atan2(zL - zF, P.slopeLen);
+    const { zF, zL, yS0 } = d(); const zB = zF - G.depth, ang = P.mirrorAng * Math.PI / 180;
     const yM = yS0 - (zF - zB) / Math.tan(ang);
     const zc = zB + (P.fiberD / 2) / Math.sin(P.vAngle / 2 * Math.PI / 180);
     const h = P.lensA / 2, R = Math.max(P.lensR, h + 1e-6), sag = R - Math.sqrt(R * R - h * h);
@@ -237,85 +245,83 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
     const { yS0 } = d(); const open = P.vPitch - P.vFlat, depth = (open / 2) / Math.tan(P.vAngle / 2 * Math.PI / 180);
     const n = Math.floor((P.winW - 2 * P.ribMargin - P.vFlat) / P.vPitch), x0 = -(n * P.vPitch - P.vFlat) / 2;
     const xs = Array.from({ length: n }, (_, i) => x0 + i * P.vPitch);
-    return { open, depth, n, xs, xe: xs[n - 1] + open, y0: -P.winH / 2 + P.ribMargin, y1: yS0 - P.ribMargin };
+    return { open, depth, n, xs, xe: xs[n - 1] + open, y0: -P.H / 2 + P.frontMargin, y1: yS0 - P.ribMargin };
   }
   function framePts() { const r = P.W / 2 - P.frameInset, s = P.H / 2 - P.frameInset; return [[r, s], [-r, s], [r, -s], [-r, -s]]; }
-  function ledgePts() { const { yL0, yTop } = d(); const x = P.winW / 2 - P.ledgeInset; return [[x, (yL0 + yTop) / 2], [-x, (yL0 + yTop) / 2]]; }
-  function notchXs() { return Array.from({ length: P.notchN }, (_, i) => -P.winW / 2 + P.winW * (i + 1) / (P.notchN + 1)); }
+  function ledgePts() { const { yL0, yTop, xt } = d(); const x = xt - P.ledgeInset; return [[x, (yL0 + yTop) / 2], [-x, (yL0 + yTop) / 2]]; }
+  function notchXs() { const { xt } = d(); return Array.from({ length: P.notchN }, (_, i) => -xt + 2 * xt * (i + 1) / (P.notchN + 1)); }
 
   // ---------- 모델 빌드 ----------
   function build() {
     group.traverse(o => o.geometry && o.geometry.dispose());
     scene.remove(group); group = new THREE.Group(); scene.add(group);
-    const { zF, zL, yTop, yL0, yS0 } = d();
+    const { zF, zL, yTop, yL0, yS0, xt } = d();
     const r = P.dotD / 2, h = P.dotH;
-    const hx = P.W / 2, hy = P.H / 2, wx = P.winW / 2, wy = P.winH / 2;
-    const isDot = P.mode !== 'notch', bump = P.mode === 'bump', dimple = P.mode === 'dimple';
+    const hx = P.W / 2, hy = P.H / 2, L2 = P.ridgeL / 2;
+    const bump = P.mode === 'bump', dimple = P.mode === 'dimple';
+    const G = vg(), M = mirror(G), zB = M.zB;
+    const X = new THREE.Vector3(1, 0, 0), Y = new THREE.Vector3(0, 1, 0), Z = new THREE.Vector3(0, 0, 1);
 
-    // 바닥판: V-groove 깊이 아래까지는 통짜, 그 위는 홈 영역만 톱니 단면
-    const G = vg();
-    const zB = zF - G.depth;
-    slab(rectShape(-hx, -hy, hx, hy), 0, zB, mats.metal);
-    const fill = rectShape(-hx, -hy, hx, hy); fill.holes.push(rectShape(G.xs[0], G.y0, G.xe, mirror(G).yM, THREE.Path));   // 홈 + 광로 트렌치
-    slab(fill, zB, zF, mats.metal);
-
-    // 프레임 테두리 (凹이면 윗층에 원형 구멍)
-    const border = (holes) => { const s = rectShape(-hx, -hy, hx, hy); s.holes.push(rectShape(-wx, -wy, wx, wy, THREE.Path)); holes.forEach(p => s.holes.push(p)); return s; };
-    const frameCut = dimple && P.atFrame;
-    slab(border([]), zF, frameCut ? P.T - h : P.T, mats.metal);
-    if (frameCut) {
-      slab(border(framePts().map(([x, y]) => circlePath(x, y, r))), P.T - h, P.T, mats.metal);
-      framePts().forEach(([x, y]) => disc(x, y, P.T - h + 0.0006, r, mats.legacy));
+    // ── 판: 높이 구간별 층. 홈 바닥(zB) 위로는 V-groove + 광로 트렌치 영역이 비어 있음
+    const frameCut = dimple && P.atFrame, hf = Math.min(h, zF - 0.01);
+    const cuts = [...new Set([0, zB, frameCut ? zF - hf : zF, zF])].sort((a, b) => a - b);
+    for (let i = 0; i < cuts.length - 1; i++) {
+      const a = cuts[i], b = cuts[i + 1]; if (b - a < 1e-6) continue;
+      const sh = rectShape(-hx, -hy, hx, hy);
+      if (a >= zB - 1e-9) sh.holes.push(rectShape(G.xs[0], G.y0, G.xe, M.yM, THREE.Path));
+      if (frameCut && a >= zF - hf - 1e-9) framePts().forEach(([x, y]) => sh.holes.push(circlePath(x, y, r)));
+      slab(sh, a, b, mats.metal);
     }
+    if (frameCut) framePts().forEach(([x, y]) => disc(x, y, zF - hf + 0.0006, r, mats.legacy));
 
-    // 상단 레지 평탄부
-    const ledgeCutDepth = P.mode === 'notch' ? P.notchZ : (dimple && P.atLedge ? h : 0);
-    slab(rectShape(-wx, yL0, wx, yTop), zF, zL - ledgeCutDepth, mats.ledge);
-    if (ledgeCutDepth > 0) {
-      let s;
-      if (P.mode === 'notch') {
-        s = new THREE.Shape(); s.moveTo(-wx, yL0); s.lineTo(wx, yL0); s.lineTo(wx, yTop);
-        notchXs().slice().reverse().forEach(cx => {
-          const a = cx + P.notchW / 2, b = cx - P.notchW / 2, yb = yTop - P.notchD;
-          s.lineTo(a, yTop); s.lineTo(a, yb); s.lineTo(b, yb); s.lineTo(b, yTop);
-        });
-        s.lineTo(-wx, yTop); s.lineTo(-wx, yL0);
-        notchXs().forEach(cx => { const g = new THREE.PlaneGeometry(P.notchW, P.notchD); g.translate(cx, yTop - P.notchD / 2, zL - P.notchZ + 0.0006); addMesh(g, mats.accent, false); });
-      } else {
-        s = rectShape(-wx, yL0, wx, yTop);
-        ledgePts().forEach(([x, y]) => { s.holes.push(circlePath(x, y, r)); disc(x, y, zL - h + 0.0006, r, mats.accent); });
-      }
-      slab(s, zL - ledgeCutDepth, zL, mats.ledge);
+    // ── 레지(리지): 앞면 45° 반사면, 양 끝 45° 경사, 뒷면 수직
+    const slopeM = new THREE.Matrix4().makeBasis(X, M.t, M.n).setPosition(0, M.yM, M.zB);
+    const ex = v => L2 + (zF - zB) - v * Math.sin(M.ang);           // 반사면 위 좌표 v에서 리지 반폭
+    const cl = G.xs.map(x => [x + G.open / 2 - M.h, x + G.open / 2 + M.h]);
+    // 반사면 평면부: 왼쪽 끝 조각, 채널 사이 띠, 오른쪽 끝 조각
+    const piece = (pts) => { const sh = new THREE.Shape(); sh.moveTo(...pts[0]); pts.slice(1).forEach(p => sh.lineTo(...p)); sh.lineTo(...pts[0]); shapeOn(sh, slopeM, mats.ledge2, false); };
+    piece([[-ex(0), 0], [cl[0][0], 0], [cl[0][0], M.L], [-ex(M.L), M.L]]);
+    for (let i = 0; i < cl.length - 1; i++) if (cl[i + 1][0] - cl[i][1] > 1e-6) piece([[cl[i][1], 0], [cl[i + 1][0], 0], [cl[i + 1][0], M.L], [cl[i][1], M.L]]);
+    piece([[cl[cl.length - 1][1], 0], [ex(0), 0], [ex(M.L), M.L], [cl[cl.length - 1][1], M.L]]);
+    // 양 끝 경사면
+    [1, -1].forEach(sx => poly([[sx * L2, yS0, zF], [sx * L2, yTop, zF], [sx * xt, yTop, zL], [sx * xt, yL0, zL]], mats.ledge2));
+    // 뒷면 (Notch면 윗변에 홈)
+    const notch = P.mode === 'notch', nx = notchXs();
+    const back = new THREE.Shape(); back.moveTo(-L2, zF); back.lineTo(L2, zF); back.lineTo(xt, zL);
+    if (notch) nx.slice().reverse().forEach(cx => { back.lineTo(cx + P.notchW / 2, zL); back.lineTo(cx + P.notchW / 2, zL - P.notchZ); back.lineTo(cx - P.notchW / 2, zL - P.notchZ); back.lineTo(cx - P.notchW / 2, zL); });
+    back.lineTo(-xt, zL); back.lineTo(-L2, zF);
+    shapeOn(back, new THREE.Matrix4().makeBasis(X, Z, Y.clone().negate()).setPosition(0, yTop, 0), mats.ledge2);
+    // 윗면 (凹 DOT 구멍 / Notch 홈)
+    let top;
+    if (notch) {
+      top = new THREE.Shape(); top.moveTo(-xt, yL0); top.lineTo(xt, yL0); top.lineTo(xt, yTop);
+      nx.slice().reverse().forEach(cx => { const a = cx + P.notchW / 2, b = cx - P.notchW / 2, yb = yTop - P.notchD; top.lineTo(a, yTop); top.lineTo(a, yb); top.lineTo(b, yb); top.lineTo(b, yTop); });
+      top.lineTo(-xt, yTop); top.lineTo(-xt, yL0);
+      const zn = zL - P.notchZ, yb = yTop - P.notchD;
+      nx.forEach(cx => { const a = cx - P.notchW / 2, b = cx + P.notchW / 2;
+        poly([[a, yb, zn], [b, yb, zn], [b, yTop, zn], [a, yTop, zn]], mats.accent, false);
+        poly([[a, yb, zn], [b, yb, zn], [b, yb, zL], [a, yb, zL]], mats.ledge2);
+        [a, b].forEach(x => poly([[x, yb, zn], [x, yTop, zn], [x, yTop, zL], [x, yb, zL]], mats.ledge2)); });
+    } else {
+      top = rectShape(-xt, yL0, xt, yTop);
+      if (dimple && P.atLedge) ledgePts().forEach(([x, y]) => {
+        top.holes.push(circlePath(x, y, r)); disc(x, y, zL - h + 0.0006, r, mats.accent);
+        const w = new THREE.CylinderGeometry(r, r, h, 48, 1, true); w.rotateX(Math.PI / 2); w.translate(x, y, zL - h / 2); addMesh(w, mats.ledge2, false);
+      });
     }
+    shapeOn(top, new THREE.Matrix4().makeTranslation(0, 0, zL), mats.ledge2);
 
-    // 45° 반사면 + Reflective lens (lane마다 오목 구면)
-    const M = mirror(G);
-    // 반사면 평면부: 렌즈 채널 사이의 띠들
-    const slopeM = new THREE.Matrix4().makeBasis(new THREE.Vector3(1, 0, 0), M.t, M.n).setPosition(0, M.yM, M.zB);
-    const edgesU = [-wx]; G.xs.forEach(x => edgesU.push(x + G.open / 2 - M.h, x + G.open / 2 + M.h)); edgesU.push(wx);
-    for (let i = 0; i < edgesU.length; i += 2) {
-      const u0 = edgesU[i], u1 = edgesU[i + 1]; if (u1 - u0 <= 1e-6) continue;
-      const g = new THREE.PlaneGeometry(u1 - u0, M.L); g.translate((u0 + u1) / 2, M.L / 2, 0); g.applyMatrix4(slopeM); addMesh(g, mats.ledge2, false);
-    }
-    const endTri = new THREE.Shape(); endTri.moveTo(M.yM, M.zB); endTri.lineTo(yL0, M.zB); endTri.lineTo(yL0, zL); endTri.lineTo(M.yM, M.zB);
-    [-wx, wx].forEach(x => { const g = new THREE.ShapeGeometry(endTri); g.applyMatrix4(new THREE.Matrix4().makeBasis(new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0, 1), new THREE.Vector3(1, 0, 0)).setPosition(x, 0, 0)); addMesh(g, mats.ledge2); });
-    // Reflective lens: 반사면 바닥 → 레지 윗모서리까지 이어지는 오목 원통 채널 (lane당 1개)
+    // ── Reflective lens: 반사면 바닥 → 레지 윗모서리까지 이어지는 오목 원통 채널 (lane당 1개)
     const phi = Math.asin(M.h / M.R);
     const chan = new THREE.CylinderGeometry(M.R, M.R, M.L, 24, 1, true, -phi, 2 * phi);
-    const chanM = new THREE.Matrix4().makeBasis(new THREE.Vector3(-1, 0, 0), M.t, M.n.clone().negate());
+    const chanM = new THREE.Matrix4().makeBasis(X.clone().negate(), M.t, M.n.clone().negate());
     G.xs.forEach(x => {
       const c = new THREE.Vector3(x + G.open / 2, M.yM, M.zB).addScaledVector(M.t, M.L / 2).addScaledVector(M.n, M.R - M.sag);
       const g = chan.clone(); g.applyMatrix4(chanM); g.translate(c.x, c.y, c.z); addMesh(g, mats.lens, false);
     });
     chan.dispose();
-    // 광로: 파이버 끝 → 렌즈 → 위로 반사
-    if (P.showFiber) {
-      const pts = []; G.xs.forEach(x => { const xc = x + G.open / 2; pts.push(xc, G.y1, M.zc, xc, M.py, M.zc, xc, M.py, M.zc, xc, M.py, zL + 0.25); });
-      const lg = new THREE.BufferGeometry(); lg.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
-      group.add(new THREE.LineSegments(lg, mats.beam));
-    }
 
-    // V-groove: XZ 톱니 단면을 Y로 돌출
+    // ── V-groove: XZ 톱니 단면을 Y로 돌출
     const saw = new THREE.Shape(); saw.moveTo(G.xs[0], zB); saw.lineTo(G.xe, zB);
     G.xs.slice().reverse().forEach(x => { saw.lineTo(x + G.open, zF); saw.lineTo(x + G.open / 2, zB); saw.lineTo(x, zF); });
     saw.lineTo(G.xs[0], zB);
@@ -323,19 +329,22 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
     sg.applyMatrix4(new THREE.Matrix4().set(1, 0, 0, 0, 0, 0, -1, G.y1, 0, 1, 0, 0, 0, 0, 0, 1));
     addMesh(sg, mats.rib, false);
 
-    // 가상 파이버 (Ø125µm, 양쪽 벽 접촉 시 중심 = 꼭짓점 + r/sin(θ/2))
+    // ── 가상 파이버 + 광로
     if (P.showFiber) {
-      const rf = P.fiberD / 2, zc = zB + rf / Math.sin(P.vAngle / 2 * Math.PI / 180);
+      const rf = P.fiberD / 2;
       const fg = new THREE.CylinderGeometry(rf, rf, G.y1 - G.y0, 32);
       const im = new THREE.InstancedMesh(fg, mats.fiber, G.n); const mtx = new THREE.Matrix4();
-      G.xs.forEach((x, i) => { mtx.makeTranslation(x + G.open / 2, (G.y0 + G.y1) / 2, zc); im.setMatrixAt(i, mtx); });
+      G.xs.forEach((x, i) => { mtx.makeTranslation(x + G.open / 2, (G.y0 + G.y1) / 2, M.zc); im.setMatrixAt(i, mtx); });
       group.add(im);
+      const pts = []; G.xs.forEach(x => { const xc = x + G.open / 2; pts.push(xc, G.y1, M.zc, xc, M.py, M.zc, xc, M.py, M.zc, xc, M.py, zL + 0.25); });
+      const lg = new THREE.BufferGeometry(); lg.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
+      group.add(new THREE.LineSegments(lg, mats.beam));
     }
 
-    // 凸 DOT
+    // ── 凸 DOT
     if (bump) {
       const cyl = () => { const g = new THREE.CylinderGeometry(r, r, h, 48); g.rotateX(Math.PI / 2); return g; };
-      if (P.atFrame) framePts().forEach(([x, y]) => { const g = cyl(); g.translate(x, y, P.T + h / 2); addMesh(g, mats.legacy, false); });
+      if (P.atFrame) framePts().forEach(([x, y]) => { const g = cyl(); g.translate(x, y, zF + h / 2); addMesh(g, mats.legacy, false); });
       if (P.atLedge) ledgePts().forEach(([x, y]) => { const g = cyl(); g.translate(x, y, zL + h / 2); addMesh(g, mats.accent, false); });
     }
     updateChecks();
@@ -366,15 +375,17 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
         else add('ok', `② DOT과 레지 끝 여유 ${m.toFixed(3)}mm`);
       }
       if (P.atFrame) {
-        const m = (P.W - P.winW) / 2 - P.frameInset - r;
-        add(m > 0.1 ? 'ok' : 'warn', `① DOT과 포켓 가장자리 여유 ${m.toFixed(3)}mm`);
+        const { yS0 } = d(), fx = P.W / 2 - P.frameInset, fy = P.H / 2 - P.frameInset;
+        const dx = Math.max(0, fx - P.ridgeL / 2), dy = Math.max(0, fy - yTop, yS0 - fy);
+        const m = Math.hypot(dx, dy) - r;
+        add(m > 0.1 ? 'ok' : m > 0 ? 'warn' : 'bad', `① 뒤쪽 DOT과 레지 끝단 여유 ${m.toFixed(3)}mm`);
       }
       if (P.mode === 'bump' && P.atLedge) add('warn', '② 레지는 Mirror 조립 시 접촉면일 수 있어요. 凸이면 들뜸 원인이 될 수 있으니 凹 또는 Notch도 비교하세요.');
     } else {
       const gap = P.winW / (P.notchN + 1) - P.notchW;
       add(gap > 0.2 ? 'ok' : 'warn', `Notch 간격 ${gap.toFixed(2)}mm`);
       add(P.notchD < P.ledgeH ? 'ok' : 'bad', `Notch Y깊이 ${P.notchD.toFixed(2)} / 레지 폭 ${P.ledgeH.toFixed(2)}mm`);
-      add(P.notchZ < P.ledgeRise + P.pocketD ? 'ok' : 'bad', `Notch Z깊이 ${P.notchZ.toFixed(3)}mm`);
+      add(P.notchZ < P.ledgeRise ? 'ok' : 'bad', `Notch Z깊이 ${P.notchZ.toFixed(3)}mm`);
     }
     document.getElementById('checks').innerHTML = out.join('');
   }
@@ -390,7 +401,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
     ledge: () => { const { zL } = d(); const [x, y] = ledgePts()[0]; goTo([x, y, zL], [x - 0.35, y - 0.8, zL + 0.55]); },
     notch: () => { const { zL, yTop } = d(); goTo([0, yTop - 0.1, zL], [0.6, yTop - 1.3, zL + 0.9]); },
     lens: () => { const G = vg(), M = mirror(G), x = G.xs[1] + G.open / 2; goTo([x + 0.1, M.py, M.zc], [x + 0.3, M.py - 0.95, M.zc + 0.6]); },
-    groove: () => { const G = vg(), zF = P.T - P.pocketD; goTo([G.xs[0] + 0.25, G.y0, zF], [G.xs[0] + 0.3, G.y0 - 0.55, zF + 0.9]); },
+    groove: () => { const G = vg(), zF = P.T; goTo([G.xs[0] + 0.25, G.y0, zF], [G.xs[0] + 0.3, G.y0 - 0.55, zF + 0.9]); },
   };
   const viewBtns = { all: 'v-all', frame: 'v-frame', ledge: 'v-ledge', notch: 'v-notch', groove: 'v-groove', lens: 'v-lens' };
   Object.entries(viewBtns).forEach(([k, id]) => document.getElementById(id).addEventListener('click', () => {
